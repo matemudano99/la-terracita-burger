@@ -1,22 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-
-// Convert a CSS declaration string into a React style object, preserving the
-// design's exact values (colors, clamp(), gradients, animations).
-const sx = (css) =>
-  Object.fromEntries(
-    css
-      .split(";")
-      .map((s) => s.trim())
-      .filter(Boolean)
-      .map((rule) => {
-        const i = rule.indexOf(":");
-        const key = rule
-          .slice(0, i)
-          .trim()
-          .replace(/-([a-z])/g, (_, c) => c.toUpperCase());
-        return [key, rule.slice(i + 1).trim()];
-      })
-  );
+import { sx } from "./sx";
+import Carousel from "./Carousel";
 
 const CATS = [
   {
@@ -330,10 +314,8 @@ export default function Landing() {
         </div>
         <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s .1s,transform .7s .1s;position:relative")}>
           <div style={sx("position:absolute;inset:-8% -8% -8% -8%;background:radial-gradient(circle,rgb(var(--acc) / .3),transparent 65%);filter:blur(30px);animation:ltb-pulse 5s infinite")} />
-          <div style={sx("position:relative;width:100%;aspect-ratio:4/5;border-radius:20px;background:repeating-linear-gradient(45deg,#171009,#171009 14px,#1c130b 14px,#1c130b 28px);display:grid;place-items:center;text-align:center;padding:24px;border:1px solid rgba(246,241,233,.1)")}>
-            <span style={sx("font-family:ui-monospace,monospace;font-size:12px;letter-spacing:.16em;color:rgba(246,241,233,.4)")}>Foto smash burger — plancha / bordes crujientes</span>
-          </div>
-          <span style={sx("position:absolute;top:-18px;right:-10px;display:grid;place-items:center;width:100px;height:100px;border-radius:50%;background:rgb(var(--emb));color:#0a0806;font-family:'Anton',sans-serif;font-size:14px;text-align:center;line-height:1;text-transform:uppercase;transform:rotate(10deg);animation:ltb-float 6s ease-in-out infinite")}>Angus<br />Dry Age</span>
+          <Carousel />
+          <span style={sx("position:absolute;top:-18px;right:-10px;z-index:4;display:grid;place-items:center;width:100px;height:100px;border-radius:50%;background:rgb(var(--emb));color:#0a0806;font-family:'Anton',sans-serif;font-size:14px;text-align:center;line-height:1;text-transform:uppercase;transform:rotate(10deg);animation:ltb-float 6s ease-in-out infinite")}>Angus<br />Dry Age</span>
         </div>
       </section>
 
@@ -341,14 +323,26 @@ export default function Landing() {
       <section id="locales" style={sx("position:relative;z-index:2;padding:60px 5vw 100px;max-width:1200px;margin:0 auto")}>
         <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s;text-align:center;margin-bottom:52px")}>
           <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>03 — Locales</div>
-          <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>Encuéntra<span style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>nos</span></h2>
+          <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>Encuentranos</h2>
         </div>
         <div className="ltb-2col" style={sx("display:grid;grid-template-columns:1fr 1fr;gap:22px")}>
           <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s;position:relative;border:1px solid rgba(246,241,233,.12);border-radius:20px;overflow:hidden;background:#0f0b08")} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgb(var(--acc) / .5)"; e.currentTarget.style.transform = "translateY(-6px)"; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(246,241,233,.12)"; e.currentTarget.style.transform = "translateY(0)"; }}>
-            <div style={sx("position:relative;height:200px;background:repeating-linear-gradient(45deg,#171009,#171009 12px,#1c130b 12px,#1c130b 24px);display:grid;place-items:center;overflow:hidden")}>
-              <div style={sx("position:absolute;inset:0;background:radial-gradient(circle at 30% 40%,rgb(var(--acc) / .2),transparent 55%)")} />
-              <span style={sx("position:relative;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.2em;color:rgba(246,241,233,.4)")}>MAPA · TEATINOS</span>
-              <span style={sx("position:absolute;top:50%;left:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:rgb(var(--acc));box-shadow:0 0 20px rgb(var(--acc) / .9)")} />
+            <div style={sx("position:relative;height:200px;overflow:hidden")}>
+              <iframe
+                title="Mapa La Terracita Burger — Teatinos"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=-4.48378,36.7216,-4.47578,36.7266&layer=mapnik&marker=36.7241,-4.47978"
+                style={sx("display:block;width:100%;height:100%;border:0;pointer-events:none")}
+                loading="lazy"
+              />
+              <a
+                href="https://www.google.com/maps/search/?api=1&query=36.7241,-4.47978"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Abrir Teatinos en Google Maps"
+                style={sx("position:absolute;inset:0;z-index:2;display:flex;align-items:flex-end;justify-content:flex-end;padding:12px;text-decoration:none")}
+              >
+                <span style={sx("font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:7px 12px;border-radius:100px;background:rgba(10,8,6,.8);color:#f6f1e9;border:1px solid rgba(246,241,233,.22);backdrop-filter:blur(4px)")}>Ver en Google Maps ↗</span>
+              </a>
             </div>
             <div style={sx("padding:26px")}>
               <h3 style={sx("margin:0 0 6px;font-family:'Anton',sans-serif;font-weight:400;font-size:30px;text-transform:uppercase")}>Teatinos</h3>
@@ -360,10 +354,22 @@ export default function Landing() {
             </div>
           </div>
           <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s .08s,transform .7s .08s;position:relative;border:1px solid rgba(246,241,233,.12);border-radius:20px;overflow:hidden;background:#0f0b08")} onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgb(var(--acc) / .5)"; e.currentTarget.style.transform = "translateY(-6px)"; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(246,241,233,.12)"; e.currentTarget.style.transform = "translateY(0)"; }}>
-            <div style={sx("position:relative;height:200px;background:repeating-linear-gradient(45deg,#171009,#171009 12px,#1c130b 12px,#1c130b 24px);display:grid;place-items:center;overflow:hidden")}>
-              <div style={sx("position:absolute;inset:0;background:radial-gradient(circle at 70% 50%,rgb(var(--emb) / .16),transparent 55%)")} />
-              <span style={sx("position:relative;font-family:ui-monospace,monospace;font-size:11px;letter-spacing:.2em;color:rgba(246,241,233,.4)")}>MAPA · RINCÓN DE LA VICTORIA</span>
-              <span style={sx("position:absolute;top:50%;left:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:rgb(var(--acc));box-shadow:0 0 20px rgb(var(--acc) / .9)")} />
+            <div style={sx("position:relative;height:200px;overflow:hidden")}>
+              <iframe
+                title="Mapa La Terracita Burger — Rincón de la Victoria"
+                src="https://www.openstreetmap.org/export/embed.html?bbox=-4.27883,36.7114,-4.27083,36.7164&layer=mapnik&marker=36.71391,-4.27483"
+                style={sx("display:block;width:100%;height:100%;border:0;pointer-events:none")}
+                loading="lazy"
+              />
+              <a
+                href="https://www.google.com/maps/search/?api=1&query=36.71391,-4.27483"
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Abrir Rincón de la Victoria en Google Maps"
+                style={sx("position:absolute;inset:0;z-index:2;display:flex;align-items:flex-end;justify-content:flex-end;padding:12px;text-decoration:none")}
+              >
+                <span style={sx("font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:7px 12px;border-radius:100px;background:rgba(10,8,6,.8);color:#f6f1e9;border:1px solid rgba(246,241,233,.22);backdrop-filter:blur(4px)")}>Ver en Google Maps ↗</span>
+              </a>
             </div>
             <div style={sx("padding:26px")}>
               <h3 style={sx("margin:0 0 6px;font-family:'Anton',sans-serif;font-weight:400;font-size:30px;text-transform:uppercase")}>Rincón de la Victoria</h3>
