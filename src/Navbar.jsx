@@ -31,7 +31,7 @@ export default function Navbar() {
   return (
     <nav ref={navRef} style={sx("position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:14px 5vw;transition:background .3s,backdrop-filter .3s,border-color .3s;border-bottom:1px solid transparent")}>
       <a href="#top" onClick={close} style={sx("display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit")}>
-        <img src="/logo-ltb.png" alt="La Terracita Burger" width="46" height="46" style={{ display: "block", width: "46px", height: "46px", filter: "invert(1)" }} />
+        <img src="/logo-white.png" alt="La Terracita Burger" width="46" height="46" style={{ display: "block", width: "46px", height: "46px" }} />
         <span style={sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.14em")}>LA TERRACITA</span>
       </a>
 
