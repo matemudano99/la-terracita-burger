@@ -5,7 +5,6 @@ import { sx } from "./sx";
 const SLIDES = [
   { img: "/fotos/burger-bacon.jpg", caption: "Bacon, cheddar y bordes crujientes" },
   { img: "/fotos/burger-laterracita.jpg", caption: "La Terracita — setas y queso de cabra" },
-  { img: "/fotos/burger-kongo.jpg", caption: "King of the Kongo — cascada de cheddar" },
   { img: "/fotos/burger-smash.jpg", caption: "Smash de Angus Dry Age" },
   { img: "/fotos/burger-couple.jpg", caption: "Para volverte adicto 🔥" },
 ];

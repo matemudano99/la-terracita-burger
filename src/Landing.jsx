@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { sx } from "./sx";
+import Navbar from "./Navbar";
 import Carousel from "./Carousel";
 import Delivery from "./Delivery";
 
@@ -84,7 +85,6 @@ export default function Landing() {
   const [hover, setHover] = useState(null);
 
   const glowRef = useRef(null);
-  const navRef = useRef(null);
   const c1 = useRef(null);
   const c2 = useRef(null);
   const c3 = useRef(null);
@@ -160,23 +160,10 @@ export default function Landing() {
       return { el, move, leave };
     });
 
-    // Nav scroll state
-    const onScroll = () => {
-      const n = navRef.current;
-      if (!n) return;
-      const s = window.scrollY > 40;
-      n.style.background = s ? "rgba(10,8,6,.82)" : "transparent";
-      n.style.backdropFilter = s ? "blur(14px)" : "none";
-      n.style.borderColor = s ? "rgba(246,241,233,.1)" : "transparent";
-    };
-    window.addEventListener("scroll", onScroll);
-    onScroll();
-
     return () => {
       io.disconnect();
       countObs.disconnect();
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("scroll", onScroll);
       handlers.forEach((h) => {
         h.el.removeEventListener("mousemove", h.move);
         h.el.removeEventListener("mouseleave", h.leave);
@@ -198,25 +185,7 @@ export default function Landing() {
       <div ref={glowRef} style={sx("position:fixed;top:0;left:0;width:520px;height:520px;margin:-260px 0 0 -260px;border-radius:50%;background:radial-gradient(circle,rgb(var(--acc) / .18),transparent 60%);pointer-events:none;z-index:1;transition:transform .18s cubic-bezier(.2,.9,.2,1);mix-blend-mode:screen")} />
 
       {/* Nav */}
-      <nav ref={navRef} style={sx("position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:16px 5vw;transition:background .3s,backdrop-filter .3s,border-color .3s;border-bottom:1px solid transparent")}>
-        <a href="#top" style={sx("display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit")}>
-          <span style={sx("display:grid;place-items:center;width:46px;height:46px;border-radius:50%;border:2px solid #f6f1e9;background:#0a0806;font-family:'Anton',sans-serif;font-size:19px;letter-spacing:.5px;line-height:1")}>LTB</span>
-          <span style={sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.14em")}>LA TERRACITA</span>
-        </a>
-        <div style={sx("display:flex;align-items:center;gap:30px")}>
-          <a href="#carta" className="ltb-navlink" style={sx("display:none;font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;opacity:.8")}>Carta</a>
-          <a href="#historia" className="ltb-navlink" style={sx("font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;opacity:.8")}>Historia</a>
-          <a href="#locales" className="ltb-navlink" style={sx("font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;opacity:.8")}>Locales</a>
-          <a
-            href="#pedidos"
-            style={sx("font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.06em;padding:11px 22px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 0 rgb(var(--acc) / .6);transition:box-shadow .3s,transform .2s")}
-            onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 26px rgb(var(--acc) / .8)")}
-            onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 0 rgb(var(--acc) / .6)")}
-          >
-            PEDIR
-          </a>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero */}
       <section id="top" style={sx("position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:120px 5vw 40px")}>
