@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { sx } from "./sx";
 import Carousel from "./Carousel";
+import Delivery from "./Delivery";
 
 const CATS = [
   {
@@ -207,7 +208,7 @@ export default function Landing() {
           <a href="#historia" className="ltb-navlink" style={sx("font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;opacity:.8")}>Historia</a>
           <a href="#locales" className="ltb-navlink" style={sx("font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;opacity:.8")}>Locales</a>
           <a
-            href="#locales"
+            href="#pedidos"
             style={sx("font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.06em;padding:11px 22px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 0 rgb(var(--acc) / .6);transition:box-shadow .3s,transform .2s")}
             onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 26px rgb(var(--acc) / .8)")}
             onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 0 rgb(var(--acc) / .6)")}
@@ -231,7 +232,7 @@ export default function Landing() {
         </p>
         <div style={sx("display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-top:40px;animation:ltb-rise .9s .4s both")}>
           <a ref={magA} href="#carta" style={sx("font-family:'Anton',sans-serif;font-size:19px;letter-spacing:.06em;padding:17px 40px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 12px 40px -8px rgb(var(--acc) / .7);transition:transform .18s")}>VER LA CARTA</a>
-          <a ref={magB} href="#locales" style={sx("font-family:'Anton',sans-serif;font-size:19px;letter-spacing:.06em;padding:17px 40px;border-radius:100px;background:transparent;color:#f6f1e9;text-decoration:none;border:2px solid rgba(246,241,233,.25);transition:border-color .25s,transform .18s")}>RESERVAR / PEDIR</a>
+          <a ref={magB} href="#pedidos" style={sx("font-family:'Anton',sans-serif;font-size:19px;letter-spacing:.06em;padding:17px 40px;border-radius:100px;background:transparent;color:#f6f1e9;text-decoration:none;border:2px solid rgba(246,241,233,.25);transition:border-color .25s,transform .18s")}>RESERVAR / PEDIR</a>
         </div>
         <div style={sx("position:absolute;bottom:26px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:rgba(246,241,233,.4);display:flex;flex-direction:column;align-items:center;gap:8px")}>
           Scroll<span style={sx("width:1px;height:34px;background:linear-gradient(rgb(var(--acc) / .8),transparent)")} />
@@ -304,8 +305,12 @@ export default function Landing() {
         <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s")}>
           <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:14px")}>02 — Historia</div>
           <h2 style={sx("margin:0 0 22px;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(36px,5.5vw,72px);line-height:.92;text-transform:uppercase")}>El smash<br />que engancha</h2>
-          <p style={sx("margin:0 0 18px;font-size:16px;line-height:1.65;color:rgba(246,241,233,.72)")}>Aplastamos cada medallón de <strong style={sx("color:#f6f1e9")}>ternera Angus Dry Age</strong> sobre la plancha ardiendo para sellar esos bordes crujientes que te hacen volver. Cheddar fundido, pan brioche y salsas de la casa.</p>
-          <p style={sx("margin:0;font-size:16px;line-height:1.65;color:rgba(246,241,233,.72)")}>Nacidos en Málaga, con alma <strong style={sx("color:rgb(var(--emb))")}>mediterránea</strong>. Sin humos, sin postureo: solo hamburguesas que provocan adicción.</p>
+          <p style={sx("margin:0 0 18px;font-size:16px;line-height:1.65;color:rgba(246,241,233,.72)")}>Aplastamos cada medallón de <strong style={sx("color:#f6f1e9")}>ternera Angus Dry Age</strong> sobre la plancha ardiendo para sellar esos bordes crujientes que te hacen volver. Cheddar fundido, <strong style={sx("color:#f6f1e9")}>pan de papa</strong> artesano y salsas caseras.</p>
+          <p style={sx("margin:0 0 18px;font-size:16px;line-height:1.65;color:rgba(246,241,233,.72)")}>Nacidos en Málaga, con alma <strong style={sx("color:rgb(var(--emb))")}>mediterránea</strong>. Hoy con <strong style={sx("color:#f6f1e9")}>dos locales</strong> —Teatinos y Rincón de la Victoria— y reparto a domicilio por Glovo, Just Eat y Uber Eats. Sin humos, sin postureo: solo hamburguesas que provocan adicción.</p>
+          <div style={sx("display:inline-flex;align-items:center;gap:10px;padding:9px 16px;border-radius:100px;border:1px solid rgb(var(--acc) / .35);background:rgb(var(--acc) / .08)")}>
+            <span style={sx("color:rgb(var(--acc));letter-spacing:2px;font-size:15px")}>★★★★★</span>
+            <span style={sx("font-size:13.5px;color:rgba(246,241,233,.8)")}><strong style={sx("color:#f6f1e9")}>4,8</strong> · +1.300 reseñas en Google</span>
+          </div>
           <div className="ltb-stats" style={sx("display:flex;gap:40px;margin-top:34px")}>
             <div><div ref={c1} data-count="12" style={sx("font-family:'Anton',sans-serif;font-size:46px;color:rgb(var(--acc));line-height:1")}>0</div><div style={sx("font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.5)")}>Smash burgers</div></div>
             <div><div ref={c2} data-count="2" style={sx("font-family:'Anton',sans-serif;font-size:46px;color:rgb(var(--acc));line-height:1")}>0</div><div style={sx("font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.5)")}>Locales en Málaga</div></div>
@@ -382,6 +387,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* Delivery */}
+      <Delivery />
 
       {/* CTA */}
       <section style={sx("position:relative;z-index:2;padding:0 5vw 100px;max-width:1200px;margin:0 auto")}>
