@@ -1,52 +1,39 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { sx } from "./sx";
 
 const LINKS = [
+  { href: "#del-mes", label: "Del mes" },
   { href: "#carta", label: "Carta" },
-  { href: "#historia", label: "Historia" },
   { href: "#locales", label: "Locales" },
-  { href: "#pedidos", label: "A domicilio" },
 ];
 
 export default function Navbar() {
-  const navRef = useRef(null);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => {
-      const n = navRef.current;
-      if (!n) return;
-      const s = window.scrollY > 40 || open;
-      n.style.background = s ? "rgba(10,8,6,.85)" : "transparent";
-      n.style.backdropFilter = s ? "blur(14px)" : "none";
-      n.style.borderColor = s ? "rgba(246,241,233,.1)" : "transparent";
-    };
-    window.addEventListener("scroll", onScroll);
-    onScroll();
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [open]);
-
   const close = () => setOpen(false);
 
   return (
-    <nav ref={navRef} style={sx("position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:14px 5vw;transition:background .3s,backdrop-filter .3s,border-color .3s;border-bottom:1px solid transparent")}>
-      <a href="#top" onClick={close} style={sx("display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit")}>
-        <img src="/logo-white.png" alt="La Terracita Burger" width="46" height="46" style={{ display: "block", width: "46px", height: "46px" }} />
-        <span style={sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.14em")}>LA TERRACITA</span>
+    <nav
+      className="ltb-nav"
+      style={sx("position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:40;width:min(1080px, calc(100% - 26px));display:flex;align-items:center;justify-content:space-between;gap:16px;padding:9px 10px 9px 18px;border-radius:100px;background:rgba(14,11,8,.55);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border:1px solid rgb(var(--acc) / .22);box-shadow:0 10px 40px rgba(0,0,0,.45), 0 0 26px rgb(var(--acc) / .12), inset 0 1px 0 rgba(255,255,255,.06)")}
+    >
+      <a href="#del-mes" onClick={close} style={sx("display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit")}>
+        <img src="/logo-white.png" alt="La Terracita Burger" width="38" height="38" style={{ display: "block", width: "38px", height: "38px" }} />
+        <span style={sx("font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.14em")}>LA TERRACITA</span>
       </a>
 
       {/* Desktop links */}
-      <div className="ltb-nav-desktop" style={sx("display:flex;align-items:center;gap:30px")}>
+      <div className="ltb-nav-desktop" style={sx("display:flex;align-items:center;gap:26px")}>
         {LINKS.map((l) => (
-          <a key={l.href} href={l.href} className="ltb-navlink" style={sx("position:relative;font-weight:600;font-size:14px;letter-spacing:.06em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;opacity:.8")}>
+          <a key={l.href} href={l.href} className="ltb-navlink" style={sx("position:relative;font-weight:600;font-size:13.5px;letter-spacing:.07em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;opacity:.85")}>
             {l.label}
           </a>
         ))}
         <a
           href="#pedidos"
-          style={sx("font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.06em;padding:11px 22px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 0 rgb(var(--acc) / .6);transition:box-shadow .3s,transform .2s")}
-          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 26px rgb(var(--acc) / .8)")}
-          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 0 rgb(var(--acc) / .6)")}
+          className="ltb-pedir"
+          style={sx("font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:10px 22px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .5);transition:box-shadow .3s,transform .2s")}
+          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 30px rgb(var(--acc) / .85)")}
+          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 18px rgb(var(--acc) / .5)")}
         >
           PEDIR
         </a>
@@ -59,7 +46,7 @@ export default function Navbar() {
         aria-expanded={open}
         data-open={open}
         onClick={() => setOpen((o) => !o)}
-        style={sx("display:none;place-items:center;gap:5px;width:46px;height:46px;border-radius:12px;border:1px solid rgba(246,241,233,.2);background:rgba(10,8,6,.4);cursor:pointer")}
+        style={sx("display:none;place-items:center;gap:5px;width:42px;height:42px;border-radius:50%;border:1px solid rgb(var(--acc) / .3);background:rgba(10,8,6,.4);cursor:pointer")}
       >
         <span />
         <span />
@@ -69,11 +56,11 @@ export default function Navbar() {
       {/* Mobile dropdown */}
       <div className="ltb-nav-mobile" data-open={open} style={sx("display:none")}>
         {LINKS.map((l) => (
-          <a key={l.href} href={l.href} onClick={close} style={sx("font-family:'Anton',sans-serif;font-size:22px;letter-spacing:.04em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;padding:12px 4px;border-bottom:1px solid rgba(246,241,233,.08)")}>
+          <a key={l.href} href={l.href} onClick={close} style={sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.04em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;padding:11px 6px;border-bottom:1px solid rgba(246,241,233,.08)")}>
             {l.label}
           </a>
         ))}
-        <a href="#pedidos" onClick={close} style={sx("margin-top:14px;text-align:center;font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.06em;padding:15px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none")}>
+        <a href="#pedidos" onClick={close} style={sx("margin-top:12px;text-align:center;font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.06em;padding:14px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 22px rgb(var(--acc) / .5)")}>
           PEDIR AHORA
         </a>
       </div>

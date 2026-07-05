@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { sx } from "./sx";
 import Navbar from "./Navbar";
+import BurgerDelMes from "./BurgerDelMes";
 import Carousel from "./Carousel";
 import Delivery from "./Delivery";
 
@@ -187,14 +188,17 @@ export default function Landing() {
       {/* Nav */}
       <Navbar />
 
+      {/* Hamburguesa del mes — primera pantalla */}
+      <BurgerDelMes />
+
       {/* Hero */}
-      <section id="top" style={sx("position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:120px 5vw 40px")}>
+      <section id="top" data-reveal="" style={sx("position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:120px 5vw 40px;opacity:0;transform:translateY(40px);transition:opacity .8s,transform .8s")}>
         <div style={sx("display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border:1px solid rgb(var(--acc) / .5);border-radius:100px;margin-bottom:34px;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--acc-lt);animation:ltb-rise .8s both")}>
           <span style={sx("width:7px;height:7px;border-radius:50%;background:rgb(var(--acc));animation:ltb-pulse 1.6s infinite")} /> Smash Burger · Mediterráneo
         </div>
         <h1 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;line-height:.82;letter-spacing:-.01em;text-transform:uppercase")}>
           <span style={sx("display:block;font-size:clamp(56px,13vw,190px);animation:ltb-rise .9s .05s both")}>La Terracita</span>
-          <span style={sx("display:block;font-size:clamp(56px,13vw,190px);color:rgb(var(--acc));text-shadow:0 0 44px rgb(var(--acc) / .55);animation:ltb-rise .9s .16s both,ltb-flicker 7s 2s infinite")}>Burger</span>
+          <span style={sx("display:block;font-size:clamp(56px,13vw,190px);color:rgb(var(--acc));animation:ltb-rise .9s .16s both,ltb-flicker 7s 2s infinite,ltb-neon 2.4s ease-in-out infinite")}>Burger</span>
         </h1>
         <p style={sx("max-width:560px;margin:30px auto 0;font-size:clamp(17px,2.2vw,22px);line-height:1.45;color:rgba(246,241,233,.72);animation:ltb-rise .9s .28s both")}>
           Smash burgers para volverte <span style={sx("color:rgb(var(--emb));font-weight:700")}>adicto</span> 🔥 &nbsp;Medallón Angus Dry Age, cheddar fundido y patatas. Punto.
