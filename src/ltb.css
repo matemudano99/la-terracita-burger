@@ -20,8 +20,16 @@ body {
 .ltb-social:hover { color: rgb(var(--acc)); opacity: 1; transform: translateY(-1px); }
 
 /* Logo button (opens the menu) */
-.ltb-logo-btn img { transition: transform .2s, filter .2s; }
-.ltb-logo-btn:hover img { transform: scale(1.06); filter: drop-shadow(0 0 12px rgb(var(--acc) / .65)) !important; }
+.ltb-logo-btn { transition: box-shadow .3s, transform .2s; }
+.ltb-logo-btn:hover { transform: scale(1.05); box-shadow: 0 0 36px rgb(var(--acc) / .7), 0 8px 26px rgba(0,0,0,.4) !important; }
+.ltb-logo-btn img { transition: transform .2s; }
+
+/* Nav moving ticker lines */
+.ltb-nav-ticker {
+  -webkit-mask: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
+  mask: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
+}
+@media (max-width: 720px) { .ltb-nav-ticker { display: none !important; } }
 
 /* Full-screen menu overlay */
 .ltb-menu {
