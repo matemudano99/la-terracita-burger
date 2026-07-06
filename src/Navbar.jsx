@@ -1,69 +1,105 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { sx } from "./sx";
+import { SITE } from "./site";
 
 const LINKS = [
   { href: "#del-mes", label: "Del mes" },
   { href: "#carta", label: "Carta" },
+  { href: "#historia", label: "Historia" },
   { href: "#locales", label: "Locales" },
+  { href: "#pedidos", label: "A domicilio" },
 ];
+
+const IgIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="2" y="2" width="20" height="20" rx="5.5" />
+    <circle cx="12" cy="12" r="4.2" />
+    <circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none" />
+  </svg>
+);
+const FbIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M14 8.5V6.7c0-.8.2-1.2 1.3-1.2H17V2.3C16.5 2.2 15.5 2 14.4 2 11.9 2 10.3 3.5 10.3 6.3v2.2H7.5V12h2.8v9h3.4v-9h2.6l.4-3.5H14z" />
+  </svg>
+);
+
+const glassy = "background:rgba(14,11,8,.5);backdrop-filter:blur(13px) saturate(1.3);-webkit-backdrop-filter:blur(13px) saturate(1.3);border:1px solid rgb(var(--acc) / .22);box-shadow:0 8px 30px rgba(0,0,0,.4)";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    document.body.style.overflow = "hidden";
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   const close = () => setOpen(false);
 
   return (
-    <nav
-      className="ltb-nav"
-      style={sx("position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:40;width:min(1080px, calc(100% - 26px));display:flex;align-items:center;justify-content:space-between;gap:16px;padding:9px 10px 9px 18px;border-radius:100px;background:rgba(14,11,8,.55);backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);border:1px solid rgb(var(--acc) / .22);box-shadow:0 10px 40px rgba(0,0,0,.45), 0 0 26px rgb(var(--acc) / .12), inset 0 1px 0 rgba(255,255,255,.06)")}
-    >
-      <a href="#del-mes" onClick={close} style={sx("display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit")}>
-        <img src="/logo-white.png" alt="La Terracita Burger" width="38" height="38" style={{ display: "block", width: "38px", height: "38px" }} />
-        <span style={sx("font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.14em")}>LA TERRACITA</span>
-      </a>
-
-      {/* Desktop links */}
-      <div className="ltb-nav-desktop" style={sx("display:flex;align-items:center;gap:26px")}>
-        {LINKS.map((l) => (
-          <a key={l.href} href={l.href} className="ltb-navlink" style={sx("position:relative;font-weight:600;font-size:13.5px;letter-spacing:.07em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;opacity:.85")}>
-            {l.label}
-          </a>
-        ))}
-        <a
-          href="#pedidos"
-          className="ltb-pedir"
-          style={sx("font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:10px 22px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .5);transition:box-shadow .3s,transform .2s")}
-          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 30px rgb(var(--acc) / .85)")}
-          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 18px rgb(var(--acc) / .5)")}
-        >
-          PEDIR
+    <>
+      {/* Minimal floating bar */}
+      <nav style={sx("position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:16px clamp(14px,4vw,32px);pointer-events:none")}>
+        <a href="#del-mes" onClick={close} aria-label="Inicio" style={sx(`pointer-events:auto;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;${glassy}`)}>
+          <img src="/logo-white.png" alt="La Terracita Burger" width="30" height="30" style={{ display: "block", width: "30px", height: "30px" }} />
         </a>
-      </div>
 
-      {/* Mobile hamburger */}
-      <button
-        className="ltb-burger"
-        aria-label={open ? "Cerrar menú" : "Abrir menú"}
-        aria-expanded={open}
-        data-open={open}
-        onClick={() => setOpen((o) => !o)}
-        style={sx("display:none;place-items:center;gap:5px;width:42px;height:42px;border-radius:50%;border:1px solid rgb(var(--acc) / .3);background:rgba(10,8,6,.4);cursor:pointer")}
-      >
-        <span />
-        <span />
-        <span />
-      </button>
-
-      {/* Mobile dropdown */}
-      <div className="ltb-nav-mobile" data-open={open} style={sx("display:none")}>
-        {LINKS.map((l) => (
-          <a key={l.href} href={l.href} onClick={close} style={sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.04em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;padding:11px 6px;border-bottom:1px solid rgba(246,241,233,.08)")}>
-            {l.label}
+        <div style={sx(`pointer-events:auto;display:flex;align-items:center;gap:6px;padding:6px;border-radius:100px;${glassy}`)}>
+          <a
+            href="#pedidos"
+            style={sx("font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:11px 22px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .45);transition:box-shadow .3s")}
+            onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 30px rgb(var(--acc) / .85)")}
+            onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 18px rgb(var(--acc) / .45)")}
+          >
+            PEDIR
           </a>
-        ))}
-        <a href="#pedidos" onClick={close} style={sx("margin-top:12px;text-align:center;font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.06em;padding:14px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 22px rgb(var(--acc) / .5)")}>
-          PEDIR AHORA
-        </a>
-      </div>
-    </nav>
+          <button
+            className="ltb-menu-btn"
+            aria-label="Abrir menú"
+            aria-expanded={open}
+            onClick={() => setOpen(true)}
+            style={sx("display:grid;place-items:center;gap:5px;width:44px;height:44px;border-radius:50%;border:0;background:transparent;cursor:pointer")}
+          >
+            <span />
+            <span />
+          </button>
+        </div>
+      </nav>
+
+      {/* Full-screen menu overlay */}
+      {open && (
+        <div className="ltb-menu" onClick={close} style={sx("position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;text-align:center;padding:90px 24px 40px")}>
+          <button aria-label="Cerrar menú" onClick={close} style={sx("position:absolute;top:22px;right:clamp(14px,4vw,32px);width:48px;height:48px;border-radius:50%;border:1px solid rgb(var(--acc) / .3);background:rgba(14,11,8,.5);color:#f6f1e9;font-size:22px;line-height:1;cursor:pointer")}>✕</button>
+
+          <div onClick={(e) => e.stopPropagation()} style={sx("display:flex;flex-direction:column;align-items:center;gap:2px")}>
+            {LINKS.map((l, i) => (
+              <a
+                key={l.href}
+                href={l.href}
+                onClick={close}
+                className="ltb-menu-link"
+                style={{ ...sx("font-family:'Anton',sans-serif;font-size:clamp(34px,7.5vw,60px);letter-spacing:.01em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;line-height:1.06;padding:4px 8px"), animation: "ltb-rise .5s both", animationDelay: `${0.05 + i * 0.06}s` }}
+              >
+                {l.label}
+              </a>
+            ))}
+
+            <div style={{ ...sx("display:flex;align-items:center;gap:22px;margin-top:30px"), animation: "ltb-rise .5s both", animationDelay: "0.4s" }}>
+              <a href={SITE.instagram} target="_blank" rel="noreferrer" aria-label="Instagram" className="ltb-social"><IgIcon /></a>
+              <a href={SITE.facebook} target="_blank" rel="noreferrer" aria-label="Facebook" className="ltb-social"><FbIcon /></a>
+            </div>
+            <div style={{ ...sx("display:flex;flex-wrap:wrap;justify-content:center;gap:8px 22px;margin-top:16px;font-size:14px"), animation: "ltb-rise .5s both", animationDelay: "0.46s" }}>
+              <a href={`tel:${SITE.phones.teatinos}`} style={sx("color:rgba(246,241,233,.7);text-decoration:none")}>Teatinos · 628 053 065</a>
+              <a href={`tel:${SITE.phones.rincon}`} style={sx("color:rgba(246,241,233,.7);text-decoration:none")}>Rincón · 622 220 826</a>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

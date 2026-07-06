@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { sx } from "./sx";
+import { SITE } from "./site";
 import Navbar from "./Navbar";
+import IntroSplash from "./IntroSplash";
 import BurgerDelMes from "./BurgerDelMes";
 import Carousel from "./Carousel";
 import Delivery from "./Delivery";
@@ -89,8 +91,6 @@ export default function Landing() {
   const c1 = useRef(null);
   const c2 = useRef(null);
   const c3 = useRef(null);
-  const magA = useRef(null);
-  const magB = useRef(null);
   const magC = useRef(null);
   const magD = useRef(null);
 
@@ -145,7 +145,7 @@ export default function Landing() {
     window.addEventListener("mousemove", onMove);
 
     // Magnetic buttons
-    const mags = [magA.current, magB.current, magC.current, magD.current].filter(Boolean);
+    const mags = [magC.current, magD.current].filter(Boolean);
     const handlers = mags.map((el) => {
       const move = (ev) => {
         const r = el.getBoundingClientRect();
@@ -176,6 +176,9 @@ export default function Landing() {
 
   return (
     <>
+      {/* Brand intro splash (plays on load) */}
+      <IntroSplash />
+
       {/* Ambient background blobs */}
       <div style={sx("position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden")}>
         <div style={sx("position:absolute;top:-10%;left:-5%;width:52vw;height:52vw;background:radial-gradient(circle,rgb(var(--acc) / .22),transparent 62%);filter:blur(20px);animation:ltb-drift 18s ease-in-out infinite")} />
@@ -190,27 +193,6 @@ export default function Landing() {
 
       {/* Hamburguesa del mes — primera pantalla */}
       <BurgerDelMes />
-
-      {/* Hero */}
-      <section id="top" data-reveal="" style={sx("position:relative;z-index:2;min-height:100svh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:120px 5vw 40px;opacity:0;transform:translateY(40px);transition:opacity .8s,transform .8s")}>
-        <div style={sx("display:inline-flex;align-items:center;gap:10px;padding:8px 16px;border:1px solid rgb(var(--acc) / .5);border-radius:100px;margin-bottom:34px;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--acc-lt);animation:ltb-rise .8s both")}>
-          <span style={sx("width:7px;height:7px;border-radius:50%;background:rgb(var(--acc));animation:ltb-pulse 1.6s infinite")} /> Smash Burger · Mediterráneo
-        </div>
-        <h1 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;line-height:.82;letter-spacing:-.01em;text-transform:uppercase")}>
-          <span style={sx("display:block;font-size:clamp(56px,13vw,190px);animation:ltb-rise .9s .05s both")}>La Terracita</span>
-          <span style={sx("display:block;font-size:clamp(56px,13vw,190px);color:rgb(var(--acc));animation:ltb-rise .9s .16s both,ltb-flicker 7s 2s infinite,ltb-neon 2.4s ease-in-out infinite")}>Burger</span>
-        </h1>
-        <p style={sx("max-width:560px;margin:30px auto 0;font-size:clamp(17px,2.2vw,22px);line-height:1.45;color:rgba(246,241,233,.72);animation:ltb-rise .9s .28s both")}>
-          Smash burgers para volverte <span style={sx("color:rgb(var(--emb));font-weight:700")}>adicto</span> 🔥 &nbsp;Medallón Angus Dry Age, cheddar fundido y patatas. Punto.
-        </p>
-        <div style={sx("display:flex;flex-wrap:wrap;gap:16px;justify-content:center;margin-top:40px;animation:ltb-rise .9s .4s both")}>
-          <a ref={magA} href="#carta" style={sx("font-family:'Anton',sans-serif;font-size:19px;letter-spacing:.06em;padding:17px 40px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 12px 40px -8px rgb(var(--acc) / .7);transition:transform .18s")}>VER LA CARTA</a>
-          <a ref={magB} href="#pedidos" style={sx("font-family:'Anton',sans-serif;font-size:19px;letter-spacing:.06em;padding:17px 40px;border-radius:100px;background:transparent;color:#f6f1e9;text-decoration:none;border:2px solid rgba(246,241,233,.25);transition:border-color .25s,transform .18s")}>RESERVAR / PEDIR</a>
-        </div>
-        <div style={sx("position:absolute;bottom:26px;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:rgba(246,241,233,.4);display:flex;flex-direction:column;align-items:center;gap:8px")}>
-          Scroll<span style={sx("width:1px;height:34px;background:linear-gradient(rgb(var(--acc) / .8),transparent)")} />
-        </div>
-      </section>
 
       {/* Marquee */}
       <div style={sx("position:relative;z-index:3;border-top:1px solid rgb(var(--acc) / .25);border-bottom:1px solid rgb(var(--acc) / .25);background:rgb(var(--acc));overflow:hidden;padding:14px 0")}>
@@ -395,7 +377,8 @@ export default function Landing() {
             </div>
             <div>
               <div style={sx("font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.45);margin-bottom:14px")}>Síguenos</div>
-              <a href="https://instagram.com/laterracita.burger" target="_blank" rel="noreferrer" style={sx("display:inline-flex;align-items:center;gap:8px;color:rgb(var(--acc));text-decoration:none;font-weight:700")}>@laterracita.burger →</a>
+              <a href={SITE.instagram} target="_blank" rel="noreferrer" style={sx("display:block;color:rgb(var(--acc));text-decoration:none;font-weight:700;margin-bottom:8px")}>@laterracita.burger →</a>
+              <a href={SITE.facebook} target="_blank" rel="noreferrer" style={sx("display:block;color:#f6f1e9;text-decoration:none;font-weight:600")}>Facebook →</a>
             </div>
           </div>
         </div>
