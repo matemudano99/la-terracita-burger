@@ -23,8 +23,6 @@ const FbIcon = ({ size = 22 }) => (
   </svg>
 );
 
-const glassy = "background:rgba(14,11,8,.5);backdrop-filter:blur(13px) saturate(1.3);-webkit-backdrop-filter:blur(13px) saturate(1.3);border:1px solid rgb(var(--acc) / .22);box-shadow:0 8px 30px rgba(0,0,0,.4)";
-
 export default function Navbar() {
   const [open, setOpen] = useState(false);
 
@@ -43,32 +41,26 @@ export default function Navbar() {
 
   return (
     <>
-      {/* Minimal floating bar */}
-      <nav style={sx("position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:16px clamp(14px,4vw,32px);pointer-events:none")}>
-        <a href="#del-mes" onClick={close} aria-label="Inicio" style={sx(`pointer-events:auto;display:grid;place-items:center;width:52px;height:52px;border-radius:50%;${glassy}`)}>
-          <img src="/logo-white.png" alt="La Terracita Burger" width="30" height="30" style={{ display: "block", width: "30px", height: "30px" }} />
-        </a>
+      {/* Minimal floating bar — logo opens the menu */}
+      <nav style={sx("position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:18px clamp(16px,4vw,34px);pointer-events:none")}>
+        <button
+          className="ltb-logo-btn"
+          aria-label="Abrir menú"
+          aria-expanded={open}
+          onClick={() => setOpen(true)}
+          style={sx("pointer-events:auto;padding:0;border:0;background:transparent;cursor:pointer;line-height:0")}
+        >
+          <img src="/logo-white.png" alt="La Terracita Burger — abrir menú" width="48" height="48" style={{ display: "block", width: "48px", height: "48px", filter: "drop-shadow(0 2px 10px rgba(0,0,0,.6))" }} />
+        </button>
 
-        <div style={sx(`pointer-events:auto;display:flex;align-items:center;gap:6px;padding:6px;border-radius:100px;${glassy}`)}>
-          <a
-            href="#pedidos"
-            style={sx("font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:11px 22px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .45);transition:box-shadow .3s")}
-            onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 30px rgb(var(--acc) / .85)")}
-            onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 18px rgb(var(--acc) / .45)")}
-          >
-            PEDIR
-          </a>
-          <button
-            className="ltb-menu-btn"
-            aria-label="Abrir menú"
-            aria-expanded={open}
-            onClick={() => setOpen(true)}
-            style={sx("display:grid;place-items:center;gap:5px;width:44px;height:44px;border-radius:50%;border:0;background:transparent;cursor:pointer")}
-          >
-            <span />
-            <span />
-          </button>
-        </div>
+        <a
+          href="#pedidos"
+          style={sx("pointer-events:auto;font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:12px 26px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .45);transition:box-shadow .3s,transform .2s")}
+          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 30px rgb(var(--acc) / .85)")}
+          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 18px rgb(var(--acc) / .45)")}
+        >
+          PEDIR
+        </a>
       </nav>
 
       {/* Full-screen menu overlay */}

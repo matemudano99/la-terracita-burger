@@ -19,12 +19,9 @@ body {
 .ltb-social { color: #f6f1e9; opacity: .82; display: inline-flex; transition: color .2s, opacity .2s, transform .2s; }
 .ltb-social:hover { color: rgb(var(--acc)); opacity: 1; transform: translateY(-1px); }
 
-/* Menu button (two lines) */
-.ltb-menu-btn span {
-  display: block; width: 20px; height: 2px; border-radius: 2px;
-  background: #f6f1e9; transition: background .2s;
-}
-.ltb-menu-btn:hover span { background: rgb(var(--acc)); }
+/* Logo button (opens the menu) */
+.ltb-logo-btn img { transition: transform .2s, filter .2s; }
+.ltb-logo-btn:hover img { transform: scale(1.06); filter: drop-shadow(0 0 12px rgb(var(--acc) / .65)) !important; }
 
 /* Full-screen menu overlay */
 .ltb-menu {
