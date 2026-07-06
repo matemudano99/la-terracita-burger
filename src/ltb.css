@@ -21,8 +21,11 @@ body {
 
 /* Logo button (opens the menu) */
 .ltb-logo-btn { transition: box-shadow .3s, transform .2s; }
-.ltb-logo-btn:hover { transform: scale(1.05); box-shadow: 0 0 36px rgb(var(--acc) / .7), 0 8px 26px rgba(0,0,0,.4) !important; }
 .ltb-logo-btn img { transition: transform .2s; }
+/* Hover effects only where hovering is real (avoids sticky tap state on touch) */
+@media (hover: hover) {
+  .ltb-logo-btn:hover { transform: scale(1.05); box-shadow: 0 0 36px rgb(var(--acc) / .7), 0 8px 26px rgba(0,0,0,.4) !important; }
+}
 
 /* Nav moving ticker lines */
 .ltb-nav-ticker {
@@ -30,6 +33,17 @@ body {
   mask: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
 }
 @media (max-width: 720px) { .ltb-nav-ticker { display: none !important; } }
+
+/* Touch/mobile: backdrop-filter on a fixed, rounded element flickers/smears
+   while the page scrolls behind it (esp. iOS Safari). Drop it and use a
+   solid-ish tinted background instead. */
+@media (hover: none), (max-width: 720px) {
+  .ltb-logo-btn {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background: radial-gradient(circle, rgb(var(--acc) / .34), rgb(18 13 7 / .94) 72%) !important;
+  }
+}
 
 /* Full-screen menu overlay */
 .ltb-menu {
