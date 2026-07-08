@@ -19,30 +19,11 @@ body {
 .ltb-social { color: #f6f1e9; opacity: .82; display: inline-flex; transition: color .2s, opacity .2s, transform .2s; }
 .ltb-social:hover { color: rgb(var(--acc)); opacity: 1; transform: translateY(-1px); }
 
-/* Logo button (opens the menu) */
+/* Logo button (opens the menu) — solid dark disc, hover glow on pointer devices */
 .ltb-logo-btn { transition: box-shadow .3s, transform .2s; }
 .ltb-logo-btn img { transition: transform .2s; }
-/* Hover effects only where hovering is real (avoids sticky tap state on touch) */
 @media (hover: hover) {
-  .ltb-logo-btn:hover { transform: scale(1.05); box-shadow: 0 0 36px rgb(var(--acc) / .7), 0 8px 26px rgba(0,0,0,.4) !important; }
-}
-
-/* Nav moving ticker lines */
-.ltb-nav-ticker {
-  -webkit-mask: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
-  mask: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent);
-}
-@media (max-width: 720px) { .ltb-nav-ticker { display: none !important; } }
-
-/* Touch/mobile: backdrop-filter on a fixed, rounded element flickers/smears
-   while the page scrolls behind it (esp. iOS Safari). Drop it and use a
-   solid-ish tinted background instead. */
-@media (hover: none), (max-width: 720px) {
-  .ltb-logo-btn {
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
-    background: radial-gradient(circle, rgb(var(--acc) / .34), rgb(18 13 7 / .94) 72%) !important;
-  }
+  .ltb-logo-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgb(var(--acc) / .5), 0 6px 22px rgba(0,0,0,.5) !important; }
 }
 
 /* Full-screen menu overlay */

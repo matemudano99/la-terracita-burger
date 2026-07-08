@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { sx } from "./sx";
 import { SITE } from "./site";
+import MarqueeBackdrop from "./MarqueeStrip";
 
 const LINKS = [
   { href: "#del-mes", label: "Del mes" },
@@ -9,11 +10,6 @@ const LINKS = [
   { href: "#locales", label: "Locales" },
   { href: "#pedidos", label: "A domicilio" },
 ];
-
-const TICK_A = ["La Terracita", "Smash Burgers", "Angus Dry Age", "🔥"];
-const TICK_B = ["Black Garlic", "100% Mediterráneo", "Cheddar fundido", "🖤"];
-
-const tickRow = "display:flex;width:max-content;white-space:nowrap;font-family:'Anton',sans-serif;font-size:11px;letter-spacing:.2em;text-transform:uppercase";
 
 const IgIcon = ({ size = 22 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -53,20 +49,10 @@ export default function Navbar() {
           aria-label="Abrir menú"
           aria-expanded={open}
           onClick={() => setOpen(true)}
-          style={sx("pointer-events:auto;display:grid;place-items:center;width:58px;height:58px;padding:0;border:0;border-radius:50%;cursor:pointer;background:radial-gradient(circle, rgb(var(--acc) / .32), rgb(14 11 8 / .5) 72%);backdrop-filter:blur(13px) saturate(1.4);-webkit-backdrop-filter:blur(13px) saturate(1.4);box-shadow:0 0 26px rgb(var(--acc) / .45), 0 8px 26px rgba(0,0,0,.4)")}
+          style={sx("pointer-events:auto;display:grid;place-items:center;width:56px;height:56px;padding:0;border:0;border-radius:50%;cursor:pointer;background:#0a0806;box-shadow:0 6px 22px rgba(0,0,0,.5)")}
         >
           <img src="/logo-white.png" alt="La Terracita Burger — abrir menú" width="34" height="34" style={{ display: "block", width: "34px", height: "34px" }} />
         </button>
-
-        {/* Moving ticker lines */}
-        <div className="ltb-nav-ticker" aria-hidden="true" style={sx("position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(42vw,380px);pointer-events:none;display:flex;flex-direction:column;gap:3px")}>
-          <div style={{ ...sx(tickRow), animation: "ltb-marq 22s linear infinite", color: "rgb(var(--acc) / .55)" }}>
-            {[...TICK_A, ...TICK_A, ...TICK_A, ...TICK_A].map((t, i) => <span key={i} style={{ padding: "0 15px" }}>{t}</span>)}
-          </div>
-          <div style={{ ...sx(tickRow), animation: "ltb-marq-r 28s linear infinite", color: "rgb(246 241 233 / .2)" }}>
-            {[...TICK_B, ...TICK_B, ...TICK_B, ...TICK_B].map((t, i) => <span key={i} style={{ padding: "0 15px" }}>{t}</span>)}
-          </div>
-        </div>
 
         <a
           href="#pedidos"
@@ -80,10 +66,14 @@ export default function Navbar() {
 
       {/* Full-screen menu overlay */}
       {open && (
-        <div className="ltb-menu" onClick={close} style={sx("position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;text-align:center;padding:90px 24px 40px")}>
-          <button aria-label="Cerrar menú" onClick={close} style={sx("position:absolute;top:22px;right:clamp(14px,4vw,32px);width:48px;height:48px;border-radius:50%;border:1px solid rgb(var(--acc) / .3);background:rgba(14,11,8,.5);color:#f6f1e9;font-size:22px;line-height:1;cursor:pointer")}>✕</button>
+        <div className="ltb-menu" onClick={close} style={sx("position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;text-align:center;padding:90px 24px 40px;overflow:hidden")}>
+          {/* Moving dividers, same as the intro splash */}
+          <MarqueeBackdrop />
+          <div style={sx("position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 72% 62% at 50% 50%, rgb(10 8 6 / .93), rgb(10 8 6 / .55) 55%, transparent 82%)")} />
 
-          <div onClick={(e) => e.stopPropagation()} style={sx("display:flex;flex-direction:column;align-items:center;gap:2px")}>
+          <button aria-label="Cerrar menú" onClick={close} style={sx("position:absolute;top:22px;right:clamp(14px,4vw,32px);z-index:3;width:48px;height:48px;border-radius:50%;border:1px solid rgb(var(--acc) / .3);background:rgba(14,11,8,.5);color:#f6f1e9;font-size:22px;line-height:1;cursor:pointer")}>✕</button>
+
+          <div onClick={(e) => e.stopPropagation()} style={sx("position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:2px")}>
             {LINKS.map((l, i) => (
               <a
                 key={l.href}
