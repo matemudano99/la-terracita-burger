@@ -11,7 +11,7 @@ const LOCS = {
     reviews: "567",
     days: "Todos los días excepto martes",
     schedule: "13:00–16:00 · 20:00–23:30",
-    rgb: "246 242 81",
+    rgb: "255 197 49",
     justeat: "https://www.just-eat.es/restaurants-la-terracita-teatinos-malaga/menu?serviceType=collection&utm_source=google&utm_medium=organic&utm_campaign=foodorder",
     glovo: "https://glovoapp.com/es/es/malaga/stores/beher-teatinos-malaga?utm_medium=organic&utm_campaign=google_reserve_place_order_action&utm_source=google",
     ubereats: "https://www.ubereats.com/es/store/la-terracita-burger/KTBmYDR0XIefR_aNDkvgqg?diningMode=PICKUP&utm_campaign=CM2508147-search-free-nonbrand-google-pas_e_all_acq_Global&utm_medium=search-free-nonbrand&utm_source=google-pas",

@@ -9,7 +9,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 :root {
-  --acc: 246 242 81;
+  --acc: 255 197 49;
   --emb: 255 92 40;
   --acc-lt: color-mix(in srgb, rgb(var(--acc)) 64%, #fff);
 }
