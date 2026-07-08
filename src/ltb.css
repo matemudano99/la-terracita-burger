@@ -26,6 +26,12 @@ body {
   .ltb-logo-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgb(var(--acc) / .5), 0 6px 22px rgba(0,0,0,.5) !important; }
 }
 
+/* PEDIR button — hover glow only on pointer devices (no sticky tap on mobile) */
+.ltb-pedir { transition: box-shadow .3s, transform .2s; }
+@media (hover: hover) {
+  .ltb-pedir:hover { box-shadow: 0 0 30px rgb(var(--acc) / .85); transform: translateY(-1px); }
+}
+
 /* Full-screen menu overlay */
 .ltb-menu {
   background: rgba(9, 7, 5, .92);

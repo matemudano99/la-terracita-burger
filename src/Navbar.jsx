@@ -56,9 +56,8 @@ export default function Navbar() {
 
         <a
           href="#pedidos"
-          style={sx("pointer-events:auto;font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:12px 26px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .45);transition:box-shadow .3s,transform .2s")}
-          onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 30px rgb(var(--acc) / .85)")}
-          onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "0 0 18px rgb(var(--acc) / .45)")}
+          className="ltb-pedir"
+          style={sx("pointer-events:auto;font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:12px 26px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .45)")}
         >
           PEDIR
         </a>
