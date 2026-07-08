@@ -42,6 +42,7 @@ export default function IntroSplash() {
     <div
       className={leaving ? "ltb-intro-exit" : ""}
       onClick={skip}
+      aria-hidden="true"
       style={sx("position:fixed;inset:0;z-index:1000;overflow:hidden;cursor:pointer;background:#0a0806")}
     >
       {/* Moving dividers — horizontal + diagonal */}
@@ -58,10 +59,10 @@ export default function IntroSplash() {
             height="120"
             style={{ display: "block", width: "clamp(92px,20vw,128px)", height: "auto", animation: "ltb-rise .8s both, ltb-pulse 2.4s .8s ease-in-out infinite" }}
           />
-          <h1 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;line-height:.86;letter-spacing:.01em;text-transform:uppercase")}>
+          <div style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;line-height:.86;letter-spacing:.01em;text-transform:uppercase")}>
             <span style={sx("display:block;font-size:clamp(38px,10vw,92px);animation:ltb-rise .9s .1s both")}>La Terracita</span>
             <span style={sx("display:block;font-size:clamp(38px,10vw,92px);color:rgb(var(--acc));text-shadow:0 0 44px rgb(var(--acc) / .6);animation:ltb-rise .9s .22s both,ltb-flicker 3.5s .8s infinite")}>Burger</span>
-          </h1>
+          </div>
         </div>
       </div>
     </div>

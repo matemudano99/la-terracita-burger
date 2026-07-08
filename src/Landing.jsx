@@ -176,6 +176,8 @@ export default function Landing() {
 
   return (
     <>
+      <a className="ltb-skip" href="#contenido">Saltar al contenido</a>
+
       {/* Brand intro splash (plays on load) */}
       <IntroSplash />
 
@@ -191,18 +193,23 @@ export default function Landing() {
       {/* Nav */}
       <Navbar />
 
+      <h1 className="sr-only">
+        La Terracita Burger — Smash burgers de ternera Angus Dry Age en Málaga: Teatinos y Rincón de la Victoria
+      </h1>
+
+      <main id="contenido">
       {/* Hamburguesa del mes — primera pantalla */}
       <BurgerDelMes />
 
       {/* Marquee */}
-      <div style={sx("position:relative;z-index:3;border-top:1px solid rgb(var(--acc) / .25);border-bottom:1px solid rgb(var(--acc) / .25);background:rgb(var(--acc));overflow:hidden;padding:14px 0")}>
+      <div aria-hidden="true" style={sx("position:relative;z-index:3;border-top:1px solid rgb(var(--acc) / .25);border-bottom:1px solid rgb(var(--acc) / .25);background:rgb(var(--acc));overflow:hidden;padding:14px 0")}>
         <div style={sx("display:flex;width:max-content;animation:ltb-marq 24s linear infinite;font-family:'Anton',sans-serif;font-size:24px;letter-spacing:.04em;color:#0a0806;text-transform:uppercase")}>
           <span style={sx("padding:0 26px")}>Smash burgers para volverte adicto 🔥</span><span style={sx("padding:0 26px")}>Angus Dry Age</span><span style={sx("padding:0 26px")}>100% Mediterráneo</span><span style={sx("padding:0 26px")}>Cheddar fundido</span><span style={sx("padding:0 26px")}>Smash burgers para volverte adicto 🔥</span><span style={sx("padding:0 26px")}>Angus Dry Age</span><span style={sx("padding:0 26px")}>100% Mediterráneo</span><span style={sx("padding:0 26px")}>Cheddar fundido</span>
         </div>
       </div>
 
       {/* Carta */}
-      <section id="carta" style={sx("position:relative;z-index:2;padding:96px 5vw 80px;max-width:1240px;margin:0 auto")}>
+      <section id="carta" className="ltb-cv" style={sx("position:relative;z-index:2;padding:96px 5vw 80px;max-width:1240px;margin:0 auto")}>
         <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s")}>
           <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>01 — La Carta</div>
           <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,96px);line-height:.9;text-transform:uppercase")}>Elige tu <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>vicio</span></h2>
@@ -212,7 +219,7 @@ export default function Landing() {
           {CATS.map((c) => {
             const active = c.id === activeCat;
             return (
-              <button key={c.id} onClick={() => setActiveCat(c.id)} style={sx(tabStyle(active))}>
+              <button key={c.id} onClick={() => setActiveCat(c.id)} aria-pressed={active} style={sx(tabStyle(active))}>
                 {c.label}{" "}
                 <span style={sx(`font-size:11px;padding:2px 7px;border-radius:100px;margin-left:2px;background:${active ? "rgba(10,8,6,.18)" : "rgba(246,241,233,.1)"};color:inherit`)}>{c.items.length}</span>
               </button>
@@ -231,11 +238,11 @@ export default function Landing() {
                     <span style={sx("flex:none;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:4px 9px;border-radius:100px;background:rgb(var(--emb) / .16);color:rgb(var(--emb));border:1px solid rgb(var(--emb) / .35)")}>{item.tag}</span>
                   )}
                 </div>
-                <p style={sx("margin:10px 0 0;font-size:13.5px;line-height:1.5;color:rgba(246,241,233,.6)")}>{item.desc}</p>
+                <p style={sx("margin:10px 0 0;font-size:13.5px;line-height:1.5;color:rgba(246,241,233,.72)")}>{item.desc}</p>
                 <div style={sx("margin-top:16px;padding-top:14px;border-top:1px dashed rgba(246,241,233,.14);display:flex;flex-direction:column;gap:6px")}>
                   {item.rows.map((row, ri) => (
                     <div key={ri} style={sx("display:flex;align-items:baseline;justify-content:space-between;gap:10px")}>
-                      <span style={sx("font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,241,233,.45);font-weight:600")}>{row[0]}</span>
+                      <span style={sx("font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(246,241,233,.72);font-weight:600")}>{row[0]}</span>
                       <span style={sx("flex:1;border-bottom:1px dotted rgba(246,241,233,.16);transform:translateY(-4px)")} />
                       <span style={sx("font-family:'Anton',sans-serif;font-size:20px;color:rgb(var(--acc))")}>{row[1]}</span>
                     </div>
@@ -245,18 +252,18 @@ export default function Landing() {
             );
           })}
         </div>
-        <p style={sx("margin:34px 0 0;font-size:12.5px;color:rgba(246,241,233,.42);text-align:center")}>Toda modificación en hamburguesas y camperos se cobra como extra. Conviértelas en boniatos o patatas deluxe por 1,90€ · con cheddar y bacon por 2,90€.</p>
+        <p style={sx("margin:34px 0 0;font-size:12.5px;color:rgba(246,241,233,.72);text-align:center")}>Toda modificación en hamburguesas y camperos se cobra como extra. Conviértelas en boniatos o patatas deluxe por 1,90€ · con cheddar y bacon por 2,90€.</p>
       </section>
 
       {/* Marquee reverse */}
-      <div style={sx("position:relative;z-index:3;background:#0d0a07;border-top:1px solid rgba(246,241,233,.08);border-bottom:1px solid rgba(246,241,233,.08);overflow:hidden;padding:12px 0")}>
+      <div aria-hidden="true" style={sx("position:relative;z-index:3;background:#0d0a07;border-top:1px solid rgba(246,241,233,.08);border-bottom:1px solid rgba(246,241,233,.08);overflow:hidden;padding:12px 0")}>
         <div style={sx("display:flex;width:max-content;animation:ltb-marq-r 30s linear infinite;font-family:'Anton',sans-serif;font-size:22px;letter-spacing:.05em;color:rgba(246,241,233,.16);text-transform:uppercase")}>
           <span style={sx("padding:0 24px")}>★ Cheeseburger</span><span style={sx("padding:0 24px")}>★ Oklahoma</span><span style={sx("padding:0 24px")}>★ Jack Burger</span><span style={sx("padding:0 24px")}>★ La Terracita</span><span style={sx("padding:0 24px")}>★ Mexican</span><span style={sx("padding:0 24px")}>★ Derrumbe</span><span style={sx("padding:0 24px")}>★ Cheeseburger</span><span style={sx("padding:0 24px")}>★ Oklahoma</span><span style={sx("padding:0 24px")}>★ Jack Burger</span><span style={sx("padding:0 24px")}>★ La Terracita</span><span style={sx("padding:0 24px")}>★ Mexican</span><span style={sx("padding:0 24px")}>★ Derrumbe</span>
         </div>
       </div>
 
       {/* Historia */}
-      <section id="historia" className="ltb-2col" style={sx("position:relative;z-index:2;padding:100px 5vw;max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center")}>
+      <section id="historia" className="ltb-2col ltb-cv" style={sx("position:relative;z-index:2;padding:100px 5vw;max-width:1200px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center")}>
         <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s")}>
           <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:14px")}>02 — Historia</div>
           <h2 style={sx("margin:0 0 22px;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(36px,5.5vw,72px);line-height:.92;text-transform:uppercase")}>El smash<br />que engancha</h2>
@@ -267,9 +274,9 @@ export default function Landing() {
             <span style={sx("font-size:13.5px;color:rgba(246,241,233,.8)")}><strong style={sx("color:#f6f1e9")}>4,8</strong> · +1.300 reseñas en Google</span>
           </div>
           <div className="ltb-stats" style={sx("display:flex;gap:40px;margin-top:34px")}>
-            <div><div ref={c1} data-count="12" style={sx("font-family:'Anton',sans-serif;font-size:46px;color:rgb(var(--acc));line-height:1")}>0</div><div style={sx("font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.5)")}>Smash burgers</div></div>
-            <div><div ref={c2} data-count="2" style={sx("font-family:'Anton',sans-serif;font-size:46px;color:rgb(var(--acc));line-height:1")}>0</div><div style={sx("font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.5)")}>Locales en Málaga</div></div>
-            <div><div ref={c3} data-count="100" data-suffix="%" style={sx("font-family:'Anton',sans-serif;font-size:46px;color:rgb(var(--acc));line-height:1")}>0</div><div style={sx("font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.5)")}>Angus Dry Age</div></div>
+            <div><div ref={c1} data-count="12" style={sx("font-family:'Anton',sans-serif;font-size:46px;color:rgb(var(--acc));line-height:1")}>0</div><div style={sx("font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.64)")}>Smash burgers</div></div>
+            <div><div ref={c2} data-count="2" style={sx("font-family:'Anton',sans-serif;font-size:46px;color:rgb(var(--acc));line-height:1")}>0</div><div style={sx("font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.64)")}>Locales en Málaga</div></div>
+            <div><div ref={c3} data-count="100" data-suffix="%" style={sx("font-family:'Anton',sans-serif;font-size:46px;color:rgb(var(--acc));line-height:1")}>0</div><div style={sx("font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.64)")}>Angus Dry Age</div></div>
           </div>
         </div>
         <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s .1s,transform .7s .1s;position:relative")}>
@@ -280,7 +287,7 @@ export default function Landing() {
       </section>
 
       {/* Locales */}
-      <section id="locales" style={sx("position:relative;z-index:2;padding:60px 5vw 100px;max-width:1200px;margin:0 auto")}>
+      <section id="locales" className="ltb-cv" style={sx("position:relative;z-index:2;padding:60px 5vw 100px;max-width:1200px;margin:0 auto")}>
         <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s;text-align:center;margin-bottom:52px")}>
           <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>03 — Locales</div>
           <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>Encuentranos</h2>
@@ -306,7 +313,7 @@ export default function Landing() {
             </div>
             <div style={sx("padding:26px")}>
               <h3 style={sx("margin:0 0 6px;font-family:'Anton',sans-serif;font-weight:400;font-size:30px;text-transform:uppercase")}>Teatinos</h3>
-              <p style={sx("margin:0 0 18px;font-size:14.5px;line-height:1.5;color:rgba(246,241,233,.62)")}>Av. Parménides 1<br />Málaga</p>
+              <p style={sx("margin:0 0 18px;font-size:14.5px;line-height:1.5;color:rgba(246,241,233,.72)")}>Av. Parménides 1<br />Málaga</p>
               <div style={sx("display:flex;flex-wrap:wrap;gap:12px")}>
                 <a href="tel:628053065" style={sx("font-family:'Anton',sans-serif;font-size:16px;padding:12px 22px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none")}>628 053 065</a>
                 <a href="https://maps.google.com/?q=Av.+Parménides+1+Málaga" target="_blank" rel="noreferrer" style={sx("font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:12px 22px;border-radius:100px;border:1px solid rgba(246,241,233,.25);color:#f6f1e9;text-decoration:none;display:inline-flex;align-items:center")}>Cómo llegar →</a>
@@ -333,7 +340,7 @@ export default function Landing() {
             </div>
             <div style={sx("padding:26px")}>
               <h3 style={sx("margin:0 0 6px;font-family:'Anton',sans-serif;font-weight:400;font-size:30px;text-transform:uppercase")}>Rincón de la Victoria</h3>
-              <p style={sx("margin:0 0 18px;font-size:14.5px;line-height:1.5;color:rgba(246,241,233,.62)")}>Av. del Mediterráneo 139<br />29730 · Rincón de la Victoria</p>
+              <p style={sx("margin:0 0 18px;font-size:14.5px;line-height:1.5;color:rgba(246,241,233,.72)")}>Av. del Mediterráneo 139<br />29730 · Rincón de la Victoria</p>
               <div style={sx("display:flex;flex-wrap:wrap;gap:12px")}>
                 <a href="tel:622220826" style={sx("font-family:'Anton',sans-serif;font-size:16px;padding:12px 22px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none")}>622 220 826</a>
                 <a href="https://maps.google.com/?q=Avenida+del+Mediterráneo+139+Rincón+de+la+Victoria" target="_blank" rel="noreferrer" style={sx("font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:12px 22px;border-radius:100px;border:1px solid rgba(246,241,233,.25);color:#f6f1e9;text-decoration:none;display:inline-flex;align-items:center")}>Cómo llegar →</a>
@@ -347,7 +354,7 @@ export default function Landing() {
       <Delivery />
 
       {/* CTA */}
-      <section style={sx("position:relative;z-index:2;padding:0 5vw 100px;max-width:1200px;margin:0 auto")}>
+      <section className="ltb-cv" style={sx("position:relative;z-index:2;padding:0 5vw 100px;max-width:1200px;margin:0 auto")}>
         <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s;position:relative;overflow:hidden;border-radius:28px;background:linear-gradient(135deg,rgb(var(--acc)),var(--acc-lt));padding:clamp(40px,6vw,72px);text-align:center")}>
           <div style={sx("position:absolute;top:-40%;left:50%;width:60%;height:180%;background:radial-gradient(circle,rgba(255,255,255,.35),transparent 60%);animation:ltb-drift 14s ease-in-out infinite")} />
           <h2 style={sx("position:relative;margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(34px,6vw,74px);line-height:.92;text-transform:uppercase;color:#0a0806")}>¿Con hambre?<br />No esperes más</h2>
@@ -359,6 +366,8 @@ export default function Landing() {
         </div>
       </section>
 
+      </main>
+
       {/* Footer */}
       <footer style={sx("position:relative;z-index:2;padding:70px 5vw 40px;border-top:1px solid rgba(246,241,233,.1)")}>
         <div style={sx("max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;justify-content:space-between;gap:40px")}>
@@ -367,22 +376,22 @@ export default function Landing() {
               <img src="/logo-white.png" alt="La Terracita Burger" width="52" height="52" style={{ display: "block", width: "52px", height: "52px" }} />
               <div style={sx("font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.1em;line-height:1")}>LA TERRACITA<br /><span style={sx("font-size:11px;letter-spacing:.3em;color:var(--acc-lt)")}>BURGER · MEDITERRÁNEO</span></div>
             </div>
-            <p style={sx("margin:0;font-size:14px;line-height:1.5;color:rgba(246,241,233,.55)")}>Smash burgers para volverte adicto 🔥</p>
+            <p style={sx("margin:0;font-size:14px;line-height:1.5;color:rgba(246,241,233,.68)")}>Smash burgers para volverte adicto 🔥</p>
           </div>
           <div style={sx("display:flex;gap:64px;flex-wrap:wrap")}>
             <div>
-              <div style={sx("font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.45);margin-bottom:14px")}>Locales</div>
+              <div style={sx("font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.72);margin-bottom:14px")}>Locales</div>
               <a href="tel:628053065" style={sx("display:block;color:#f6f1e9;text-decoration:none;font-weight:600;margin-bottom:8px")}>Teatinos · 628 053 065</a>
               <a href="tel:622220826" style={sx("display:block;color:#f6f1e9;text-decoration:none;font-weight:600")}>Rincón · 622 220 826</a>
             </div>
             <div>
-              <div style={sx("font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.45);margin-bottom:14px")}>Síguenos</div>
+              <div style={sx("font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.72);margin-bottom:14px")}>Síguenos</div>
               <a href={SITE.instagram} target="_blank" rel="noreferrer" style={sx("display:block;color:rgb(var(--acc));text-decoration:none;font-weight:700;margin-bottom:8px")}>@laterracita.burger →</a>
               <a href={SITE.facebook} target="_blank" rel="noreferrer" style={sx("display:block;color:#f6f1e9;text-decoration:none;font-weight:600")}>Facebook →</a>
             </div>
           </div>
         </div>
-        <div style={sx("max-width:1200px;margin:44px auto 0;padding-top:22px;border-top:1px solid rgba(246,241,233,.08);display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:12px;color:rgba(246,241,233,.4)")}>
+        <div style={sx("max-width:1200px;margin:44px auto 0;padding-top:22px;border-top:1px solid rgba(246,241,233,.08);display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:12px;color:rgba(246,241,233,.6)")}>
           <span>© 2026 La Terracita Burger · Málaga</span>
           <span>Angus Dry Age · 100% Mediterráneo</span>
         </div>

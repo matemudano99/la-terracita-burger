@@ -8,12 +8,12 @@ export default function BurgerDelMes() {
         {/* Photo with neon frame + inset */}
         <div style={sx("position:relative")}>
           <div className="ltb-neon-box" style={sx("position:relative;border-radius:22px;overflow:hidden;aspect-ratio:4/5")}>
-            <img src={B.img} alt={`Hamburguesa del mes: ${B.name}`} style={sx("display:block;width:100%;height:100%;object-fit:cover")} />
+            <img src={B.img} alt={`Hamburguesa del mes: ${B.name}`} width="1300" height="1086" fetchpriority="high" decoding="async" style={sx("display:block;width:100%;height:100%;object-fit:cover")} />
           </div>
           <div style={sx("position:absolute;right:-14px;bottom:-14px;width:40%;aspect-ratio:1/1;border-radius:16px;overflow:hidden;border:3px solid #0a0806;box-shadow:0 14px 34px rgba(0,0,0,.55)")}>
-            <img src={B.img2} alt="" style={sx("display:block;width:100%;height:100%;object-fit:cover")} />
+            <img src={B.img2} alt="" width="1300" height="866" loading="lazy" decoding="async" style={sx("display:block;width:100%;height:100%;object-fit:cover")} />
           </div>
-          <span style={sx("position:absolute;top:-16px;left:-10px;display:grid;place-items:center;width:92px;height:92px;border-radius:50%;background:rgb(var(--emb));color:#0a0806;font-family:'Anton',sans-serif;font-size:14px;text-align:center;line-height:1.05;text-transform:uppercase;transform:rotate(-10deg);animation:ltb-float 6s ease-in-out infinite")}>Del mes</span>
+          <span style={sx("position:absolute;top:-16px;left:-10px;display:grid;place-items:center;width:92px;height:92px;border-radius:50%;background:rgb(var(--emb));color:#0a0806;font-family:'Anton',sans-serif;font-size:14px;text-align:center;line-height:1.05;text-transform:uppercase;transform:rotate(-10deg)")}>Del mes</span>
         </div>
 
         {/* Info */}
@@ -34,7 +34,7 @@ export default function BurgerDelMes() {
               </div>
             ))}
           </div>
-          <p style={sx("margin:24px 0 0;font-size:14.5px;line-height:1.5;color:rgba(246,241,233,.6)")}>{B.closing}</p>
+          <p style={sx("margin:24px 0 0;font-size:14.5px;line-height:1.5;color:rgba(246,241,233,.72)")}>{B.closing}</p>
           <div style={sx("display:flex;flex-wrap:wrap;gap:14px;margin-top:30px;align-items:center")}>
             <a href="#pedidos" style={sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.05em;padding:15px 32px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 12px 36px -10px rgb(var(--acc) / .7)")}>PEDIR AHORA</a>
             <a href="#carta" style={sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.05em;padding:15px 32px;border-radius:100px;background:transparent;color:#f6f1e9;text-decoration:none;border:2px solid rgba(246,241,233,.25)")}>VER LA CARTA</a>

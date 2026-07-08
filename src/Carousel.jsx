@@ -3,10 +3,10 @@ import { sx } from "./sx";
 
 // Real LTB photos (in /public/fotos). Add or reorder freely.
 const SLIDES = [
-  { img: "/fotos/burger-bacon.jpg", caption: "Bacon, cheddar y bordes crujientes" },
-  { img: "/fotos/burger-laterracita.jpg", caption: "La Terracita — setas y queso de cabra" },
-  { img: "/fotos/burger-smash.jpg", caption: "Smash de Angus Dry Age" },
-  { img: "/fotos/burger-couple.jpg", caption: "Para volverte adicto 🔥" },
+  { img: "/fotos/burger-bacon.webp", caption: "Bacon, cheddar y bordes crujientes" },
+  { img: "/fotos/burger-laterracita.webp", caption: "La Terracita — setas y queso de cabra" },
+  { img: "/fotos/burger-smash.webp", caption: "Smash de Angus Dry Age" },
+  { img: "/fotos/burger-couple.webp", caption: "Para volverte adicto 🔥" },
 ];
 
 export default function Carousel() {
@@ -25,12 +25,16 @@ export default function Carousel() {
   return (
     <div style={sx("position:relative;width:100%;aspect-ratio:4/5;border-radius:20px;overflow:hidden;border:1px solid rgba(246,241,233,.1);background:#0a0806")}>
       {SLIDES.map((s, idx) => (
-        <div
+        <img
           key={idx}
+          src={s.img}
+          alt={s.caption}
+          loading="lazy"
+          decoding="async"
+          aria-hidden={idx === i ? undefined : "true"}
           style={{
-            ...sx("position:absolute;inset:0;transition:opacity .6s ease"),
+            ...sx("position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .6s ease"),
             opacity: idx === i ? 1 : 0,
-            background: `#0a0806 url(${s.img}) center/cover no-repeat`,
           }}
         />
       ))}

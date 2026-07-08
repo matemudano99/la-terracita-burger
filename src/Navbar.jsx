@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sx } from "./sx";
 import { SITE } from "./site";
 import MarqueeBackdrop from "./MarqueeStrip";
@@ -26,15 +26,30 @@ const FbIcon = ({ size = 22 }) => (
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const logoRef = useRef(null);
+  const menuRef = useRef(null);
 
   useEffect(() => {
     if (!open) return;
     document.body.style.overflow = "hidden";
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    const getFocusables = () =>
+      menuRef.current ? [...menuRef.current.querySelectorAll("a[href], button")] : [];
+    getFocusables()[0]?.focus();
+    const onKey = (e) => {
+      if (e.key === "Escape") { setOpen(false); return; }
+      if (e.key === "Tab") {
+        const f = getFocusables();
+        if (!f.length) return;
+        const i = f.indexOf(document.activeElement);
+        if (e.shiftKey && i <= 0) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = "";
       window.removeEventListener("keydown", onKey);
+      logoRef.current?.focus();
     };
   }, [open]);
 
@@ -45,9 +60,11 @@ export default function Navbar() {
       {/* Minimal floating bar — logo opens the menu */}
       <nav style={sx("position:fixed;top:0;left:0;right:0;z-index:40;display:flex;align-items:center;justify-content:space-between;padding:18px clamp(16px,4vw,34px);pointer-events:none")}>
         <button
+          ref={logoRef}
           className="ltb-logo-btn"
           aria-label="Abrir menú"
           aria-expanded={open}
+          aria-haspopup="dialog"
           onClick={() => setOpen(true)}
           style={sx("pointer-events:auto;display:grid;place-items:center;width:56px;height:56px;padding:0;border:0;border-radius:50%;cursor:pointer;background:#0a0806;box-shadow:0 6px 22px rgba(0,0,0,.5)")}
         >
@@ -65,7 +82,7 @@ export default function Navbar() {
 
       {/* Full-screen menu overlay */}
       {open && (
-        <div className="ltb-menu" onClick={close} style={sx("position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;text-align:center;padding:90px 24px 40px;overflow:hidden")}>
+        <div ref={menuRef} className="ltb-menu" role="dialog" aria-modal="true" aria-label="Menú" onClick={close} style={sx("position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;text-align:center;padding:90px 24px 40px;overflow:hidden")}>
           {/* Moving dividers, same as the intro splash */}
           <MarqueeBackdrop />
           <div style={sx("position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 72% 62% at 50% 50%, rgb(10 8 6 / .93), rgb(10 8 6 / .55) 55%, transparent 82%)")} />

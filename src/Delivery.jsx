@@ -43,7 +43,7 @@ export default function Delivery() {
   const L = LOCS[loc];
 
   return (
-    <section id="pedidos" style={sx("position:relative;z-index:2;padding:70px 5vw 90px;max-width:1200px;margin:0 auto")}>
+    <section id="pedidos" className="ltb-cv" style={sx("position:relative;z-index:2;padding:70px 5vw 90px;max-width:1200px;margin:0 auto")}>
       <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s;text-align:center;margin-bottom:8px")}>
         <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>04 — A domicilio</div>
         <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>Pídela en <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>casa</span></h2>
@@ -59,6 +59,7 @@ export default function Delivery() {
             <button
               key={id}
               onClick={() => setLoc(id)}
+              aria-pressed={active}
               style={{
                 ...sx("font-family:'Anton',sans-serif;font-size:clamp(17px,2.3vw,23px);letter-spacing:.04em;text-transform:uppercase;padding:14px 32px;border-radius:100px;cursor:pointer;transition:all .3s cubic-bezier(.2,.8,.2,1)"),
                 border: active ? "2px solid transparent" : "2px solid rgba(246,241,233,.2)",
@@ -100,7 +101,7 @@ export default function Delivery() {
               ))}
             </span>
             <strong style={sx("color:#f6f1e9")}>{L.rating}</strong>
-            <span style={sx("color:rgba(246,241,233,.5)")}>({L.reviews} reseñas · Google)</span>
+            <span style={sx("color:rgba(246,241,233,.64)")}>({L.reviews} reseñas · Google)</span>
           </span>
         </div>
 
@@ -129,7 +130,7 @@ export default function Delivery() {
           ))}
         </div>
 
-        <p style={sx("margin:24px 0 0;font-size:13px;color:rgba(246,241,233,.5);position:relative")}>
+        <p style={sx("margin:24px 0 0;font-size:13px;color:rgba(246,241,233,.64);position:relative")}>
           ¿Prefieres recoger? Llámanos al{" "}
           <a href={`tel:${L.tel}`} style={{ ...sx("text-decoration:none;font-weight:700"), color: `rgb(${L.rgb})` }}>{L.phone}</a>.
         </p>

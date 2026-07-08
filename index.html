@@ -2,13 +2,116 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>La Terracita Burger</title>
+    <meta name="theme-color" content="#0a0806" />
+
+    <title>La Terracita Burger · Smash Burgers Angus en Málaga | Teatinos y Rincón</title>
+    <meta
+      name="description"
+      content="Smash burgers de ternera Angus Dry Age en Málaga. La Terracita Burger en Teatinos y Rincón de la Victoria: come en el local, para llevar o a domicilio con Glovo, Just Eat y Uber Eats."
+    />
+    <link rel="canonical" href="https://laterracitaburger.com/" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="restaurant.restaurant" />
+    <meta property="og:site_name" content="La Terracita Burger" />
+    <meta property="og:title" content="La Terracita Burger · Smash Burgers Angus en Málaga" />
+    <meta
+      property="og:description"
+      content="Smash burgers de ternera Angus Dry Age en Teatinos y Rincón de la Victoria. Come en el local, para llevar o a domicilio."
+    />
+    <meta property="og:url" content="https://laterracitaburger.com/" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:image" content="https://laterracitaburger.com/og.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Smash burger de La Terracita Burger" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="La Terracita Burger · Smash Burgers Angus en Málaga" />
+    <meta
+      name="twitter:description"
+      content="Smash burgers de ternera Angus Dry Age en Teatinos y Rincón de la Victoria."
+    />
+    <meta name="twitter:image" content="https://laterracitaburger.com/og.jpg" />
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Preload the LCP image (hamburguesa del mes) -->
+    <link rel="preload" as="image" href="/fotos/mes-black-garlic-1.webp" fetchpriority="high" />
+
+    <!-- Datos estructurados: dos locales -->
+    <script type="application/ld+json">
+    [
+      {
+        "@context": "https://schema.org",
+        "@type": "Restaurant",
+        "@id": "https://laterracitaburger.com/#teatinos",
+        "name": "La Terracita Burger · Teatinos",
+        "image": "https://laterracitaburger.com/og.jpg",
+        "url": "https://laterracitaburger.com/",
+        "servesCuisine": ["Hamburguesas", "Smash Burger", "Americana"],
+        "priceRange": "€€",
+        "telephone": "+34628053065",
+        "acceptsReservations": true,
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Av. Parménides 1, Local 5",
+          "addressLocality": "Málaga",
+          "postalCode": "29010",
+          "addressRegion": "Málaga",
+          "addressCountry": "ES"
+        },
+        "geo": { "@type": "GeoCoordinates", "latitude": 36.7241, "longitude": -4.47978 },
+        "sameAs": [
+          "https://instagram.com/laterracita.burger",
+          "https://www.facebook.com/laterracita.burgers/"
+        ],
+        "openingHoursSpecification": [
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Wednesday","Thursday","Friday","Saturday","Sunday"], "opens": "13:00", "closes": "16:00" },
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Wednesday","Thursday","Friday","Saturday","Sunday"], "opens": "20:00", "closes": "23:30" }
+        ]
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "Restaurant",
+        "@id": "https://laterracitaburger.com/#rincon",
+        "name": "La Terracita Burger · Rincón de la Victoria",
+        "image": "https://laterracitaburger.com/og.jpg",
+        "url": "https://laterracitaburger.com/",
+        "servesCuisine": ["Hamburguesas", "Smash Burger", "Americana"],
+        "priceRange": "€€",
+        "telephone": "+34622220826",
+        "acceptsReservations": true,
+        "address": {
+          "@type": "PostalAddress",
+          "streetAddress": "Av. del Mediterráneo 139",
+          "addressLocality": "Rincón de la Victoria",
+          "postalCode": "29730",
+          "addressRegion": "Málaga",
+          "addressCountry": "ES"
+        },
+        "geo": { "@type": "GeoCoordinates", "latitude": 36.71391, "longitude": -4.27483 },
+        "sameAs": [
+          "https://instagram.com/laterracita.burger",
+          "https://www.facebook.com/laterracita.burgers/"
+        ],
+        "openingHoursSpecification": [
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"], "opens": "13:00", "closes": "16:00" },
+          { "@type": "OpeningHoursSpecification", "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"], "opens": "20:00", "closes": "23:30" }
+        ]
+      }
+    ]
+    </script>
   </head>
   <body>
     <div id="root"></div>

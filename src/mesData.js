@@ -1,7 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // HAMBURGUESA DEL MES — edita este archivo cada mes.
-// Cambia el texto, los ingredientes y las rutas de foto (en /public/fotos).
-// Si cambias `mes`, la intro neón vuelve a mostrarse a cada visitante.
+// Cambia el texto, los ingredientes y las fotos. Para las fotos: pon los .jpg
+// nuevos en /public/fotos y ejecuta `node scripts/optimize-images.mjs` para
+// regenerar los .webp, luego apunta img/img2 a los .webp.
 // ─────────────────────────────────────────────────────────────────────────────
 export const BURGER_DEL_MES = {
   mes: "Julio",
@@ -18,6 +19,6 @@ export const BURGER_DEL_MES = {
   ],
   closing: "Potencia, cremosidad y un sabor profundo que engancha desde el primer bocado 🤤",
   price: "", // opcional — se oculta si queda vacío
-  img: "/fotos/mes-black-garlic-1.jpg",
-  img2: "/fotos/mes-black-garlic-2.jpg",
+  img: "/fotos/mes-black-garlic-1.webp",
+  img2: "/fotos/mes-black-garlic-2.webp",
 };
