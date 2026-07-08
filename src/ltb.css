@@ -107,6 +107,10 @@ body {
   }
 }
 .ltb-neon-text { animation: ltb-neon 2.4s ease-in-out infinite; }
+/* Flickering neon (like the hero "Burger"): opacity flicker for text that
+   already has a glow, or glow-pulse + flicker combined. */
+.ltb-flicker-text { animation: ltb-flicker 4.2s infinite; }
+.ltb-neon-flicker { animation: ltb-neon 2.4s ease-in-out infinite, ltb-flicker 4.6s .4s infinite; }
 
 @keyframes ltb-neon-border {
   0%, 100% { box-shadow: 0 0 0 1px rgb(var(--acc) / .5), 0 0 22px rgb(var(--acc) / .45), 0 0 60px rgb(var(--emb) / .28); }

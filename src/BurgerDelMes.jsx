@@ -22,7 +22,7 @@ export default function BurgerDelMes() {
             <span style={sx("width:7px;height:7px;border-radius:50%;background:rgb(var(--acc));animation:ltb-pulse 1.6s infinite")} />
             Hamburguesa del mes
           </div>
-          <h2 className="ltb-neon-text" style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(46px,8vw,104px);line-height:.88;text-transform:uppercase;color:rgb(var(--acc))")}>{B.name}</h2>
+          <h2 className="ltb-neon-flicker" style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(46px,8vw,104px);line-height:.88;text-transform:uppercase;color:rgb(var(--acc))")}>{B.name}</h2>
           {B.tag && (
             <span style={sx("display:inline-block;margin-top:14px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;padding:6px 12px;border-radius:100px;background:rgb(var(--emb) / .16);color:rgb(var(--emb));border:1px solid rgb(var(--emb) / .4)")}>{B.tag}</span>
           )}

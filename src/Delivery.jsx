@@ -46,7 +46,7 @@ export default function Delivery() {
     <section id="pedidos" style={sx("position:relative;z-index:2;padding:70px 5vw 90px;max-width:1200px;margin:0 auto")}>
       <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s;text-align:center;margin-bottom:8px")}>
         <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>04 — A domicilio</div>
-        <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>Pídela en <span style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>casa</span></h2>
+        <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>Pídela en <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>casa</span></h2>
         <p style={sx("max-width:520px;margin:18px auto 0;font-size:15.5px;line-height:1.55;color:rgba(246,241,233,.62)")}>Elige tu local y pide por tu app favorita. Mismo smash, en tu sofá.</p>
       </div>
 

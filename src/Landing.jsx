@@ -205,7 +205,7 @@ export default function Landing() {
       <section id="carta" style={sx("position:relative;z-index:2;padding:96px 5vw 80px;max-width:1240px;margin:0 auto")}>
         <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s")}>
           <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>01 — La Carta</div>
-          <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,96px);line-height:.9;text-transform:uppercase")}>Elige tu <span style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>vicio</span></h2>
+          <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,96px);line-height:.9;text-transform:uppercase")}>Elige tu <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>vicio</span></h2>
         </div>
 
         <div style={sx("display:flex;flex-wrap:wrap;gap:12px;margin:44px 0 40px")}>
