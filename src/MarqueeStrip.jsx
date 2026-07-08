@@ -6,7 +6,10 @@ const B = ["Black Garlic", "Cheddar fundido", "100% Mediterráneo", "Pan de papa
 const C = ["Para volverte adicto", "Smash · Angus", "La Terracita", "🖤"];
 
 function Strip({ items, rot = 0, top, dir = "ltb-marq", dur = 22, solid = false, fontSize = 26, opacity = 1 }) {
-  const row = [...items, ...items];
+  // The strip is 160vw wide; the marquee loops on translateX(-50%), so each
+  // half must be wider than the strip or a blank gap appears. Repeat the
+  // phrases enough that half the row (8x items) fills even 4K screens.
+  const row = Array.from({ length: 16 }).flatMap(() => items);
   return (
     <div
       style={{
