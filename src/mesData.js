@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // HAMBURGUESA DEL MES — edita este archivo cada mes.
 // Cambia el texto, los ingredientes y las fotos. Para las fotos: pon los .jpg
-// nuevos en /public/fotos y ejecuta `node scripts/optimize-images.mjs` para
-// regenerar los .webp, luego apunta img/img2 a los .webp.
+// nuevos en /assets-src/fotos y ejecuta `npm run optimize:images` para generar
+// los .webp en /public/fotos, luego apunta img/img2 a esos .webp.
 // ─────────────────────────────────────────────────────────────────────────────
 export const BURGER_DEL_MES = {
   mes: "Julio",
