@@ -46,7 +46,6 @@ body {
 .ltb-logo-btn, .ltb-pedir { -webkit-tap-highlight-color: transparent; }
 @media (hover: hover) and (pointer: fine) {
   .ltb-logo-btn { transition: box-shadow .3s, transform .2s; }
-  .ltb-logo-btn img { transition: transform .2s; }
   .ltb-logo-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px rgb(var(--acc) / .5), 0 6px 22px rgba(0,0,0,.5) !important; }
   .ltb-pedir { transition: box-shadow .3s, transform .2s; }
   .ltb-pedir:hover { box-shadow: 0 0 30px rgb(var(--acc) / .85); transform: translateY(-1px); }
