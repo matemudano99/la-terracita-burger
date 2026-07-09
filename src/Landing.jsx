@@ -373,7 +373,7 @@ export default function Landing() {
         <div style={sx("max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;justify-content:space-between;gap:40px")}>
           <div style={sx("max-width:320px")}>
             <div style={sx("display:flex;align-items:center;gap:12px;margin-bottom:16px")}>
-              <img src="/logo-white.png" alt="La Terracita Burger" width="52" height="52" style={{ display: "block", width: "52px", height: "52px" }} />
+              <img src="/logo-ltb-white.png" alt="La Terracita Burger" width="52" height="52" style={{ display: "block", width: "52px", height: "52px" }} />
               <div style={sx("font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.1em;line-height:1")}>LA TERRACITA<br /><span style={sx("font-size:11px;letter-spacing:.3em;color:var(--acc-lt)")}>BURGER · MEDITERRÁNEO</span></div>
             </div>
             <p style={sx("margin:0;font-size:14px;line-height:1.5;color:rgba(246,241,233,.68)")}>Smash burgers para volverte adicto 🔥</p>
@@ -386,7 +386,7 @@ export default function Landing() {
             </div>
             <div>
               <div style={sx("font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.72);margin-bottom:14px")}>Síguenos</div>
-              <a href={SITE.instagram} target="_blank" rel="noreferrer" style={sx("display:block;color:rgb(var(--acc));text-decoration:none;font-weight:700;margin-bottom:8px")}>@laterracita.burger →</a>
+              <a href={SITE.instagram} target="_blank" rel="noreferrer" style={sx("display:block;color:rgb(var(--acc));text-decoration:none;font-weight:700;margin-bottom:8px")}>Instagram →</a>
               <a href={SITE.facebook} target="_blank" rel="noreferrer" style={sx("display:block;color:#f6f1e9;text-decoration:none;font-weight:600")}>Facebook →</a>
             </div>
           </div>

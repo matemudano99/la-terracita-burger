@@ -9,7 +9,8 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "optimize:images": "node scripts/optimize-images.mjs",
-    "make:favicon": "node scripts/make-favicon.mjs"
+    "make:favicon": "node scripts/make-favicon.mjs",
+    "make:logo": "node scripts/make-logo.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",

@@ -53,7 +53,7 @@ export default function IntroSplash() {
         <div style={sx("position:absolute;top:50%;left:50%;width:min(96vw,720px);height:min(96vw,720px);transform:translate(-50%,-50%);background:radial-gradient(circle, #0a0806 34%, rgb(10 8 6 / .78) 52%, transparent 72%);pointer-events:none")} />
         <div style={sx("position:relative;display:flex;flex-direction:column;align-items:center;gap:20px")}>
           <img
-            src="/logo-white.png"
+            src="/logo-ltb-white.png"
             alt="La Terracita Burger"
             width="120"
             height="120"

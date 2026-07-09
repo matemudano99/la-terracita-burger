@@ -68,7 +68,7 @@ export default function Navbar() {
           onClick={() => setOpen(true)}
           style={sx("pointer-events:auto;display:grid;place-items:center;width:56px;height:56px;padding:0;border:0;border-radius:50%;cursor:pointer;background:#0a0806;box-shadow:0 6px 22px rgba(0,0,0,.5)")}
         >
-          <img src="/logo-white.png" alt="La Terracita Burger — abrir menú" width="34" height="34" style={{ display: "block", width: "34px", height: "34px" }} />
+          <img src="/logo-ltb-white.png" alt="La Terracita Burger — abrir menú" width="34" height="34" style={{ display: "block", width: "34px", height: "34px" }} />
         </button>
 
         <a
