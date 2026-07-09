@@ -10,17 +10,19 @@ const SIZE = 192; // múltiplo de 48 (requisito de Google)
 //    evitando los aros del borde y el texto pequeño inferior.
 const { data, info } = await sharp(SRC).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 const { width: W, height: H, channels: C } = info;
-const x0 = Math.floor(W * 0.24), x1 = Math.ceil(W * 0.76);
-const y0 = Math.floor(H * 0.30), y1 = Math.ceil(H * 0.56);
+const cx = W / 2, cy = H / 2;
+const maxDist2 = (0.41 * W) ** 2; // dentro del aro interno
+const yMin = 0.29 * H, yMax = 0.585 * H; // solo la banda de las letras "LTB"
 let minX = W, minY = H, maxX = 0, maxY = 0;
-for (let y = y0; y < y1; y++) {
-  for (let x = x0; x < x1; x++) {
+for (let y = Math.floor(yMin); y < yMax; y++) {
+  for (let x = 0; x < W; x++) {
     const i = (y * W + x) * C;
-    const a = data[i + 3];
-    const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
-    if (a > 128 && lum > 170) {
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    if (data[i + 3] > 128 && (data[i] + data[i + 1] + data[i + 2]) / 3 > 170) {
+      const dx = x - cx, dy = y - cy;
+      if (dx * dx + dy * dy < maxDist2) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
     }
   }
 }
