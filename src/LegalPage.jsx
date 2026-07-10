@@ -3,11 +3,6 @@ import { sx } from "./sx";
 import { SITE } from "./site";
 import LtbMark from "./LtbMark";
 
-// Placeholder de datos del titular: sustituir por los datos reales antes de publicar.
-const Ph = ({ children }) => (
-  <strong style={sx("color:rgb(var(--acc));font-weight:600")}>[{children}]</strong>
-);
-
 const h2 = sx("margin:44px 0 12px;font-family:'Anton',sans-serif;font-weight:400;font-size:22px;letter-spacing:.02em;text-transform:uppercase;color:#f6f1e9");
 const p = sx("margin:0 0 14px;font-size:15.5px;line-height:1.65;color:rgba(246,241,233,.78)");
 const ul = sx("margin:0 0 14px;padding-left:22px;font-size:15.5px;line-height:1.65;color:rgba(246,241,233,.78)");
@@ -21,10 +16,10 @@ const AvisoLegal = () => (
       Información y de Comercio Electrónico (LSSI-CE), se informa de que el titular de este sitio web es:
     </p>
     <ul style={ul}>
-      <li>Titular: <Ph>RAZÓN SOCIAL / NOMBRE Y APELLIDOS</Ph></li>
-      <li>NIF/CIF: <Ph>NIF</Ph></li>
-      <li>Domicilio: <Ph>DOMICILIO FISCAL</Ph>, Málaga (España)</li>
-      <li>Correo electrónico: <Ph>EMAIL DE CONTACTO</Ph></li>
+      <li>Titular: La Terracita Burger</li>
+      <li>NIF/CIF: B70678818</li>
+      <li>Domicilio: Av. del Mediterráneo 139, 29730 Rincón de la Victoria, Málaga (España)</li>
+      <li>Correo electrónico: laterracita.burgers@gmail.com</li>
       <li>Teléfonos: 628 053 065 (Teatinos) · 622 220 826 (Rincón de la Victoria)</li>
       <li>Sitio web: https://laterracitaburger.com</li>
     </ul>
@@ -68,10 +63,10 @@ const Privacidad = () => (
   <>
     <h2 style={h2}>1. Responsable del tratamiento</h2>
     <ul style={ul}>
-      <li>Responsable: <Ph>RAZÓN SOCIAL / NOMBRE Y APELLIDOS</Ph></li>
-      <li>NIF/CIF: <Ph>NIF</Ph></li>
-      <li>Domicilio: <Ph>DOMICILIO FISCAL</Ph>, Málaga (España)</li>
-      <li>Correo electrónico: <Ph>EMAIL DE CONTACTO</Ph></li>
+      <li>Responsable: La Terracita Burger</li>
+      <li>NIF/CIF: B70678818</li>
+      <li>Domicilio: Av. del Mediterráneo 139, 29730 Rincón de la Victoria, Málaga (España)</li>
+      <li>Correo electrónico: laterracita.burgers@gmail.com</li>
     </ul>
 
     <h2 style={h2}>2. Qué datos tratamos</h2>
@@ -97,7 +92,7 @@ const Privacidad = () => (
     <h2 style={h2}>4. Tus derechos</h2>
     <p style={p}>
       Puedes ejercer tus derechos de acceso, rectificación, supresión, oposición, limitación del tratamiento y
-      portabilidad escribiendo a <Ph>EMAIL DE CONTACTO</Ph>. Si consideras que el tratamiento no se ajusta a la
+      portabilidad escribiendo a laterracita.burgers@gmail.com. Si consideras que el tratamiento no se ajusta a la
       normativa, puedes presentar una reclamación ante la Agencia Española de Protección de Datos
       (<a style={ext} href="https://www.aepd.es" target="_blank" rel="noreferrer">www.aepd.es</a>).
     </p>
