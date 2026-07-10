@@ -115,6 +115,29 @@ body {
 }
 .ltb-deliv--ue:hover .ltb-underline { width: 100%; }
 
+/* Teléfono — opción destacada: borde de marca siempre visible, aro sonar
+   permanente en el icono y teléfono que vibra al hover */
+.ltb-deliv--tel { border-color: color-mix(in srgb, var(--brand) 55%, transparent) !important; }
+.ltb-tel-ico::after {
+  content: "";
+  position: absolute; inset: 0; border-radius: 14px;
+  border: 2px solid var(--brand);
+  animation: ltb-sonar 2s ease-out infinite;
+  pointer-events: none;
+}
+@keyframes ltb-sonar {
+  0% { opacity: .8; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(1.55); }
+}
+.ltb-deliv--tel:hover .ltb-tel-ico { animation: ltb-vibrate .55s ease; }
+@keyframes ltb-vibrate {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-12deg); }
+  40% { transform: rotate(10deg); }
+  60% { transform: rotate(-8deg); }
+  80% { transform: rotate(6deg); }
+}
+
 @keyframes ltb-pop { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
 
 /* ---- Neon ---- */

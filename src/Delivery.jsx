@@ -47,7 +47,7 @@ export default function Delivery() {
       <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s;text-align:center;margin-bottom:8px")}>
         <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>04 — A domicilio</div>
         <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>Pídela en <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>casa</span></h2>
-        <p style={sx("max-width:520px;margin:18px auto 0;font-size:15.5px;line-height:1.55;color:rgba(246,241,233,.62)")}>Elige tu local y pide por tu app favorita. Mismo smash, en tu sofá.</p>
+        <p style={sx("max-width:520px;margin:18px auto 0;font-size:15.5px;line-height:1.55;color:rgba(246,241,233,.62)")}>Llámanos para recoger o pide por tu app favorita. Mismo smash, en tu sofá.</p>
       </div>
 
       {/* Location selector — big, obvious difference */}
@@ -105,6 +105,23 @@ export default function Delivery() {
           </span>
         </div>
 
+        {/* Llamar por teléfono — opción destacada, a ancho completo */}
+        <a
+          href={`tel:${L.tel}`}
+          className="ltb-deliv ltb-deliv--tel"
+          style={{
+            ...sx("display:flex;flex-wrap:wrap;align-items:center;gap:16px 20px;margin-bottom:14px;padding:22px 24px;border-radius:16px;background:#100c08;border:1px solid rgba(246,241,233,.12);text-decoration:none;color:#f6f1e9;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s,border-color .3s;animation:ltb-rise .5s both;position:relative"),
+            ["--brand"]: `rgb(${L.rgb})`,
+          }}
+        >
+          <span className="ltb-tel-ico" style={{ ...sx("position:relative;flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:14px;font-size:26px"), background: `rgb(${L.rgb})` }}>📞</span>
+          <span style={sx("display:flex;flex-direction:column;gap:2px;flex:1;min-width:min(100%,220px)")}>
+            <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase"), color: `rgb(${L.rgb})` }}>Llámanos</span>
+            <span style={sx("font-size:13px;color:rgba(246,241,233,.6)")}>Sin comisiones — pide directo al local</span>
+          </span>
+          <span style={sx("font-family:'Anton',sans-serif;font-size:clamp(22px,3.5vw,30px);letter-spacing:.04em")}>{L.phone} →</span>
+        </a>
+
         <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:14px;position:relative")}>
           {PLATFORMS.map((p, idx) => (
             <a
@@ -116,7 +133,7 @@ export default function Delivery() {
               style={{
                 ...sx("display:flex;align-items:center;gap:16px;padding:20px;border-radius:16px;background:#100c08;border:1px solid rgba(246,241,233,.12);text-decoration:none;color:#f6f1e9;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s,border-color .3s;animation:ltb-rise .5s both"),
                 ["--brand"]: p.brand,
-                animationDelay: `${idx * 0.08}s`,
+                animationDelay: `${(idx + 1) * 0.08}s`,
               }}
             >
               <span style={{ ...sx("flex:none;display:grid;place-items:center;width:50px;height:50px;border-radius:14px;font-family:'Anton',sans-serif;font-size:24px;line-height:1"), background: p.brand, color: "#0a0806" }}>{p.name[0]}</span>
@@ -130,10 +147,6 @@ export default function Delivery() {
           ))}
         </div>
 
-        <p style={sx("margin:24px 0 0;font-size:13px;color:rgba(246,241,233,.64);position:relative")}>
-          ¿Prefieres recoger? Llámanos al{" "}
-          <a href={`tel:${L.tel}`} style={{ ...sx("text-decoration:none;font-weight:700"), color: `rgb(${L.rgb})` }}>{L.phone}</a>.
-        </p>
       </div>
     </section>
   );
