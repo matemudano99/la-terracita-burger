@@ -394,6 +394,11 @@ export default function Landing() {
         </div>
         <div style={sx("max-width:1200px;margin:44px auto 0;padding-top:22px;border-top:1px solid rgba(246,241,233,.08);display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:12px;color:rgba(246,241,233,.6)")}>
           <span>© 2026 La Terracita Burger · Málaga</span>
+          <span style={sx("display:flex;flex-wrap:wrap;gap:12px")}>
+            <a href="/aviso-legal" style={sx("color:rgba(246,241,233,.6)")}>Aviso legal</a>
+            <a href="/privacidad" style={sx("color:rgba(246,241,233,.6)")}>Privacidad</a>
+            <a href="/cookies" style={sx("color:rgba(246,241,233,.6)")}>Cookies</a>
+          </span>
           <span>Angus Dry Age · 100% Mediterráneo</span>
         </div>
       </footer>
