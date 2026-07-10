@@ -77,6 +77,11 @@ const Privacidad = () => (
       de forma segura.
     </p>
     <p style={p}>
+      Para conocer el uso de la web empleamos <strong>Vercel Web Analytics</strong>, un sistema de estadísticas
+      anónimas y agregadas (visitas, páginas vistas, país, tipo de dispositivo) que <strong>no usa cookies</strong> ni
+      identifica al visitante (<a style={ext} href="https://vercel.com/docs/analytics/privacy-policy" target="_blank" rel="noreferrer">más información</a>).
+    </p>
+    <p style={p}>
       Si nos llamas por teléfono para reservar o hacer un pedido, los datos que nos facilites (nombre, teléfono)
       se usan exclusivamente para gestionar esa reserva o pedido y no se incorporan a otros tratamientos ni se
       ceden a terceros.
@@ -110,7 +115,9 @@ const Cookies = () => (
     <h2 style={h2}>2. Cookies que usa este sitio</h2>
     <p style={p}>
       <strong>Este sitio no instala cookies propias</strong> ni utiliza cookies de análisis, publicidad o
-      seguimiento. Por eso no verás un banner de consentimiento: no hay nada que consentir.
+      seguimiento. Por eso no verás un banner de consentimiento: no hay nada que consentir. La medición de
+      visitas se realiza con Vercel Web Analytics, que funciona <strong>sin cookies</strong> y con datos anónimos
+      y agregados.
     </p>
 
     <h2 style={h2}>3. Recursos de terceros</h2>
