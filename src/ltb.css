@@ -174,3 +174,28 @@ body {
   * { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
   html { scroll-behavior: auto; }
 }
+
+/* ── Ticket de cocina (58mm) — solo existe al imprimir desde /cocina ─────── */
+.ltb-ticket { display: none; }
+@media print {
+  body.ltb-printing { background: #fff; }
+  body.ltb-printing #root > * { display: none !important; }
+  body.ltb-printing .ltb-ticket {
+    display: block !important;
+    position: static;
+    width: 58mm;
+    padding: 2mm 1mm;
+    color: #000;
+    background: #fff;
+    font-family: "Courier New", monospace;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+  .ltb-ticket .tk-center { text-align: center; }
+  .ltb-ticket .tk-big { font-size: 13px; font-weight: 700; }
+  .ltb-ticket .tk-huge { font-size: 26px; font-weight: 700; }
+  .ltb-ticket .tk-sep { border-top: 1px dashed #000; margin: 4px 0; }
+  .ltb-ticket .tk-line { margin: 2px 0; }
+  .ltb-ticket .tk-row { display: flex; justify-content: space-between; gap: 6px; }
+  .ltb-ticket .tk-sub { padding-left: 12px; }
+}

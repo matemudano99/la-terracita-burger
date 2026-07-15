@@ -26,9 +26,10 @@ const AvisoLegal = () => (
 
     <h2 style={h2}>2. Objeto</h2>
     <p style={p}>
-      Este sitio web tiene carácter informativo: da a conocer la carta, los locales y los canales de pedido y
-      contacto de La Terracita Burger. Los pedidos a domicilio se realizan a través de plataformas de terceros
-      (Just Eat, Glovo y Uber Eats) y las reservas por teléfono.
+      Este sitio web da a conocer la carta, los locales y los canales de pedido y contacto de La Terracita
+      Burger, y permite realizar <strong>pedidos online para recoger en el local</strong>, con pago en el
+      momento de la recogida (no se realizan pagos a través de la web). Los pedidos a domicilio se realizan a
+      través de plataformas de terceros (Just Eat, Glovo y Uber Eats) y las reservas por teléfono.
     </p>
 
     <h2 style={h2}>3. Condiciones de uso</h2>
@@ -71,10 +72,21 @@ const Privacidad = () => (
 
     <h2 style={h2}>2. Qué datos tratamos</h2>
     <p style={p}>
-      Este sitio web no incorpora formularios ni sistemas de registro, por lo que <strong>no recoge datos
-      personales de los visitantes</strong>. El proveedor de alojamiento (Vercel Inc.) puede tratar datos
+      Navegar por este sitio no requiere registro. El proveedor de alojamiento (Vercel Inc.) puede tratar datos
       técnicos de conexión (como la dirección IP) en sus registros de servidor, necesarios para servir la página
       de forma segura.
+    </p>
+    <p style={p}>
+      Si haces un <strong>pedido online</strong> en la sección «Pedir», tratamos los datos que nos facilitas
+      (nombre, teléfono y contenido del pedido) con la única finalidad de preparar y entregarte el pedido y
+      contactarte si surge alguna duda con él. La base jurídica es la ejecución de la relación contractual que
+      solicitas (art. 6.1.b RGPD). También registramos la dirección IP desde la que se envía el pedido y si un
+      pedido queda sin recoger, con la única finalidad de prevenir abusos y pedidos fraudulentos (interés
+      legítimo, art. 6.1.f RGPD): los teléfonos con pedidos reiterados sin recoger pueden quedar excluidos del
+      pedido online (siempre pueden pedir por teléfono). Estos
+      datos se almacenan en la plataforma Supabase (encargado del tratamiento) y se conservan durante un máximo
+      de 30 días, salvo obligación legal de conservación mayor. No se usan para publicidad ni se ceden a
+      terceros.
     </p>
     <p style={p}>
       Para conocer el uso de la web empleamos <strong>Vercel Web Analytics</strong>, un sistema de estadísticas
@@ -118,6 +130,12 @@ const Cookies = () => (
       seguimiento. Por eso no verás un banner de consentimiento: no hay nada que consentir. La medición de
       visitas se realiza con Vercel Web Analytics, que funciona <strong>sin cookies</strong> y con datos anónimos
       y agregados.
+    </p>
+    <p style={p}>
+      La sección de pedidos online usa el <strong>almacenamiento local del navegador</strong> (localStorage) con
+      fines exclusivamente técnicos: recordar el local elegido, el contenido del carrito y el estado de tu
+      pedido. Es imprescindible para prestar el servicio que solicitas, no permite rastrearte y está exento de
+      consentimiento según la normativa vigente.
     </p>
 
     <h2 style={h2}>3. Recursos de terceros</h2>

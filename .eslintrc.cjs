@@ -13,9 +13,17 @@ module.exports = {
   plugins: ['react-refresh'],
   rules: {
     'react/jsx-no-target-blank': 'off',
+    'react/prop-types': 'off',
     'react-refresh/only-export-components': [
       'warn',
       { allowConstantExport: true },
     ],
   },
+  overrides: [
+    {
+      // Código que corre en Node (config de Vite y funciones serverless)
+      files: ['vite.config.js', 'api/**/*.js'],
+      env: { node: true },
+    },
+  ],
 }

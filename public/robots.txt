@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /cocina
+Disallow: /admin
 
 Sitemap: https://laterracitaburger.com/sitemap.xml

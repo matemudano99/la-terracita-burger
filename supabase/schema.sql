@@ -1,0 +1,62 @@
+-- Tabla de pedidos online de La Terracita Burger.
+-- Ejecuta este archivo una vez en Supabase: SQL Editor → New query → pegar → Run.
+
+create table if not exists public.pedidos (
+  id          uuid primary key,
+  code        text not null,
+  local       text not null,
+  nombre      text not null,
+  telefono    text not null,
+  items       jsonb not null,
+  nota        text,
+  ip          text,
+  alerta      text,
+  total_cents integer not null,
+  status      text not null default 'nuevo',
+  ready_at    timestamptz,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists pedidos_local_created on public.pedidos (local, created_at desc);
+create index if not exists pedidos_created on public.pedidos (created_at desc);
+create index if not exists pedidos_telefono on public.pedidos (telefono, created_at desc);
+
+-- La API del servidor usa la clave service_role (que ignora RLS).
+-- Activamos RLS sin políticas para que NADIE pueda leer/escribir con la clave
+-- pública (anon) si algún día se filtrara.
+alter table public.pedidos enable row level security;
+
+-- Ajustes por local: pausar pedidos online desde /admin (pestaña Ajustes).
+create table if not exists public.ajustes (
+  local      text primary key,
+  pausado    boolean not null default false,
+  motivo     text,
+  updated_at timestamptz not null default now()
+);
+alter table public.ajustes enable row level security;
+insert into public.ajustes (local) values ('teatinos'), ('rincon')
+  on conflict (local) do nothing;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CUENTA DE ADMINISTRADOR (hazlo una vez):
+-- 1. Supabase → Authentication → Users → "Add user" → email + contraseña
+--    (marca "Auto Confirm User").
+-- 2. Ejecuta esto (cambia el email) para darle el rol de admin:
+--
+-- update auth.users
+--   set raw_app_meta_data = coalesce(raw_app_meta_data, '{}'::jsonb)
+--       || '{"rol":"admin"}'::jsonb,
+--       raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb)
+--       || '{"nombre":"Mateo"}'::jsonb
+--   where email = 'laterracita.burgers@gmail.com';
+--
+-- Con esa cuenta entras en /admin y desde ahí creas las cuentas de empleados
+-- (que solo pueden usar /cocina). Nadie puede registrarse por su cuenta.
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- RGPD: borrado de datos personales pasados 30 días (los importes se conservan
+-- anonimizados). Requiere la extensión pg_cron (Database → Extensions → pg_cron).
+-- Si prefieres no activarla, puedes borrar a mano desde Table Editor.
+-- select cron.schedule('limpiar-pedidos', '0 5 * * *',
+--   $$update public.pedidos set nombre = '—', telefono = '—', nota = null,
+--     ip = null, items = '[]'::jsonb where created_at < now() - interval '30 days'$$);

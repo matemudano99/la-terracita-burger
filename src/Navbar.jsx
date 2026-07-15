@@ -5,6 +5,7 @@ import MarqueeBackdrop from "./MarqueeStrip";
 import LtbMark from "./LtbMark";
 
 const LINKS = [
+  { href: "/pedir", label: "Pedir online" },
   { href: "#del-mes", label: "Del mes" },
   { href: "#carta", label: "Carta" },
   { href: "#historia", label: "Historia" },
@@ -73,7 +74,7 @@ export default function Navbar() {
         </button>
 
         <a
-          href="#pedidos"
+          href="/pedir"
           className="ltb-pedir"
           style={sx("pointer-events:auto;font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:12px 26px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .45)")}
         >

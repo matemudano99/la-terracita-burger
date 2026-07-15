@@ -7,76 +7,12 @@ import BurgerDelMes from "./BurgerDelMes";
 import Carousel from "./Carousel";
 import Delivery from "./Delivery";
 import LtbMark from "./LtbMark";
+import { displayCats } from "./menu";
 
-const CATS = [
-  {
-    id: "smash",
-    label: "Smash Burgers",
-    items: [
-      { name: "Cheeseburger", desc: "Smash de ternera + cheddar fundido.", rows: [["Simple", "9,90 €"], ["Doble", "11,90 €"]] },
-      { name: "Classic", desc: "Smash de ternera + cheddar fundido + tomate + lechuga + cebolla + pepinillos.", rows: [["Simple", "10,90 €"], ["Doble", "12,90 €"]] },
-      { name: "Veggie", desc: "Smash de medallón vegetariano + tomate + lechuga + guacamole.", tag: "Veggie", rows: [["Simple", "10,90 €"], ["Doble", "12,90 €"]] },
-      { name: "Yankee", desc: "Smash + cheddar + bacon + cebolla crispy + barbacoa.", rows: [["Simple", "11,90 €"], ["Doble", "13,90 €"]] },
-      { name: "Mexican", desc: "Smash + guacamole + cheddar + bacon ahumado + picante + jeringa de cheddar.", tag: "Picante", rows: [["Simple", "11,90 €"], ["Doble", "13,90 €"]] },
-      { name: "Derrumbe", desc: "Smash + cheddar + bacon + aros de cebolla + salsa cheddar derrumbe.", rows: [["Simple", "13,00 €"], ["Doble", "15,00 €"]] },
-      { name: "Chicken Little", desc: "Medallón de pollo crispy + lechuga + tomate + alioli.", rows: [["Simple", "13,40 €"], ["Doble", "15,40 €"]] },
-      { name: "La Terracita", desc: "Smash + setas + queso de cabra + cebolla caramelizada + mostaza y miel.", tag: "La Casa", rows: [["Simple", "13,90 €"], ["Doble", "15,90 €"]] },
-      { name: "Oklahoma", desc: "Doble smash + 4 lonchas de cheddar + cebolla en mantequilla + salsa de la casa.", rows: [["Doble", "15,90 €"]] },
-      { name: "Jack Burger", desc: "Doble smash + cheddar + bacon + cebolla caramelizada con whisky + salsa Jack Daniels.", rows: [["Doble", "15,90 €"]] },
-      { name: "Teke-Burger", desc: "Doble smash + cheddar + bacon + tomate + salsa tártara + ketchup + tapa de tequeño.", rows: [["Doble", "16,90 €"]] },
-      { name: "Burger Especial", desc: "Consulta nuestra burger especial del momento.", tag: "Especial", rows: [["", "Consulta"]] },
-    ],
-  },
-  {
-    id: "camperos",
-    label: "Camperos",
-    items: [
-      { name: "Paquito", desc: "Jamón cocido + queso + lechuga + tomate + cebolla + ali oli casero.", rows: [["", "7,90 €"]] },
-      { name: "Pepita", desc: "Jamón cocido + pollo crispy + queso + lechuga + tomate + ali oli casero.", rows: [["", "11,00 €"]] },
-      { name: "Manolito", desc: "Smash de ternera + queso + lechuga + tomate + cebolla + mayonesa.", rows: [["", "12,00 €"]] },
-      { name: "Martita", desc: "Smash + mostaza y miel + queso de cabra + cebolla caramelizada + setas.", rows: [["", "13,00 €"]] },
-    ],
-  },
-  {
-    id: "entrantes",
-    label: "Entrantes",
-    items: [
-      { name: "Aros de cebolla", desc: "Crujientes, con salsa clásica a elección.", rows: [["Media", "4,90 €"], ["Ración", "8,90 €"]] },
-      { name: "Boniatos fritos", desc: "Dulces y crujientes.", rows: [["", "7,90 €"]] },
-      { name: 'Boniatos "Oklahoma"', desc: "Bacon crujiente + cebolla caramelizada + salsa de la casa.", tag: "Top", rows: [["", "9,90 €"]] },
-      { name: "Chicken fingers", desc: "Tiras de pollo crispy con salsa a elección.", rows: [["Media", "7,90 €"], ["Ración", "10,90 €"]] },
-      { name: "Croquetas angus", desc: "Cremosas de carne Angus.", rows: [["", "10,90 €"]] },
-      { name: "Mix de entrantes", desc: "Chicken fingers + nachos + patatas + tequeños + aros de cebolla + salsas.", tag: "Para compartir", rows: [["", "16,90 €"]] },
-      { name: "Nachos cheddar y bacon", desc: "Nachos gratinados con cheddar y bacon.", rows: [["", "9,90 €"]] },
-      { name: "Nachos pulled pork", desc: "Cheddar, guacamole, crema agria, pico de gallo y pulled pork con chipotle.", rows: [["", "11,90 €"]] },
-      { name: "Patatas fritas", desc: "Clásicas o con cheddar y bacon (+2€).", rows: [["", "6,90 €"]] },
-      { name: "Tequeños", desc: "Palitos de queso rebozados.", rows: [["Media", "7,90 €"], ["Ración", "10,90 €"]] },
-    ],
-  },
-  {
-    id: "postres",
-    label: "Postres",
-    items: [
-      { name: "Chocotorta", desc: "Clásico argentino de galletas y dulce de leche.", rows: [["", "4,90 €"]] },
-      { name: "Tarta de queso Oreo", desc: "Queso, chocolate blanco y galletas Oreo.", rows: [["", "4,90 €"]] },
-      { name: "Tarta de queso pistacho", desc: "Cremosa con pistacho.", tag: "Nuevo", rows: [["", "4,90 €"]] },
-    ],
-  },
-  {
-    id: "bebidas",
-    label: "Bebidas",
-    items: [
-      { name: "Cañita", desc: "La caña bien tirada.", rows: [["", "2,10 €"]] },
-      { name: "Alhambra Reserva", desc: "Rubia con carácter.", rows: [["", "3,60 €"]] },
-      { name: "Mahou", desc: "Clásica de barril.", rows: [["", "3,60 €"]] },
-      { name: "Corona", desc: "Con su gajo de lima.", rows: [["", "4,00 €"]] },
-      { name: "Copa de vino", desc: "Tinto o blanco.", rows: [["", "3,00 €"]] },
-      { name: "Fernet", desc: "Para los valientes.", rows: [["", "7,50 €"]] },
-      { name: "Refrescos", desc: "35cl, variedad completa.", rows: [["", "3,10 €"]] },
-      { name: "Agua", desc: "Con o sin gas.", rows: [["", "2,50 €"]] },
-    ],
-  },
-];
+// La carta vive en src/menu.js (única fuente de verdad, compartida con /pedir
+// y el backend de pedidos). Aquí solo se da el formato de presentación.
+const CATS = displayCats();
+
 
 const tabStyle = (active) =>
   `font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.03em;text-transform:uppercase;padding:12px 22px;border-radius:100px;cursor:pointer;transition:all .25s;border:1px solid ${active ? "rgb(var(--acc))" : "rgba(246,241,233,.16)"};background:${active ? "rgb(var(--acc))" : "transparent"};color:${active ? "#0a0806" : "#f6f1e9"};box-shadow:${active ? "0 8px 30px -8px rgb(var(--acc) / .7)" : "none"}`;
@@ -228,6 +164,7 @@ export default function Landing() {
           })}
         </div>
 
+        {cat.nota && <p style={sx("margin:-22px 0 24px;font-size:13px;line-height:1.5;color:rgba(246,241,233,.6)")}>{cat.nota}</p>}
         <div key={activeCat} style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:16px")}>
           {cat.items.map((item, i) => {
             const hovered = hover === activeCat + i;
@@ -253,7 +190,7 @@ export default function Landing() {
             );
           })}
         </div>
-        <p style={sx("margin:34px 0 0;font-size:12.5px;color:rgba(246,241,233,.72);text-align:center")}>Toda modificación en hamburguesas y camperos se cobra como extra. Conviértelas en boniatos o patatas deluxe por 1,90€ · con cheddar y bacon por 2,90€.</p>
+        <p style={sx("margin:34px 0 0;font-size:12.5px;color:rgba(246,241,233,.72);text-align:center")}>Toda modificación en hamburguesas y camperos se cobra como extra. Convierte tus patatas en boniatos por 1,90 € o en patatas con cheddar y bacon por 2,90 €.</p>
       </section>
 
       {/* Marquee reverse */}

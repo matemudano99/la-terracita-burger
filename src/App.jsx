@@ -1,12 +1,25 @@
+import { lazy, Suspense } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import Landing from "./Landing";
 import LegalPage, { LEGAL_ROUTES } from "./LegalPage";
 
+// Carga diferida: el visitante de la portada no descarga el código de pedidos.
+const PedirPage = lazy(() => import("./pedir/PedirPage"));
+const CocinaPage = lazy(() => import("./cocina/CocinaPage"));
+const AdminPage = lazy(() => import("./admin/AdminPage"));
+
 function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
+  let page;
+  if (path === "/pedir") page = <PedirPage />;
+  else if (path === "/cocina") page = <CocinaPage />;
+  else if (path === "/admin") page = <AdminPage />;
+  else if (LEGAL_ROUTES.includes(path)) page = <LegalPage path={path} />;
+  else page = <Landing />;
+
   return (
     <>
-      {LEGAL_ROUTES.includes(path) ? <LegalPage path={path} /> : <Landing />}
+      <Suspense fallback={null}>{page}</Suspense>
       <Analytics />
     </>
   );
