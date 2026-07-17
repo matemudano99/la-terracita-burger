@@ -26,6 +26,18 @@ create index if not exists pedidos_telefono on public.pedidos (telefono, created
 -- pública (anon) si algún día se filtrara.
 alter table public.pedidos enable row level security;
 
+-- Estado de la carta por local: agotados y descuentos, gestionado desde
+-- /cocina (botón Carta). Un producto sin fila = disponible y sin descuento.
+create table if not exists public.carta (
+  local      text not null,
+  item_id    text not null,
+  agotado    boolean not null default false,
+  descuento  integer not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (local, item_id)
+);
+alter table public.carta enable row level security;
+
 -- Ajustes por local: pausar pedidos online desde /admin (pestaña Ajustes).
 create table if not exists public.ajustes (
   local      text primary key,

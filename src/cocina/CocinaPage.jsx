@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { sx } from "../sx";
-import { fmtEUR } from "../menu";
+import { MENU, fmtEUR, conDescuento } from "../menu";
 import { LOCALES } from "../locales";
 import LtbMark from "../LtbMark";
 import LoginBox from "../LoginBox";
@@ -16,7 +16,15 @@ import { getSesion, logout, authFetch } from "../authClient";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LS_LOCAL = "ltb_panel_local";
-const POLL_MS = 8000;
+const POLL_MS = 2000;
+
+// "ahora" / "3 min" / "1 h 05" — edad del pedido, clave en cocina.
+function haceCuanto(iso) {
+  const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 1) return "ahora";
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}`;
+}
 
 const btn = (bg, color = "#0a0806") =>
   sx(`font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.04em;padding:12px 18px;border-radius:12px;border:0;cursor:pointer;background:${bg};color:${color}`);
@@ -31,6 +39,7 @@ export default function CocinaPage() {
   const [error, setError] = useState(null);
   const [muted, setMuted] = useState(false);
   const [printOrder, setPrintOrder] = useState(null);
+  const [vista, setVista] = useState("pedidos"); // "pedidos" | "carta"
   const audioCtx = useRef(null);
 
   const L = LOCALES[local];
@@ -175,6 +184,12 @@ export default function CocinaPage() {
           </div>
         </div>
         <div style={sx("display:flex;align-items:center;gap:10px")}>
+          <button
+            onClick={() => setVista((v) => (v === "pedidos" ? "carta" : "pedidos"))}
+            style={sx(`font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:12px 18px;border-radius:12px;cursor:pointer;border:1px solid ${vista === "carta" ? `rgb(${L.rgb})` : "rgba(246,241,233,.2)"};background:${vista === "carta" ? `rgb(${L.rgb})` : "transparent"};color:${vista === "carta" ? "#0a0806" : "#f6f1e9"}`)}
+          >
+            {vista === "carta" ? "📦 Volver a pedidos" : "🍔 Carta"}
+          </button>
           {sesion.user?.rol === "admin" && (
             <a href="/admin" style={sx("font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:12px 16px;border-radius:12px;border:1px solid rgba(246,241,233,.2);color:rgba(246,241,233,.7);text-decoration:none")}>
               Admin
@@ -189,45 +204,50 @@ export default function CocinaPage() {
         </div>
       </header>
 
-      <main style={sx("max-width:1200px;margin:0 auto;padding:22px clamp(14px,3vw,28px);display:flex;flex-direction:column;gap:30px")}>
-        <Seccion titulo={`🔴 Nuevos (${nuevos.length})`} vacio="Sin pedidos nuevos — todo al día.">
-          {nuevos.map((o) => (
-            <Card key={o.id} o={o} rgb={L.rgb} destacado onPrint={() => setPrintOrder(o)}>
-              <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
-                {[15, 25, 40].map((m) => (
-                  <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={btn(`rgb(${L.rgb})`)}>✓ {m} min</button>
-                ))}
-                <button onClick={() => window.confirm(`¿Rechazar el pedido ${o.code} de ${o.nombre}?`) && patch(o.id, "rechazado")} style={btn("transparent", "rgb(255,120,90)")}>✕ Rechazar</button>
-              </div>
-            </Card>
-          ))}
-        </Seccion>
+      {vista === "carta" ? (
+        <GestionCarta local={local} rgb={L.rgb} />
+      ) : (
+      <main style={sx("max-width:1380px;margin:0 auto;padding:22px clamp(14px,3vw,28px);display:flex;flex-direction:column;gap:26px")}>
+        <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px;align-items:start")}>
+          <Columna icono="🔴" titulo="Nuevos" n={nuevos.length} tono="255 90 70" pulso={nuevos.length > 0} vacio="Sin pedidos nuevos — todo al día.">
+            {nuevos.map((o) => (
+              <Card key={o.id} o={o} rgb={L.rgb} destacado onPrint={() => setPrintOrder(o)}>
+                <div style={sx("display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px")}>
+                  {[15, 25, 40].map((m) => (
+                    <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={btn(`rgb(${L.rgb})`)}>✓ {m}′</button>
+                  ))}
+                </div>
+                <button onClick={() => window.confirm(`¿Rechazar el pedido ${o.code} de ${o.nombre}?`) && patch(o.id, "rechazado")} style={{ ...btn("transparent", "rgb(255,120,90)"), border: "1px solid rgba(255,100,80,.35)" }}>✕ Rechazar</button>
+              </Card>
+            ))}
+          </Columna>
 
-        <Seccion titulo={`🔥 En cocina (${enCocina.length})`} vacio="Nada en plancha ahora mismo.">
-          {enCocina.map((o) => (
-            <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)}>
-              <button onClick={() => patch(o.id, "lista")} style={btn(`rgb(${L.rgb})`)}>✓ Lista para recoger</button>
-            </Card>
-          ))}
-        </Seccion>
+          <Columna icono="🔥" titulo="En cocina" n={enCocina.length} tono={L.rgb} vacio="Nada en plancha ahora mismo.">
+            {enCocina.map((o) => (
+              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)}>
+                <button onClick={() => patch(o.id, "lista")} style={btn(`rgb(${L.rgb})`)}>✓ Lista para recoger</button>
+              </Card>
+            ))}
+          </Columna>
 
-        <Seccion titulo={`✅ Listas (${listas.length})`} vacio="Ninguna esperando recogida.">
-          {listas.map((o) => (
-            <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)}>
-              <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
-                <button onClick={() => patch(o.id, "entregado")} style={btn("rgba(246,241,233,.16)", "#f6f1e9")}>Entregada</button>
-                <button onClick={() => window.confirm(`¿Marcar el pedido ${o.code} de ${o.nombre} como NO recogido?\n\nCon 1 aviso la web pedirá confirmar sus próximos pedidos; con 2, su teléfono queda bloqueado para pedir online.`) && patch(o.id, "no_recogido")} style={btn("transparent", "rgb(255,120,90)")}>
-                  Nadie la recogió
-                </button>
-              </div>
-            </Card>
-          ))}
-        </Seccion>
+          <Columna icono="✅" titulo="Listas" n={listas.length} tono="120 220 130" vacio="Ninguna esperando recogida.">
+            {listas.map((o) => (
+              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)}>
+                <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
+                  <button onClick={() => patch(o.id, "entregado")} style={{ ...btn("rgb(120 220 130 / .9)"), flex: 1 }}>✓ Entregada</button>
+                  <button onClick={() => window.confirm(`¿Marcar el pedido ${o.code} de ${o.nombre} como NO recogido?\n\nCon 1 aviso la web pedirá confirmar sus próximos pedidos; con 2, su teléfono queda bloqueado para pedir online.`) && patch(o.id, "no_recogido")} style={btn("transparent", "rgb(255,120,90)")}>
+                    Nadie vino
+                  </button>
+                </div>
+              </Card>
+            ))}
+          </Columna>
+        </div>
 
         {cerrados.length > 0 && (
           <details>
             <summary style={sx("cursor:pointer;font-size:13px;color:rgba(246,241,233,.55)")}>Cerrados hoy ({cerrados.length})</summary>
-            <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:12px;margin-top:12px;opacity:.55")}>
+            <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px;margin-top:12px;opacity:.55")}>
               {cerrados.map((o) => (
                 <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)} />
               ))}
@@ -235,22 +255,23 @@ export default function CocinaPage() {
           </details>
         )}
       </main>
+      )}
 
       {printOrder && <Ticket o={printOrder} localName={L.name} />}
     </div>
   );
 }
 
-function Seccion({ titulo, vacio, children }) {
-  const hijos = Array.isArray(children) ? children.filter(Boolean) : children ? [children] : [];
+// Columna kanban: Nuevos → En cocina → Listas.
+function Columna({ icono, titulo, n, tono, pulso, vacio, children }) {
   return (
-    <section>
-      <h2 style={sx("margin:0 0 12px;font-family:'Anton',sans-serif;font-weight:400;font-size:20px;letter-spacing:.04em;text-transform:uppercase")}>{titulo}</h2>
-      {hijos.length === 0 ? (
-        <p style={sx("margin:0;font-size:13.5px;color:rgba(246,241,233,.45)")}>{vacio}</p>
-      ) : (
-        <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:12px")}>{hijos}</div>
-      )}
+    <section style={sx("display:flex;flex-direction:column;gap:12px;min-width:0")}>
+      <header style={{ ...sx("display:flex;align-items:center;gap:11px;padding:13px 17px;border-radius:14px"), background: `rgb(${tono} / .1)`, border: `1px solid rgb(${tono} / .4)`, animation: pulso ? "ltb-pulse 1.6s infinite" : "none" }}>
+        <span style={sx("font-size:19px;line-height:1")}>{icono}</span>
+        <h2 style={sx("margin:0;flex:1;font-family:'Anton',sans-serif;font-weight:400;font-size:18px;letter-spacing:.05em;text-transform:uppercase")}>{titulo}</h2>
+        <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:16px;line-height:1;padding:5px 13px;border-radius:100px"), background: `rgb(${tono})`, color: "#0a0806" }}>{n}</span>
+      </header>
+      {n === 0 ? <p style={sx("margin:2px 4px;font-size:13px;color:rgba(246,241,233,.4)")}>{vacio}</p> : children}
     </section>
   );
 }
@@ -258,12 +279,16 @@ function Seccion({ titulo, vacio, children }) {
 function Card({ o, rgb, destacado, onPrint, children }) {
   const hora = new Date(o.created_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
   const ready = o.ready_at ? new Date(o.ready_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }) : null;
+  const edad = haceCuanto(o.created_at);
   return (
-    <div style={{ ...sx("border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;background:#100c08"), border: destacado ? `2px solid rgb(${rgb})` : "1px solid rgba(246,241,233,.12)", boxShadow: destacado ? `0 10px 40px -12px rgb(${rgb} / .5)` : "none" }}>
+    <div style={{ ...sx("border-radius:18px;padding:17px;display:flex;flex-direction:column;gap:10px;background:#100c08;animation:ltb-rise .35s both"), border: destacado ? `2px solid rgb(${rgb})` : "1px solid rgba(246,241,233,.12)", boxShadow: destacado ? `0 10px 40px -12px rgb(${rgb} / .5)` : "none" }}>
       <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px")}>
-        <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:30px;line-height:1"), color: `rgb(${rgb})` }}>#{o.code}</span>
-        <div style={sx("text-align:right;font-size:12px;color:rgba(246,241,233,.6)")}>
-          {hora}{ready && <><br />lista ~{ready}</>}
+        <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:32px;line-height:1"), color: `rgb(${rgb})` }}>#{o.code}</span>
+        <div style={sx("display:flex;flex-direction:column;align-items:flex-end;gap:4px")}>
+          <span style={sx(`font-size:11px;font-weight:800;letter-spacing:.05em;padding:4px 11px;border-radius:100px;background:rgba(246,241,233,.09);color:rgba(246,241,233,${edad === "ahora" ? ".95" : ".7"})`)}>
+            ⏱ {edad === "ahora" ? "AHORA" : `hace ${edad}`}
+          </span>
+          <span style={sx("font-size:11.5px;color:rgba(246,241,233,.5)")}>{hora}{ready ? ` · lista ~${ready}` : ""}</span>
         </div>
       </div>
       <div style={sx("font-size:14px")}>
@@ -292,6 +317,116 @@ function Card({ o, rgb, destacado, onPrint, children }) {
       </div>
       {children}
     </div>
+  );
+}
+
+// ── Gestión de la carta del local: agotados y descuentos ─────────────────────
+// Lo que se marque aquí se refleja en /pedir en menos de un minuto.
+function GestionCarta({ local, rgb }) {
+  const [carta, setCarta] = useState(null);
+  const [error, setError] = useState(null);
+  const [guardando, setGuardando] = useState(null);
+  const [cat, setCat] = useState(MENU[0].id);
+
+  useEffect(() => {
+    fetch("/api/ajustes")
+      .then((r) => r.json())
+      .then((d) => setCarta(d.carta?.[local] || {}))
+      .catch(() => setCarta({}));
+  }, [local]);
+
+  const set = async (itemId, patch) => {
+    setGuardando(itemId);
+    setError(null);
+    const actual = carta[itemId] || { agotado: false, descuento: 0 };
+    try {
+      const res = await authFetch("/api/carta", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ local, itemId, ...actual, ...patch }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setCarta(data.carta);
+    } catch (e) {
+      setError(e.message);
+    }
+    setGuardando(null);
+  };
+
+  const CATS = MENU.filter((c) => !c.soloCarta);
+  const categoria = CATS.find((c) => c.id === cat) || CATS[0];
+
+  if (carta === null) return <p style={sx("padding:30px;text-align:center;color:rgba(246,241,233,.5)")}>Cargando carta…</p>;
+
+  const agotadosTotal = Object.values(carta).filter((e) => e.agotado).length;
+
+  return (
+    <main style={sx("max-width:1100px;margin:0 auto;padding:22px clamp(14px,3vw,28px);display:flex;flex-direction:column;gap:18px")}>
+      <div>
+        <h2 style={sx("margin:0 0 4px;font-family:'Anton',sans-serif;font-weight:400;font-size:26px;letter-spacing:.03em;text-transform:uppercase")}>Gestión de la carta</h2>
+        <p style={sx("margin:0;font-size:13px;color:rgba(246,241,233,.6)")}>
+          Marca lo que se ha agotado o ponle descuento — los clientes lo ven al momento en la web.
+          {agotadosTotal > 0 && <strong style={sx("color:rgb(255,140,90)")}> Ahora mismo: {agotadosTotal} agotado{agotadosTotal === 1 ? "" : "s"}.</strong>}
+        </p>
+      </div>
+
+      {error && <div role="alert" style={sx("padding:12px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>⚠️ {error}</div>}
+
+      <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
+        {CATS.map((c) => {
+          const activa = c.id === cat;
+          const nAgotados = c.items.filter((i) => carta[i.id]?.agotado).length;
+          return (
+            <button key={c.id} onClick={() => setCat(c.id)} style={sx(`font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.03em;text-transform:uppercase;padding:10px 18px;border-radius:100px;cursor:pointer;border:1px solid ${activa ? `rgb(${rgb})` : "rgba(246,241,233,.16)"};background:${activa ? `rgb(${rgb})` : "transparent"};color:${activa ? "#0a0806" : "#f6f1e9"}`)}>
+              {c.label}{nAgotados > 0 ? ` · ${nAgotados}⛔` : ""}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={sx("display:flex;flex-direction:column;gap:8px")}>
+        {categoria.items.map((item) => {
+          const e = carta[item.id] || { agotado: false, descuento: 0 };
+          const noVendible = item.orderable === false || item.soloLocal;
+          const desde = item.orderable === false ? null : Math.min(...item.variants.map((v) => v.cents));
+          return (
+            <div key={item.id} style={{ ...sx("display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:13px 17px;border-radius:14px;background:#100c08"), border: e.agotado ? "1px solid rgba(255,100,80,.5)" : "1px solid rgba(246,241,233,.1)", opacity: noVendible ? 0.45 : 1 }}>
+              <div style={sx("flex:1;min-width:170px")}>
+                <div style={sx(`font-weight:700;font-size:15px;${e.agotado ? "text-decoration:line-through;color:rgba(246,241,233,.6)" : ""}`)}>{item.name}</div>
+                <div style={sx("font-size:12px;color:rgba(246,241,233,.5)")}>
+                  {noVendible ? (item.soloLocal ? "Solo en el local — no se pide online" : "Sin precio online") : (
+                    e.descuento ? <>desde <s>{fmtEUR(desde)}</s> <strong style={sx("color:rgb(var(--emb))")}>{fmtEUR(conDescuento(desde, e.descuento))}</strong></> : <>desde {fmtEUR(desde)}</>
+                  )}
+                </div>
+              </div>
+              {!noVendible && (
+                <>
+                  <label style={sx("display:inline-flex;align-items:center;gap:8px;font-size:13px;color:rgba(246,241,233,.75)")}>
+                    Dto.
+                    <select
+                      value={e.descuento || 0}
+                      disabled={guardando === item.id || e.agotado}
+                      onChange={(ev) => set(item.id, { descuento: Number(ev.target.value) })}
+                      style={sx("padding:9px 10px;border-radius:10px;border:1px solid rgba(246,241,233,.2);background:#0a0806;color:#f6f1e9;font-size:14px")}
+                    >
+                      {[0, 10, 15, 20, 25, 50].map((d) => <option key={d} value={d}>{d === 0 ? "—" : `−${d}%`}</option>)}
+                    </select>
+                  </label>
+                  <button
+                    onClick={() => set(item.id, { agotado: !e.agotado })}
+                    disabled={guardando === item.id}
+                    style={sx(`font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;padding:11px 18px;border-radius:100px;cursor:pointer;min-width:130px;border:1px solid ${e.agotado ? "rgb(255 100 80 / .7)" : "rgb(120 220 130 / .45)"};background:${e.agotado ? "rgba(255,100,80,.14)" : "transparent"};color:${e.agotado ? "rgb(255,120,90)" : "rgb(120,220,130)"};opacity:${guardando === item.id ? 0.5 : 1}`)}
+                  >
+                    {e.agotado ? "⛔ AGOTADO" : "✓ En venta"}
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </main>
   );
 }
 

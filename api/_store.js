@@ -101,6 +101,34 @@ export async function listHistorial({ desde, hasta, local }) {
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
+// ── Estado de la carta por local: agotados y descuentos ──────────────────────
+const memCarta = new Map(); // clave `${local}|${itemId}`
+
+export async function getCarta(local) {
+  if (usingSupabase) {
+    const rows = await supa(`carta?local=eq.${encodeURIComponent(local)}&select=item_id,agotado,descuento`);
+    return Object.fromEntries(rows.map((r) => [r.item_id, { agotado: !!r.agotado, descuento: r.descuento || 0 }]));
+  }
+  const out = {};
+  for (const [k, v] of memCarta) {
+    const [l, item] = k.split("|");
+    if (l === local) out[item] = v;
+  }
+  return out;
+}
+
+export async function setCartaItem(local, itemId, estado) {
+  if (usingSupabase) {
+    await supa("carta", {
+      method: "POST",
+      body: { local, item_id: itemId, agotado: estado.agotado, descuento: estado.descuento, updated_at: new Date().toISOString() },
+      headers: { Prefer: "resolution=merge-duplicates" },
+    });
+    return;
+  }
+  memCarta.set(`${local}|${itemId}`, estado);
+}
+
 // ── Ajustes por local (p. ej. pausar pedidos online) ─────────────────────────
 const memAjustes = new Map();
 

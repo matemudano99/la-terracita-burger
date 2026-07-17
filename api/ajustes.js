@@ -6,14 +6,19 @@
 //   PUT (admin)  → { local, pausado, motivo? }
 // ─────────────────────────────────────────────────────────────────────────────
 import { requireUser } from "./_auth.js";
-import { getAjustes, setAjuste, storeReady } from "./_store.js";
+import { getAjustes, setAjuste, getCarta, storeReady } from "./_store.js";
 import { LOCALES } from "../src/locales.js";
 
 export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const ajustes = storeReady ? await getAjustes().catch(() => ({})) : {};
-      return res.status(200).json({ ajustes });
+      // Estado de la carta (agotados/descuentos) por local — público, lo usa /pedir.
+      const carta = {};
+      if (storeReady) {
+        for (const id of Object.keys(LOCALES)) carta[id] = await getCarta(id).catch(() => ({}));
+      }
+      return res.status(200).json({ ajustes, carta });
     }
 
     if (req.method === "PUT") {

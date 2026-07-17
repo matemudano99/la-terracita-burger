@@ -126,6 +126,16 @@ npm run dev
   días, el teléfono queda **bloqueado** para pedir online (se le invita a
   llamar). El checkout avisa de esta norma antes de enviar.
 
+## Gestión de la carta desde cocina
+
+En /cocina, botón **🍔 Carta**: cada local puede marcar productos como
+**agotados** (desaparecen del pedido online al momento, tachados y con
+etiqueta "Agotado hoy") y ponerles **descuento** (−10/15/20/25/50 %, se ve
+con el precio tachado y una etiqueta naranja). El servidor revalida ambos:
+un pedido con un producto agotado se rechaza aunque el cliente lo tuviera
+en el carrito, y el descuento se aplica solo al precio base (no a extras).
+El panel de pedidos se actualiza cada 2 segundos.
+
 ## Seguimiento por WhatsApp
 
 Tras enviar el pedido, el cliente puede pulsar «Guardar seguimiento en

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
-import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine } from "../menu";
+import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento } from "../menu";
 import { LOCALES, estadoLocal, horarioTexto } from "../locales";
 import LtbMark from "../LtbMark";
 import PedirSplash, { debeMostrarSplash } from "./PedirSplash";
@@ -24,8 +24,8 @@ function lineKey(l) {
   return [l.itemId, l.variantId, l.upgradeId || "no", l.panId || "patata", (l.extraIds || []).slice().sort().join(","), l.nota || ""].join("|");
 }
 
-function pricedOf(l) {
-  return priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty });
+function pricedOf(l, carta) {
+  return priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta });
 }
 
 export default function PedirPage() {
@@ -81,16 +81,21 @@ export default function PedirPage() {
   }, []);
   const estadoHorario = useMemo(() => (loc ? estadoLocal(loc, ahora) : null), [loc, ahora]);
 
-  // Pausa desde el panel de administración (el "cerrar tienda" de las apps).
-  // Se refresca con cada tick de `ahora` para que una pausa/reanudación
-  // aparezca sin recargar la página.
+  // Pausa (el "cerrar tienda" de las apps) y estado de la carta del local
+  // (agotados/descuentos desde /cocina). Se refresca con cada tick de `ahora`
+  // para que los cambios aparezcan sin recargar la página.
   const [ajustes, setAjustes] = useState({});
+  const [cartaEstado, setCartaEstado] = useState({});
   useEffect(() => {
     fetch("/api/ajustes")
-      .then((r) => (r.ok ? r.json() : { ajustes: {} }))
-      .then((d) => setAjustes(d.ajustes || {}))
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) => {
+        setAjustes(d.ajustes || {});
+        setCartaEstado(d.carta || {});
+      })
       .catch(() => {});
   }, [ahora]);
+  const carta = loc ? cartaEstado[loc] || {} : {};
 
   const pausa = loc ? ajustes[loc] : null;
   const estado = useMemo(() => {
@@ -101,7 +106,7 @@ export default function PedirPage() {
     return estadoHorario;
   }, [estadoHorario, pausa]);
 
-  const totalCents = cart.reduce((s, l) => s + (pricedOf(l)?.lineCents || 0), 0);
+  const totalCents = cart.reduce((s, l) => s + (pricedOf(l, carta)?.lineCents || 0), 0);
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
 
   const addLine = (line) => {
@@ -210,19 +215,33 @@ export default function PedirPage() {
             {categoria.nota && <p style={sx("margin:-10px 0 18px;font-size:13px;line-height:1.5;color:rgba(246,241,233,.6)")}>{categoria.nota}</p>}
             <div key={cat} style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:14px")}>
               {categoria.items.map((item, i) => {
-                const desde = item.orderable === false ? null : Math.min(...item.variants.map((v) => v.cents));
+                const estadoItem = carta[item.id];
+                const agotado = !!estadoItem?.agotado;
+                const descuento = estadoItem?.descuento || 0;
+                const desdeBase = item.orderable === false ? null : Math.min(...item.variants.map((v) => v.cents));
+                const desde = desdeBase != null ? conDescuento(desdeBase, descuento) : null;
                 return (
-                  <div key={item.id} style={{ ...sx("position:relative;background:#100c08;border:1px solid rgba(246,241,233,.1);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px;animation:ltb-rise .4s both"), animationDelay: `${i * 0.03}s` }}>
+                  <div key={item.id} style={{ ...sx(`position:relative;background:#100c08;border:1px solid ${descuento && !agotado ? "rgb(var(--emb) / .5)" : "rgba(246,241,233,.1)"};border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px;animation:ltb-rise .4s both;transition:transform .25s,border-color .25s`), animationDelay: `${i * 0.03}s`, opacity: agotado ? 0.5 : 1 }}>
                     <div style={sx("display:flex;align-items:flex-start;justify-content:space-between;gap:10px")}>
-                      <h3 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:21px;text-transform:uppercase;line-height:1")}>{item.name}</h3>
-                      {item.tag && <span style={sx("flex:none;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:4px 9px;border-radius:100px;background:rgb(var(--emb) / .16);color:rgb(var(--emb));border:1px solid rgb(var(--emb) / .35)")}>{item.tag}</span>}
+                      <h3 style={sx(`margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:21px;text-transform:uppercase;line-height:1;${agotado ? "text-decoration:line-through;color:rgba(246,241,233,.6)" : ""}`)}>{item.name}</h3>
+                      <span style={sx("flex:none;display:inline-flex;gap:6px")}>
+                        {descuento > 0 && !agotado && <span style={sx("font-size:11px;letter-spacing:.08em;font-weight:800;padding:4px 10px;border-radius:100px;background:rgb(var(--emb));color:#0a0806")}>−{descuento}%</span>}
+                        {item.tag && <span style={sx("font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:4px 9px;border-radius:100px;background:rgb(var(--emb) / .16);color:rgb(var(--emb));border:1px solid rgb(var(--emb) / .35)")}>{item.tag}</span>}
+                      </span>
                     </div>
                     <p style={sx("margin:0;font-size:13px;line-height:1.5;color:rgba(246,241,233,.68);flex:1")}>{item.desc}</p>
                     <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:6px")}>
-                      <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:19px"), color: `rgb(${rgb})` }}>
-                        {item.orderable === false ? item.priceLabel : (item.variants.length > 1 ? `desde ${fmtEUR(desde)}` : fmtEUR(desde))}
+                      <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:19px;display:inline-flex;align-items:baseline;gap:8px"), color: `rgb(${rgb})` }}>
+                        {item.orderable === false ? item.priceLabel : (
+                          <>
+                            {descuento > 0 && !agotado && <s style={sx("font-size:14px;color:rgba(246,241,233,.4)")}>{fmtEUR(desdeBase)}</s>}
+                            {item.variants.length > 1 ? `desde ${fmtEUR(desde)}` : fmtEUR(desde)}
+                          </>
+                        )}
                       </span>
-                      {item.orderable === false ? (
+                      {agotado ? (
+                        <span style={sx("font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:9px 16px;border-radius:100px;border:1px solid rgba(255,100,80,.5);color:rgb(255,120,90)")}>Agotado hoy</span>
+                      ) : item.orderable === false ? (
                         <a href={`tel:${L.tel}`} style={sx("font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:9px 16px;border-radius:100px;border:1px solid rgba(246,241,233,.25);color:#f6f1e9;text-decoration:none")}>Llámanos</a>
                       ) : item.soloLocal ? (
                         <span style={sx("font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:9px 16px;border-radius:100px;border:1px dashed rgba(246,241,233,.25);color:rgba(246,241,233,.55)")}>Solo en el local</span>
@@ -251,15 +270,16 @@ export default function PedirPage() {
         </div>
       )}
 
-      {modalItem && <OpcionesModal {...modalItem} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
-      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} rgb={rgb} estado={estado} totalCents={totalCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
+      {modalItem && <OpcionesModal {...modalItem} carta={carta} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
+      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} rgb={rgb} estado={estado} totalCents={totalCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
     </div>
   );
 }
 
 // ── Modal de opciones (tamaño, acompañamiento, extras, pan, cantidad, nota) ──
-function OpcionesModal({ catId, item, rgb, onClose, onAdd }) {
+function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
   const categoria = MENU.find((c) => c.id === catId);
+  const descuentoItem = carta?.[item.id]?.descuento || 0;
   const [variantId, setVariantId] = useState(item.variants[0].id);
   const [upgradeId, setUpgradeId] = useState("no");
   const [extraIds, setExtraIds] = useState([]);
@@ -270,7 +290,7 @@ function OpcionesModal({ catId, item, rgb, onClose, onAdd }) {
   const toggleExtra = (id) =>
     setExtraIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 10 ? [...prev, id] : prev));
 
-  const priced = pricedOf({ itemId: item.id, variantId, upgradeId, extraIds, panId, qty });
+  const priced = pricedOf({ itemId: item.id, variantId, upgradeId, extraIds, panId, qty }, carta);
 
   const radio = (checked) =>
     sx(`display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-radius:12px;cursor:pointer;font-size:14.5px;border:1px solid ${checked ? `rgb(${rgb})` : "rgba(246,241,233,.15)"};background:${checked ? `rgb(${rgb} / .1)` : "transparent"};color:#f6f1e9`);
@@ -294,7 +314,10 @@ function OpcionesModal({ catId, item, rgb, onClose, onAdd }) {
                     <input type="radio" name="variant" checked={variantId === v.id} onChange={() => setVariantId(v.id)} />
                     {v.label}
                   </span>
-                  <strong style={{ color: `rgb(${rgb})` }}>{fmtEUR(v.cents)}</strong>
+                  <strong style={{ ...sx("display:inline-flex;align-items:baseline;gap:7px"), color: `rgb(${rgb})` }}>
+                    {descuentoItem > 0 && <s style={sx("font-size:12px;color:rgba(246,241,233,.4)")}>{fmtEUR(v.cents)}</s>}
+                    {fmtEUR(conDescuento(v.cents, descuentoItem))}
+                  </strong>
                 </label>
               ))}
             </div>
@@ -379,7 +402,7 @@ function OpcionesModal({ catId, item, rgb, onClose, onAdd }) {
 }
 
 // ── Carrito + checkout ───────────────────────────────────────────────────────
-function CartDrawer({ cart, setQty, loc, rgb, estado, totalCents, onClose, onDone }) {
+function CartDrawer({ cart, setQty, loc, carta, rgb, estado, totalCents, onClose, onDone }) {
   const [nombre, setNombre] = useState(localStorage.getItem("ltb_nombre") || "");
   const [telefono, setTelefono] = useState(localStorage.getItem("ltb_telefono") || "");
   const [nota, setNota] = useState("");
@@ -431,8 +454,18 @@ function CartDrawer({ cart, setQty, loc, rgb, estado, totalCents, onClose, onDon
 
         <div style={sx("display:flex;flex-direction:column;gap:12px")}>
           {cart.map((l, i) => {
-            const p = pricedOf(l);
-            if (!p) return null;
+            const p = pricedOf(l, carta);
+            if (!p) {
+              // El producto se ha agotado (o dejó de ser válido) con el carrito ya hecho.
+              return (
+                <div key={lineKey(l) + i} style={sx("display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:#0a0806;border:1px solid rgba(255,100,80,.4)")}>
+                  <div style={sx("flex:1;font-size:13.5px;color:rgba(246,241,233,.7)")}>
+                    <s>{itemName(l.itemId)}</s> — agotado hoy 😔
+                  </div>
+                  <button onClick={() => setQty(i, 0)} style={sx("font-size:12px;font-weight:700;padding:8px 14px;border-radius:100px;border:1px solid rgba(255,100,80,.5);background:transparent;color:rgb(255,120,90);cursor:pointer")}>Quitar</button>
+                </div>
+              );
+            }
             return (
               <div key={lineKey(l) + i} style={sx("display:flex;align-items:flex-start;gap:12px;padding:14px;border-radius:14px;background:#0a0806;border:1px solid rgba(246,241,233,.1)")}>
                 <div style={sx("flex:1;min-width:0")}>
@@ -440,6 +473,7 @@ function CartDrawer({ cart, setQty, loc, rgb, estado, totalCents, onClose, onDon
                   {p.upgrade && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>+ {p.upgrade}</div>}
                   {p.pan && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>🍞 {p.pan}</div>}
                   {p.extras.map((x) => <div key={x} style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>+ {x}</div>)}
+                  {p.descuento && <div style={sx("font-size:12.5px;font-weight:700;color:rgb(var(--emb))")}>🏷 −{p.descuento}% aplicado</div>}
                   {l.nota && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>✎ {l.nota}</div>}
                   <div style={{ ...sx("font-family:'Anton',sans-serif;font-size:16px;margin-top:4px"), color: `rgb(${rgb})` }}>{fmtEUR(p.lineCents)}</div>
                 </div>
@@ -533,7 +567,7 @@ function Seguimiento({ pedido, onNuevo }) {
           if (vivo) setCaido(true);
         }
       } catch { if (vivo) setCaido(true); }
-      timer.current = setTimeout(tick, 8000);
+      timer.current = setTimeout(tick, 5000);
     };
     tick();
     return () => { vivo = false; clearTimeout(timer.current); };

@@ -222,13 +222,32 @@ export const displayCats = () =>
     })),
   }));
 
+// Nombre de un ítem por id (para mensajes de error).
+export function itemName(id) {
+  for (const c of MENU) {
+    const it = c.items.find((i) => i.id === id);
+    if (it) return it.name;
+  }
+  return "Un producto";
+}
+
+// Precio con descuento (%) aplicado, redondeado al céntimo.
+export const conDescuento = (cents, descuento) =>
+  descuento ? Math.round((cents * (100 - descuento)) / 100) : cents;
+
 // Busca un ítem y calcula el precio de una línea. Devuelve null si no es válido.
 // Usado por el backend para recalcular precios (nunca se confía en el cliente).
-export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty }) {
+// `carta` es el estado por local (agotados/descuentos) gestionado desde /cocina:
+// un ítem agotado no es pedible y el descuento se aplica al precio base
+// (no a extras ni acompañamientos).
+export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, carta }) {
   for (const cat of MENU) {
     const it = cat.items.find((i) => i.id === itemId);
     if (!it) continue;
     if (it.orderable === false || it.soloLocal || cat.soloCarta) return null;
+
+    const estadoCarta = carta?.[itemId];
+    if (estadoCarta?.agotado) return null;
 
     const v = it.variants.find((x) => x.id === variantId);
     if (!v) return null;
@@ -260,7 +279,9 @@ export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty }
     const q = Math.floor(Number(qty));
     if (!Number.isFinite(q) || q < 1 || q > 20) return null;
 
-    const unit = v.cents + (upgrade ? upgrade.cents : 0) + (pan ? pan.cents : 0) + extras.reduce((s, e) => s + e.cents, 0);
+    const descuento = estadoCarta?.descuento || 0;
+    const base = conDescuento(v.cents, descuento);
+    const unit = base + (upgrade ? upgrade.cents : 0) + (pan ? pan.cents : 0) + extras.reduce((s, e) => s + e.cents, 0);
     return {
       itemId,
       name: it.name,
@@ -268,6 +289,7 @@ export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty }
       upgrade: upgrade ? upgrade.label : null,
       pan: pan ? pan.label : null,
       extras: extras.map((e) => e.label),
+      descuento: descuento || null,
       qty: q,
       unitCents: unit,
       lineCents: unit * q,

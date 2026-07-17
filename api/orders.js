@@ -9,9 +9,9 @@
 // en los importes que envía el navegador.
 // ─────────────────────────────────────────────────────────────────────────────
 import { randomUUID } from "node:crypto";
-import { priceLine, fmtEUR } from "../src/menu.js";
+import { priceLine, fmtEUR, itemName } from "../src/menu.js";
 import { LOCALES, estadoLocal } from "../src/locales.js";
-import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, countNoShows, updateOrder, storeReady, usingSupabase } from "./_store.js";
+import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, countNoShows, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
 
 const ESTADOS = ["nuevo", "aceptado", "lista", "entregado", "rechazado", "no_recogido"];
@@ -96,10 +96,16 @@ async function crear(req, res) {
   if (!Array.isArray(b.lineas) || b.lineas.length < 1 || b.lineas.length > 30) {
     return res.status(400).json({ error: "El carrito está vacío." });
   }
+  // Estado de la carta del local (agotados y descuentos, desde /cocina).
+  const carta = await getCarta(b.local).catch(() => ({}));
+
   const items = [];
   let total = 0;
   for (const l of b.lineas) {
-    const priced = priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty });
+    if (carta[l.itemId]?.agotado) {
+      return res.status(409).json({ error: `"${itemName(l.itemId)}" se nos ha agotado hoy 😔 — quítalo del carrito y elige otra cosa.` });
+    }
+    const priced = priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta });
     if (!priced) return res.status(400).json({ error: "Hay un producto no válido en el carrito. Recarga la página e inténtalo de nuevo." });
     priced.nota = String(l.nota || "").trim().slice(0, 140) || null;
     items.push(priced);
