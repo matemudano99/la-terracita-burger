@@ -129,12 +129,13 @@ npm run dev
 ## Gestión de la carta desde cocina
 
 En /cocina, botón **🍔 Carta**: cada local puede marcar productos como
-**agotados** (desaparecen del pedido online al momento, tachados y con
-etiqueta "Agotado hoy") y ponerles **descuento** (−10/15/20/25/50 %, se ve
-con el precio tachado y una etiqueta naranja). El servidor revalida ambos:
-un pedido con un producto agotado se rechaza aunque el cliente lo tuviera
-en el carrito, y el descuento se aplica solo al precio base (no a extras).
-El panel de pedidos se actualiza cada 2 segundos.
+**agotados** — en la web quedan tachados con la etiqueta "Agotado hoy" y no
+se pueden pedir. El servidor lo revalida: un pedido con un producto agotado
+se rechaza aunque el cliente lo tuviera en el carrito. El panel de pedidos
+se actualiza cada 2 segundos.
+
+La **hamburguesa del mes** se pide online: nombre, ingredientes y precio se
+editan en `src/mesData.js` (campo `precioCents`).
 
 ## Seguimiento por WhatsApp
 

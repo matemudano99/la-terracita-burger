@@ -22,7 +22,7 @@ export const BURGER_DEL_MES = {
   // Precios en céntimos para poder pedirla online (aparece como "Burger
   // Especial" en /pedir). Ejemplo: { Simple: 1290, Doble: 1490 } o { u: 1490 }
   // para precio único. Déjalo en null y mostrará "Consulta" sin botón de pedir.
-  precioCents: null,
+  precioCents: { u: 1690 },
   img: "/fotos/mes-black-garlic-1.webp",
   img2: "/fotos/mes-black-garlic-2.webp",
 };

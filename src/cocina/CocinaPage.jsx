@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { sx } from "../sx";
-import { MENU, fmtEUR, conDescuento } from "../menu";
+import { MENU, fmtEUR } from "../menu";
 import { LOCALES } from "../locales";
 import LtbMark from "../LtbMark";
 import LoginBox from "../LoginBox";
@@ -366,7 +366,7 @@ function GestionCarta({ local, rgb }) {
       <div>
         <h2 style={sx("margin:0 0 4px;font-family:'Anton',sans-serif;font-weight:400;font-size:26px;letter-spacing:.03em;text-transform:uppercase")}>Gestión de la carta</h2>
         <p style={sx("margin:0;font-size:13px;color:rgba(246,241,233,.6)")}>
-          Marca lo que se ha agotado o ponle descuento — los clientes lo ven al momento en la web.
+          Marca lo que se ha agotado — los clientes lo ven al momento en la web.
           {agotadosTotal > 0 && <strong style={sx("color:rgb(255,140,90)")}> Ahora mismo: {agotadosTotal} agotado{agotadosTotal === 1 ? "" : "s"}.</strong>}
         </p>
       </div>
@@ -395,32 +395,17 @@ function GestionCarta({ local, rgb }) {
               <div style={sx("flex:1;min-width:170px")}>
                 <div style={sx(`font-weight:700;font-size:15px;${e.agotado ? "text-decoration:line-through;color:rgba(246,241,233,.6)" : ""}`)}>{item.name}</div>
                 <div style={sx("font-size:12px;color:rgba(246,241,233,.5)")}>
-                  {noVendible ? (item.soloLocal ? "Solo en el local — no se pide online" : "Sin precio online") : (
-                    e.descuento ? <>desde <s>{fmtEUR(desde)}</s> <strong style={sx("color:rgb(var(--emb))")}>{fmtEUR(conDescuento(desde, e.descuento))}</strong></> : <>desde {fmtEUR(desde)}</>
-                  )}
+                  {noVendible ? (item.soloLocal ? "Solo en el local — no se pide online" : "Sin precio online") : <>desde {fmtEUR(desde)}</>}
                 </div>
               </div>
               {!noVendible && (
-                <>
-                  <label style={sx("display:inline-flex;align-items:center;gap:8px;font-size:13px;color:rgba(246,241,233,.75)")}>
-                    Dto.
-                    <select
-                      value={e.descuento || 0}
-                      disabled={guardando === item.id || e.agotado}
-                      onChange={(ev) => set(item.id, { descuento: Number(ev.target.value) })}
-                      style={sx("padding:9px 10px;border-radius:10px;border:1px solid rgba(246,241,233,.2);background:#0a0806;color:#f6f1e9;font-size:14px")}
-                    >
-                      {[0, 10, 15, 20, 25, 50].map((d) => <option key={d} value={d}>{d === 0 ? "—" : `−${d}%`}</option>)}
-                    </select>
-                  </label>
-                  <button
-                    onClick={() => set(item.id, { agotado: !e.agotado })}
-                    disabled={guardando === item.id}
-                    style={sx(`font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;padding:11px 18px;border-radius:100px;cursor:pointer;min-width:130px;border:1px solid ${e.agotado ? "rgb(255 100 80 / .7)" : "rgb(120 220 130 / .45)"};background:${e.agotado ? "rgba(255,100,80,.14)" : "transparent"};color:${e.agotado ? "rgb(255,120,90)" : "rgb(120,220,130)"};opacity:${guardando === item.id ? 0.5 : 1}`)}
-                  >
-                    {e.agotado ? "⛔ AGOTADO" : "✓ En venta"}
-                  </button>
-                </>
+                <button
+                  onClick={() => set(item.id, { agotado: !e.agotado })}
+                  disabled={guardando === item.id}
+                  style={sx(`font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;padding:11px 18px;border-radius:100px;cursor:pointer;min-width:130px;border:1px solid ${e.agotado ? "rgb(255 100 80 / .7)" : "rgb(120 220 130 / .45)"};background:${e.agotado ? "rgba(255,100,80,.14)" : "transparent"};color:${e.agotado ? "rgb(255,120,90)" : "rgb(120,220,130)"};opacity:${guardando === item.id ? 0.5 : 1}`)}
+                >
+                  {e.agotado ? "⛔ AGOTADO" : "✓ En venta"}
+                </button>
               )}
             </div>
           );

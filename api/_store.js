@@ -28,8 +28,10 @@ async function supa(path, { method = "GET", body, headers = {} } = {}) {
     const text = await res.text().catch(() => "");
     throw new Error(`Supabase ${method} ${path} → ${res.status}: ${text.slice(0, 300)}`);
   }
-  if (res.status === 204) return null;
-  return res.json();
+  // Los upserts sin return=representation responden 201 con cuerpo vacío:
+  // no intentes parsear JSON de una respuesta vacía.
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
 // ── Memoria (solo desarrollo) ────────────────────────────────────────────────
