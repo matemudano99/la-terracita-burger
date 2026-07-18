@@ -137,6 +137,26 @@ se actualiza cada 2 segundos.
 La **hamburguesa del mes** se pide online: nombre, ingredientes y precio se
 editan en `src/mesData.js` (campo `precioCents`).
 
+## Pago online (MONEI)
+
+Checkout híbrido: "💳 Pagar ahora" (tarjeta, Bizum, Apple/Google Pay en la
+página segura de MONEI) o "💶 Pagar al recoger". Cómo funciona por dentro:
+
+- El pedido pagado online **no llega a cocina hasta que MONEI confirma el
+  cobro** (webhook verificado contra su API, con comprobación de importe).
+- En cocina y en el ticket aparece **💳 PAGADO — NO COBRAR** bien grande.
+- Si cocina **rechaza** un pedido cobrado → **reembolso automático** (si el
+  reembolso fallara, el rechazo no se completa y se avisa al panel).
+- Pedido pagado que nadie recoge → sin reembolso automático (comida hecha);
+  se valora a mano desde el panel de MONEI.
+
+Activación:
+1. Ejecutar en Supabase el bloque de columnas `pago_*` de `supabase/schema.sql`.
+2. Poner `MONEI_API_KEY` en Vercel (primero la key de **test**, probar un
+   pedido completo, y después cambiarla por la **live**).
+3. Sin `MONEI_API_KEY`, el botón "Pagar ahora" no aparece y todo sigue como
+   siempre. En desarrollo local hay una pasarela simulada (/pago-simulado).
+
 ## Seguimiento por WhatsApp
 
 Tras enviar el pedido, el cliente puede pulsar «Guardar seguimiento en

@@ -8,6 +8,7 @@
 import { requireUser } from "./_auth.js";
 import { getAjustes, setAjuste, getCarta, storeReady } from "./_store.js";
 import { LOCALES } from "../src/locales.js";
+import { pagosDisponibles } from "./_monei.js";
 
 export default async function handler(req, res) {
   try {
@@ -18,7 +19,7 @@ export default async function handler(req, res) {
       if (storeReady) {
         for (const id of Object.keys(LOCALES)) carta[id] = await getCarta(id).catch(() => ({}));
       }
-      return res.status(200).json({ ajustes, carta });
+      return res.status(200).json({ ajustes, carta, pagos: pagosDisponibles });
     }
 
     if (req.method === "PUT") {

@@ -294,6 +294,16 @@ function Card({ o, rgb, destacado, onPrint, children }) {
       <div style={sx("font-size:14px")}>
         <strong>{o.nombre}</strong> · <a href={`tel:${o.telefono}`} style={sx("color:rgba(246,241,233,.8)")}>{o.telefono}</a>
       </div>
+      {o.pago_estado === "pagado" && (
+        <div style={sx("font-size:13px;font-weight:800;letter-spacing:.05em;text-align:center;padding:9px 12px;border-radius:10px;border:1px solid rgb(120 220 130 / .6);background:rgb(120 220 130 / .12);color:rgb(120,220,130)")}>
+          💳 PAGADO ONLINE — NO COBRAR
+        </div>
+      )}
+      {o.pago_estado === "reembolsado" && (
+        <div style={sx("font-size:12.5px;font-weight:700;text-align:center;padding:8px 12px;border-radius:10px;border:1px solid rgba(246,241,233,.25);color:rgba(246,241,233,.7)")}>
+          ↩️ Importe reembolsado al cliente
+        </div>
+      )}
       {o.alerta && (
         <div style={sx("font-size:12.5px;font-weight:700;line-height:1.45;padding:9px 12px;border-radius:10px;border:1px solid rgba(255,140,40,.55);background:rgba(255,140,40,.1);color:rgb(255,170,90)")}>
           ⚠️ {o.alerta}
@@ -446,7 +456,7 @@ function Ticket({ o, localName }) {
       {o.nota && <div className="tk-line">** NOTA: {o.nota}</div>}
       <div className="tk-sep" />
       <div className="tk-row tk-big"><span>TOTAL</span><span>{fmtEUR(o.total_cents)}</span></div>
-      <div className="tk-center">PAGO AL RECOGER</div>
+      <div className="tk-center tk-big">{o.pago_estado === "pagado" ? "*** PAGADO ONLINE — NO COBRAR ***" : "PAGO AL RECOGER"}</div>
       <div className="tk-center">¡Gracias! 🍔</div>
     </div>,
     document.body

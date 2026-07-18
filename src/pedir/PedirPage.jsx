@@ -86,12 +86,14 @@ export default function PedirPage() {
   // para que los cambios aparezcan sin recargar la página.
   const [ajustes, setAjustes] = useState({});
   const [cartaEstado, setCartaEstado] = useState({});
+  const [pagos, setPagos] = useState(false); // ¿está disponible "pagar ahora"?
   useEffect(() => {
     fetch("/api/ajustes")
       .then((r) => (r.ok ? r.json() : {}))
       .then((d) => {
         setAjustes(d.ajustes || {});
         setCartaEstado(d.carta || {});
+        setPagos(!!d.pagos);
       })
       .catch(() => {});
   }, [ahora]);
@@ -271,7 +273,7 @@ export default function PedirPage() {
       )}
 
       {modalItem && <OpcionesModal {...modalItem} carta={carta} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
-      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} rgb={rgb} estado={estado} totalCents={totalCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
+      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} rgb={rgb} estado={estado} pagos={pagos} totalCents={totalCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
     </div>
   );
 }
@@ -402,10 +404,11 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
 }
 
 // ── Carrito + checkout ───────────────────────────────────────────────────────
-function CartDrawer({ cart, setQty, loc, carta, rgb, estado, totalCents, onClose, onDone }) {
+function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, onClose, onDone }) {
   const [nombre, setNombre] = useState(localStorage.getItem("ltb_nombre") || "");
   const [telefono, setTelefono] = useState(localStorage.getItem("ltb_telefono") || "");
   const [nota, setNota] = useState("");
+  const [metodoPago, setMetodoPago] = useState("local"); // "local" | "online"
   const [web, setWeb] = useState(""); // honeypot antibots — un humano nunca lo ve
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
@@ -425,6 +428,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, totalCents, onClose
           nombre: nombre.trim(),
           telefono: telefono.trim(),
           nota: nota.trim(),
+          pago: pagos ? metodoPago : "local",
           web, // honeypot: siempre vacío en humanos
           lineas: cart.map((l) => ({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, nota: l.nota })),
         }),
@@ -433,7 +437,14 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, totalCents, onClose
       if (!res.ok) throw new Error(data.error || "No se pudo enviar el pedido.");
       localStorage.setItem("ltb_nombre", nombre.trim());
       localStorage.setItem("ltb_telefono", telefono.trim());
-      onDone({ id: data.id, code: data.code, local: loc, total_cents: data.total_cents, ts: Date.now() });
+      const seguimiento = { id: data.id, code: data.code, local: loc, total_cents: data.total_cents, ts: Date.now() };
+      if (data.pago?.redirectUrl) {
+        // Pago online: guardamos el seguimiento y saltamos a la pasarela.
+        localStorage.setItem(LS_PEDIDO, JSON.stringify(seguimiento));
+        window.location.href = data.pago.redirectUrl;
+        return;
+      }
+      onDone(seguimiento);
     } catch (e) {
       setError(e.message);
       setSending(false);
@@ -505,6 +516,26 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, totalCents, onClose
           <span style={labelStyle}>Notas para el local</span>
           <input value={nota} onChange={(e) => setNota(e.target.value.slice(0, 300))} placeholder="Opcional" style={inputStyle} />
         </div>
+
+        {pagos && (
+          <div>
+            <span style={labelStyle}>¿Cómo quieres pagar?</span>
+            <div style={sx("display:flex;flex-direction:column;gap:8px")}>
+              {[
+                { id: "online", titulo: "💳 Pagar ahora", sub: "Tarjeta, Bizum, Apple Pay o Google Pay — pago seguro" },
+                { id: "local", titulo: "💶 Pagar al recoger", sub: "En el local, efectivo o tarjeta" },
+              ].map((m) => (
+                <label key={m.id} style={sx(`display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:12px;cursor:pointer;border:1px solid ${metodoPago === m.id ? `rgb(${rgb})` : "rgba(246,241,233,.15)"};background:${metodoPago === m.id ? `rgb(${rgb} / .1)` : "transparent"}`)}>
+                  <input type="radio" name="pago" checked={metodoPago === m.id} onChange={() => setMetodoPago(m.id)} />
+                  <span style={sx("display:flex;flex-direction:column;gap:1px")}>
+                    <span style={sx("font-weight:700;font-size:14.5px")}>{m.titulo}</span>
+                    <span style={sx("font-size:12px;color:rgba(246,241,233,.55)")}>{m.sub}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Honeypot: invisible y fuera del orden de tabulación; los bots lo rellenan */}
         <div aria-hidden="true" style={sx("position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden")}>
@@ -578,13 +609,23 @@ function Seguimiento({ pedido, onNuevo }) {
     ? new Date(info.ready_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" })
     : null;
 
+  const pagoEstado = info?.pago_estado || null;
   const PASOS = {
     nuevo: { emoji: "📨", titulo: "Pedido enviado", texto: "El local lo está revisando. En un momento te confirmamos por aquí." },
     aceptado: { emoji: "🔥", titulo: "¡Confirmado! Ya está en plancha", texto: readyLabel ? `Estará listo sobre las ${readyLabel}.` : "Te avisamos aquí cuando esté listo." },
     lista: { emoji: "✅", titulo: "¡Listo para recoger!", texto: "Pásate por el local, te esperamos." },
     entregado: { emoji: "🍔", titulo: "Entregado", texto: "¡Que aproveche! Nos vemos pronto." },
-    rechazado: { emoji: "😔", titulo: "No hemos podido aceptarlo", texto: `Lo sentimos — llámanos al ${L?.phone} y lo resolvemos.` },
+    rechazado: {
+      emoji: "😔",
+      titulo: "No hemos podido aceptarlo",
+      texto: pagoEstado === "reembolsado"
+        ? "Lo sentimos — te hemos devuelto el importe (lo verás en tu banco en 1-3 días). Llámanos si quieres y lo resolvemos."
+        : `Lo sentimos — llámanos al ${L?.phone} y lo resolvemos.`,
+    },
     no_recogido: { emoji: "📦", titulo: "Quedó sin recoger", texto: `Este pedido no llegó a recogerse. Si hubo un problema, llámanos al ${L?.phone}.` },
+    pendiente_pago: pagoEstado === "fallido"
+      ? { emoji: "💳", titulo: "El pago no se completó", texto: "Tranquilo: no se te ha cobrado. Vuelve a hacer el pedido — y si lo prefieres, elige pagar al recoger." }
+      : { emoji: "⏳", titulo: "Confirmando el pago…", texto: "Un momento — estamos confirmando el cobro con el banco. Esta pantalla se actualiza sola." },
   };
   const paso = PASOS[status] || PASOS.nuevo;
 
@@ -630,7 +671,11 @@ function Seguimiento({ pedido, onNuevo }) {
         <div style={sx("font-size:14px;line-height:1.6;color:rgba(246,241,233,.7)")}>
           📍 {L?.name} — {L?.address}<br />
           📞 <a href={`tel:${L?.tel}`} style={{ color: `rgb(${rgb})`, textDecoration: "none", fontWeight: 700 }}>{L?.phone}</a>
-          {info?.total_cents != null && <><br />💶 Total al recoger: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong></>}
+          {info?.total_cents != null && (
+            pagoEstado === "pagado" ? <><br />💳 Pagado online: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong> — no pagas nada al recoger</>
+            : pagoEstado === "reembolsado" ? <><br />↩️ Importe devuelto: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong></>
+            : <><br />💶 Total al recoger: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong></>
+          )}
         </div>
 
         {caido && <p style={sx("margin:18px 0 0;font-size:12.5px;color:rgba(246,241,233,.5)")}>No podemos actualizar el estado ahora mismo — tu pedido sigue en marcha. Si tienes dudas, llámanos.</p>}

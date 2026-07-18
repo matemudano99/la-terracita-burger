@@ -38,6 +38,14 @@ create table if not exists public.carta (
 );
 alter table public.carta enable row level security;
 
+-- Pagos online (MONEI). El pedido nace en "pendiente_pago" y solo pasa a
+-- cocina cuando el webhook confirma el cobro.
+alter table public.pedidos
+  add column if not exists pago_metodo text not null default 'local',
+  add column if not exists pago_estado text,
+  add column if not exists pago_id text;
+create index if not exists pedidos_pago_id on public.pedidos (pago_id);
+
 -- Ajustes por local: pausar pedidos online desde /admin (pestaña Ajustes).
 create table if not exists public.ajustes (
   local      text primary key,

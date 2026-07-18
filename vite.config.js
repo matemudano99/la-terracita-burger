@@ -14,7 +14,7 @@ const apiDev = () => ({
         // /api/orders?x=1 → módulo /api/orders.js (solo nombres simples)
         const url = new URL(req.url, 'http://localhost')
         const nombre = url.pathname.replace(/^\/+|\/+$/g, '')
-        if (!/^[a-z]+$/.test(nombre)) {
+        if (!/^[a-z][a-z-]*$/.test(nombre)) {
           res.statusCode = 404
           return res.end(JSON.stringify({ error: 'No encontrado' }))
         }

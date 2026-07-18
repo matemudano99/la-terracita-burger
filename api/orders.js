@@ -13,6 +13,7 @@ import { priceLine, fmtEUR, itemName } from "../src/menu.js";
 import { LOCALES, estadoLocal } from "../src/locales.js";
 import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, countNoShows, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
+import { pagosDisponibles, crearPago, reembolsar } from "./_monei.js";
 
 const ESTADOS = ["nuevo", "aceptado", "lista", "entregado", "rechazado", "no_recogido"];
 // Ventana y umbrales anti pedidos fantasma (pedidos que nadie recoge):
@@ -30,7 +31,16 @@ const publicView = (o) => ({
   ready_at: o.ready_at,
   total_cents: o.total_cents,
   created_at: o.created_at,
+  pago_metodo: o.pago_metodo || "local",
+  pago_estado: o.pago_estado || null,
 });
+
+// Origen público de la petición (para las URLs de retorno y webhook del pago).
+function origenDe(req) {
+  const host = req.headers["x-forwarded-host"] || req.headers.host || "laterracitaburger.com";
+  const proto = req.headers["x-forwarded-proto"] || (String(host).startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
 
 export default async function handler(req, res) {
   try {
@@ -113,6 +123,13 @@ async function crear(req, res) {
   }
   if (total > 50000) return res.status(400).json({ error: "Para pedidos tan grandes, llámanos por teléfono y te lo preparamos 😉" });
 
+  // ¿Pago online? El pedido nace invisible ("pendiente_pago") y solo el
+  // webhook de MONEI, tras confirmar el cobro, lo pasa a cocina.
+  const pagoOnline = b.pago === "online";
+  if (pagoOnline && !pagosDisponibles) {
+    return res.status(400).json({ error: "El pago online no está disponible ahora mismo — elige pagar al recoger." });
+  }
+
   const order = {
     id: randomUUID(),
     code: String(Math.floor(100 + Math.random() * 900)),
@@ -122,13 +139,27 @@ async function crear(req, res) {
     items,
     nota: String(b.nota || "").trim().slice(0, 300) || null,
     ip: ip || null,
-    alerta: noShows === 1 ? "Este teléfono dejó 1 pedido sin recoger — confirma por teléfono antes de cocinar" : null,
+    alerta: noShows === 1 && !pagoOnline ? "Este teléfono dejó 1 pedido sin recoger — confirma por teléfono antes de cocinar" : null,
     total_cents: total,
-    status: "nuevo",
+    status: pagoOnline ? "pendiente_pago" : "nuevo",
     ready_at: null,
     created_at: new Date().toISOString(),
+    // Los campos de pago solo se incluyen en pedidos online para no requerir
+    // las columnas nuevas en pedidos de pago al recoger.
+    ...(pagoOnline ? { pago_metodo: "online", pago_estado: "pendiente", pago_id: null } : {}),
   };
   const saved = await insertOrder(order);
+
+  if (pagoOnline) {
+    try {
+      const pago = await crearPago({ amountCents: total, orderId: saved.id, code: saved.code, origin: origenDe(req) });
+      await updateOrder(saved.id, { pago_id: pago.id });
+      return res.status(201).json({ ...publicView(saved), total_label: fmtEUR(total), pago: { redirectUrl: pago.redirectUrl } });
+    } catch (err) {
+      console.error("[api/orders] crearPago", err);
+      return res.status(502).json({ error: 'No se pudo iniciar el pago online. Elige "pagar al recoger" o inténtalo de nuevo.' });
+    }
+  }
   return res.status(201).json({ ...publicView(saved), total_label: fmtEUR(saved.total_cents) });
 }
 
@@ -145,7 +176,8 @@ async function consultar(req, res) {
     }
     const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     const rows = await listOrders(q.local, since);
-    return res.status(200).json({ orders: rows, supabase: usingSupabase });
+    // Los pagos online sin completar no existen para la cocina.
+    return res.status(200).json({ orders: rows.filter((o) => o.status !== "pendiente_pago"), supabase: usingSupabase });
   }
 
   // Historial para administración (rango de fechas, filtro por local)
@@ -157,7 +189,7 @@ async function consultar(req, res) {
     if (isNaN(desde) || isNaN(hasta)) return res.status(400).json({ error: "Fechas no válidas" });
     if (q.local && !LOCALES[q.local]) return res.status(400).json({ error: "Local no válido" });
     const rows = await listHistorial({ desde: desde.toISOString(), hasta: hasta.toISOString(), local: q.local || null });
-    return res.status(200).json({ orders: rows, supabase: usingSupabase });
+    return res.status(200).json({ orders: rows.filter((o) => o.status !== "pendiente_pago"), supabase: usingSupabase });
   }
 
   // Cliente — estado de su pedido (id UUID no adivinable + code)
@@ -176,11 +208,13 @@ async function actualizar(req, res) {
   if (!b.id) return res.status(400).json({ error: "Falta id" });
   if (!ESTADOS.includes(b.status)) return res.status(400).json({ error: "Estado no válido" });
 
-  if (user.rol === "empleado" && user.local) {
-    const existente = await getOrder(String(b.id));
-    if (existente && existente.local !== user.local) {
-      return res.status(403).json({ error: `Tu cuenta solo tiene acceso al local ${LOCALES[user.local]?.name || user.local}.` });
-    }
+  const existente = await getOrder(String(b.id));
+  if (!existente) return res.status(404).json({ error: "Pedido no encontrado" });
+  if (existente.status === "pendiente_pago") {
+    return res.status(409).json({ error: "Este pedido aún no ha completado el pago." });
+  }
+  if (user.rol === "empleado" && user.local && existente.local !== user.local) {
+    return res.status(403).json({ error: `Tu cuenta solo tiene acceso al local ${LOCALES[user.local]?.name || user.local}.` });
   }
 
   const patch = { status: b.status };
@@ -188,6 +222,19 @@ async function actualizar(req, res) {
     const mins = Math.min(120, Math.max(5, Number(b.ready_minutes) || 25));
     patch.ready_at = new Date(Date.now() + mins * 60000).toISOString();
   }
+
+  // Rechazar un pedido ya cobrado → reembolso automático. Si el reembolso
+  // falla, NO se rechaza: el dinero manda, que el personal reintente.
+  if (b.status === "rechazado" && existente.pago_estado === "pagado" && existente.pago_id) {
+    try {
+      await reembolsar(existente.pago_id, existente.total_cents);
+      patch.pago_estado = "reembolsado";
+    } catch (err) {
+      console.error("[api/orders] reembolso", err);
+      return res.status(502).json({ error: "No se pudo hacer el reembolso — reintenta en unos segundos o gestiónalo desde el panel de MONEI antes de rechazar." });
+    }
+  }
+
   const updated = await updateOrder(String(b.id), patch);
   if (!updated) return res.status(404).json({ error: "Pedido no encontrado" });
   return res.status(200).json({ ok: true, order: updated });

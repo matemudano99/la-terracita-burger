@@ -335,6 +335,7 @@ export default function Landing() {
             <a href="/aviso-legal" style={sx("color:rgba(246,241,233,.6)")}>Aviso legal</a>
             <a href="/privacidad" style={sx("color:rgba(246,241,233,.6)")}>Privacidad</a>
             <a href="/cookies" style={sx("color:rgba(246,241,233,.6)")}>Cookies</a>
+            <a href="/condiciones" style={sx("color:rgba(246,241,233,.6)")}>Condiciones de compra</a>
           </span>
           <span>Angus Dry Age · 100% Mediterráneo</span>
         </div>

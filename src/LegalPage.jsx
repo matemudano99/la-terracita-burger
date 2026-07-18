@@ -28,7 +28,8 @@ const AvisoLegal = () => (
     <p style={p}>
       Este sitio web da a conocer la carta, los locales y los canales de pedido y contacto de La Terracita
       Burger, y permite realizar <strong>pedidos online para recoger en el local</strong>, con pago en el
-      momento de la recogida (no se realizan pagos a través de la web). Los pedidos a domicilio se realizan a
+      momento de la recogida o, cuando esté disponible, pago online seguro a través de la pasarela MONEI
+      (ver <a style={ext} href="/condiciones">condiciones de compra</a>). Los pedidos a domicilio se realizan a
       través de plataformas de terceros (Just Eat, Glovo y Uber Eats) y las reservas por teléfono.
     </p>
 
@@ -99,6 +100,15 @@ const Privacidad = () => (
       ceden a terceros.
     </p>
 
+    <h2 style={h2}>2 bis. Pago online</h2>
+    <p style={p}>
+      Si eliges pagar online, el pago se procesa en la pasarela segura de <strong>MONEI DIGITAL PAYMENTS,
+      S.L.</strong> (encargada del tratamiento de los datos de pago). Los datos de tu tarjeta o cuenta
+      <strong> nunca pasan por nuestros servidores ni se almacenan</strong>: nosotros solo recibimos la
+      confirmación del cobro, el importe y un identificador de la operación, necesarios para gestionar el
+      pedido y posibles reembolsos.
+    </p>
+
     <h2 style={h2}>3. Pedidos a través de plataformas</h2>
     <p style={p}>
       Los pedidos a domicilio se realizan en las plataformas Just Eat, Glovo y Uber Eats. Al usarlas, el
@@ -112,6 +122,58 @@ const Privacidad = () => (
       portabilidad escribiendo a laterracita.burgers@gmail.com. Si consideras que el tratamiento no se ajusta a la
       normativa, puedes presentar una reclamación ante la Agencia Española de Protección de Datos
       (<a style={ext} href="https://www.aepd.es" target="_blank" rel="noreferrer">www.aepd.es</a>).
+    </p>
+  </>
+);
+
+const Condiciones = () => (
+  <>
+    <h2 style={h2}>1. Objeto y ámbito</h2>
+    <p style={p}>
+      Estas condiciones regulan los pedidos realizados en la sección «Pedir» de este sitio web para su
+      <strong> recogida en el local elegido</strong> (Teatinos o Rincón de la Victoria). Al enviar un pedido
+      aceptas estas condiciones. Todos los precios de la carta incluyen IVA.
+    </p>
+
+    <h2 style={h2}>2. Proceso de pedido</h2>
+    <p style={p}>
+      El pedido enviado es una propuesta de compra: queda <strong>confirmado cuando el local lo acepta</strong>
+      en su panel (lo verás en la pantalla de seguimiento, junto con la hora estimada de recogida). Si el local
+      no puede prepararlo (p. ej. por falta de producto), lo rechazará y te lo indicará en la misma pantalla.
+    </p>
+
+    <h2 style={h2}>3. Pago</h2>
+    <ul style={ul}>
+      <li><strong>Pago al recoger</strong>: en el local, en efectivo o con tarjeta.</li>
+      <li>
+        <strong>Pago online</strong> (cuando esté disponible): tarjeta, Bizum, Apple Pay o Google Pay a través
+        de la pasarela segura de MONEI DIGITAL PAYMENTS, S.L. No almacenamos los datos de tu tarjeta. El cargo
+        se realiza al completar el pago; si el local rechaza el pedido, el importe se
+        <strong> reembolsa automáticamente</strong> por el mismo medio de pago (el abono puede tardar 1-3 días
+        laborables según tu banco).
+      </li>
+    </ul>
+
+    <h2 style={h2}>4. Recogida y pedidos no recogidos</h2>
+    <p style={p}>
+      El pedido se prepara para la hora estimada indicada. Si prevés retraso, llama al local. Los pedidos
+      pagados online que no se recojan no dan derecho a reembolso automático, al tratarse de comida preparada
+      expresamente; valoraremos cada caso si nos llamas. Los teléfonos con pedidos reiterados sin recoger
+      pueden quedar excluidos del pedido online.
+    </p>
+
+    <h2 style={h2}>5. Derecho de desistimiento</h2>
+    <p style={p}>
+      De acuerdo con el artículo 103.d) del Real Decreto Legislativo 1/2007, el derecho de desistimiento no es
+      aplicable a bienes que puedan deteriorarse o caducar con rapidez, como la comida preparada. Esto no
+      afecta a tu derecho a reclamar si el pedido llega incompleto o en mal estado: llámanos o escríbenos y lo
+      solucionamos.
+    </p>
+
+    <h2 style={h2}>6. Atención al cliente</h2>
+    <p style={p}>
+      Teatinos: 628 053 065 · Rincón de la Victoria: 622 220 826 · laterracita.burgers@gmail.com. Hojas de
+      reclamaciones a disposición del cliente en nuestros locales. La legislación aplicable es la española.
     </p>
   </>
 );
@@ -164,6 +226,7 @@ const PAGES = {
   "/aviso-legal": { title: "Aviso legal", Body: AvisoLegal },
   "/privacidad": { title: "Política de privacidad", Body: Privacidad },
   "/cookies": { title: "Política de cookies", Body: Cookies },
+  "/condiciones": { title: "Condiciones de compra", Body: Condiciones },
 };
 
 export const LEGAL_ROUTES = Object.keys(PAGES);
