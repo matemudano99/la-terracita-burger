@@ -568,7 +568,8 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
           sin recoger bloquean el teléfono para futuros pedidos online.
         </p>
         <p style={sx("margin:0;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.5)")}>
-          Usamos tu nombre y teléfono solo para gestionar este pedido. Más info en <a href="/privacidad" style={sx("color:rgba(246,241,233,.7)")}>privacidad</a>.
+          Al enviar el pedido aceptas los <a href="/condiciones" style={sx("color:rgba(246,241,233,.7)")}>términos y condiciones</a> (cancelaciones y reembolsos incluidos).
+          Usamos tu nombre y teléfono solo para gestionar este pedido — más info en <a href="/privacidad" style={sx("color:rgba(246,241,233,.7)")}>privacidad</a>.
         </p>
       </div>
     </div>

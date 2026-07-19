@@ -16,8 +16,8 @@ const AvisoLegal = () => (
       Información y de Comercio Electrónico (LSSI-CE), se informa de que el titular de este sitio web es:
     </p>
     <ul style={ul}>
-      <li>Titular: La Terracita Burger</li>
-      <li>NIF/CIF: B70678818</li>
+      <li>Titular: <strong>LA TERRACITA BURGUER ESPAÑA SL</strong> (nombre comercial: La Terracita Burger)</li>
+      <li>NIF: B70678818</li>
       <li>Domicilio: Av. del Mediterráneo 139, 29730 Rincón de la Victoria, Málaga (España)</li>
       <li>Correo electrónico: laterracita.burgers@gmail.com</li>
       <li>Teléfonos: 628 053 065 (Teatinos) · 622 220 826 (Rincón de la Victoria)</li>
@@ -65,8 +65,8 @@ const Privacidad = () => (
   <>
     <h2 style={h2}>1. Responsable del tratamiento</h2>
     <ul style={ul}>
-      <li>Responsable: La Terracita Burger</li>
-      <li>NIF/CIF: B70678818</li>
+      <li>Responsable: LA TERRACITA BURGUER ESPAÑA SL (La Terracita Burger)</li>
+      <li>NIF: B70678818</li>
       <li>Domicilio: Av. del Mediterráneo 139, 29730 Rincón de la Victoria, Málaga (España)</li>
       <li>Correo electrónico: laterracita.burgers@gmail.com</li>
     </ul>
@@ -128,52 +128,94 @@ const Privacidad = () => (
 
 const Condiciones = () => (
   <>
-    <h2 style={h2}>1. Objeto y ámbito</h2>
+    <h2 style={h2}>1. Identificación del vendedor</h2>
+    <ul style={ul}>
+      <li>Vendedor: <strong>LA TERRACITA BURGUER ESPAÑA SL</strong> (nombre comercial: La Terracita Burger)</li>
+      <li>NIF: B70678818</li>
+      <li>Domicilio: Av. del Mediterráneo 139, 29730 Rincón de la Victoria, Málaga (España)</li>
+      <li>Correo electrónico: laterracita.burgers@gmail.com</li>
+      <li>Teléfonos: 628 053 065 (Teatinos) · 622 220 826 (Rincón de la Victoria)</li>
+    </ul>
+
+    <h2 style={h2}>2. Objeto y ámbito</h2>
     <p style={p}>
-      Estas condiciones regulan los pedidos realizados en la sección «Pedir» de este sitio web para su
-      <strong> recogida en el local elegido</strong> (Teatinos o Rincón de la Victoria). Al enviar un pedido
-      aceptas estas condiciones. Todos los precios de la carta incluyen IVA.
+      Estas condiciones regulan los pedidos de comida preparada realizados en la sección «Pedir» de este sitio
+      web para su <strong>recogida en el local elegido</strong> (Teatinos o Rincón de la Victoria). Al enviar
+      un pedido aceptas estas condiciones.
     </p>
 
-    <h2 style={h2}>2. Proceso de pedido</h2>
+    <h2 style={h2}>3. Precios y formas de pago</h2>
     <p style={p}>
-      El pedido enviado es una propuesta de compra: queda <strong>confirmado cuando el local lo acepta</strong>
-      en su panel (lo verás en la pantalla de seguimiento, junto con la hora estimada de recogida). Si el local
-      no puede prepararlo (p. ej. por falta de producto), lo rechazará y te lo indicará en la misma pantalla.
+      Todos los precios se muestran en <strong>euros (€) con IVA incluido</strong>. No hay gastos de envío ni
+      recargos: el precio final es la suma de los productos del carrito, visible antes de confirmar.
     </p>
-
-    <h2 style={h2}>3. Pago</h2>
     <ul style={ul}>
       <li><strong>Pago al recoger</strong>: en el local, en efectivo o con tarjeta.</li>
       <li>
-        <strong>Pago online</strong> (cuando esté disponible): tarjeta, Bizum, Apple Pay o Google Pay a través
-        de la pasarela segura de MONEI DIGITAL PAYMENTS, S.L. No almacenamos los datos de tu tarjeta. El cargo
-        se realiza al completar el pago; si el local rechaza el pedido, el importe se
-        <strong> reembolsa automáticamente</strong> por el mismo medio de pago (el abono puede tardar 1-3 días
-        laborables según tu banco).
+        <strong>Pago online</strong> (cuando esté disponible): tarjeta Visa o Mastercard, Bizum, Apple Pay o
+        Google Pay a través de la pasarela de pago segura de MONEI DIGITAL PAYMENTS, S.L. No almacenamos los
+        datos de tu tarjeta; el cargo se realiza al completar el pago.
       </li>
     </ul>
 
-    <h2 style={h2}>4. Recogida y pedidos no recogidos</h2>
+    <h2 style={h2}>4. Proceso de pedido</h2>
     <p style={p}>
-      El pedido se prepara para la hora estimada indicada. Si prevés retraso, llama al local. Los pedidos
-      pagados online que no se recojan no dan derecho a reembolso automático, al tratarse de comida preparada
-      expresamente; valoraremos cada caso si nos llamas. Los teléfonos con pedidos reiterados sin recoger
-      pueden quedar excluidos del pedido online.
+      El pedido enviado es una propuesta de compra: queda <strong>confirmado cuando el local lo acepta</strong>
+      en su panel (lo verás en la pantalla de seguimiento, junto con la hora estimada de recogida). Si el local
+      no puede prepararlo (p. ej. por falta de producto), lo rechazará y te lo indicará en la misma pantalla,
+      con reembolso automático si ya lo habías pagado.
     </p>
 
-    <h2 style={h2}>5. Derecho de desistimiento</h2>
+    <h2 style={h2}>5. Entrega: recogida en el local (sin envíos)</h2>
+    <p style={p}>
+      Los pedidos de esta web son exclusivamente <strong>para recoger en el local elegido</strong>, por lo que
+      <strong> no se realizan envíos a domicilio ni interviene ninguna empresa de transporte, y no existen
+      gastos de envío</strong>. El plazo habitual de preparación es de <strong>15 a 40 minutos</strong>: al
+      aceptar tu pedido, el local fija la hora estimada de recogida y la ves en la pantalla de seguimiento.
+      Si prefieres entrega a domicilio, está disponible a través de plataformas de terceros (Just Eat, Glovo,
+      Uber Eats), que aplican sus propias condiciones, plazos y gastos.
+    </p>
+
+    <h2 style={h2}>6. Cancelaciones, devoluciones y reembolsos</h2>
+    <ul style={ul}>
+      <li>
+        <strong>Cancelación por el cliente</strong>: puedes cancelar sin coste <strong>llamando al local antes
+        de que el pedido se acepte o empiece a prepararse</strong>. Si habías pagado online, se reembolsa el
+        importe íntegro. Una vez en preparación, la comida se elabora expresamente para ti y ya no es posible
+        cancelar.
+      </li>
+      <li>
+        <strong>Cancelación por el local</strong>: si el local rechaza tu pedido, te lo indicamos en la
+        pantalla de seguimiento y, si lo habías pagado online, el <strong>reembolso es automático e íntegro</strong>
+        por el mismo medio de pago.
+      </li>
+      <li>
+        <strong>Reembolsos</strong>: se emiten siempre por el mismo medio de pago utilizado. El abono suele
+        reflejarse en 1-3 días laborables, según tu banco.
+      </li>
+      <li>
+        <strong>Pedido incorrecto o en mal estado</strong>: llámanos o escríbenos y lo solucionamos
+        reponiendo el producto o reembolsando su importe.
+      </li>
+      <li>
+        <strong>Pedidos no recogidos</strong>: los pedidos pagados que no se recojan no dan derecho a
+        reembolso automático, al tratarse de comida preparada expresamente; valoraremos cada caso si nos
+        llamas. Los teléfonos con pedidos reiterados sin recoger pueden quedar excluidos del pedido online.
+      </li>
+    </ul>
+
+    <h2 style={h2}>7. Derecho de desistimiento</h2>
     <p style={p}>
       De acuerdo con el artículo 103.d) del Real Decreto Legislativo 1/2007, el derecho de desistimiento no es
       aplicable a bienes que puedan deteriorarse o caducar con rapidez, como la comida preparada. Esto no
-      afecta a tu derecho a reclamar si el pedido llega incompleto o en mal estado: llámanos o escríbenos y lo
-      solucionamos.
+      afecta a los derechos del apartado anterior ni a tus derechos como consumidor.
     </p>
 
-    <h2 style={h2}>6. Atención al cliente</h2>
+    <h2 style={h2}>8. Atención al cliente y legislación</h2>
     <p style={p}>
       Teatinos: 628 053 065 · Rincón de la Victoria: 622 220 826 · laterracita.burgers@gmail.com. Hojas de
-      reclamaciones a disposición del cliente en nuestros locales. La legislación aplicable es la española.
+      reclamaciones a disposición del cliente en nuestros locales. La relación se rige por la legislación
+      española (RDL 1/2007 y Ley 34/2002), sin perjuicio de los fueros que correspondan al consumidor.
     </p>
   </>
 );
@@ -226,7 +268,7 @@ const PAGES = {
   "/aviso-legal": { title: "Aviso legal", Body: AvisoLegal },
   "/privacidad": { title: "Política de privacidad", Body: Privacidad },
   "/cookies": { title: "Política de cookies", Body: Cookies },
-  "/condiciones": { title: "Condiciones de compra", Body: Condiciones },
+  "/condiciones": { title: "Términos y condiciones", Body: Condiciones },
 };
 
 export const LEGAL_ROUTES = Object.keys(PAGES);
