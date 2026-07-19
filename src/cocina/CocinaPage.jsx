@@ -294,6 +294,11 @@ function Card({ o, rgb, destacado, onPrint, children }) {
       <div style={sx("font-size:14px")}>
         <strong>{o.nombre}</strong> · <a href={`tel:${o.telefono}`} style={sx("color:rgba(246,241,233,.8)")}>{o.telefono}</a>
       </div>
+      {o.entrega === "domicilio" && (
+        <div style={sx("font-size:13px;font-weight:700;line-height:1.45;padding:9px 12px;border-radius:10px;border:1px solid rgb(var(--emb) / .55);background:rgb(var(--emb) / .1);color:rgb(var(--emb))")}>
+          🛵 A DOMICILIO — {o.direccion}
+        </div>
+      )}
       {o.pago_estado === "pagado" && (
         <div style={sx("font-size:13px;font-weight:800;letter-spacing:.05em;text-align:center;padding:9px 12px;border-radius:10px;border:1px solid rgb(120 220 130 / .6);background:rgb(120 220 130 / .12);color:rgb(120,220,130)")}>
           💳 PAGADO ONLINE — NO COBRAR
@@ -440,6 +445,7 @@ function Ticket({ o, localName }) {
       <div className="tk-sep" />
       <div><b>{o.nombre}</b></div>
       <div>Tel: {o.telefono}</div>
+      {o.entrega === "domicilio" && <div className="tk-big">** A DOMICILIO: {o.direccion} **</div>}
       <div className="tk-sep" />
       {(o.items || []).map((it, i) => (
         <div key={i} className="tk-line">

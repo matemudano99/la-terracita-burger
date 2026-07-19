@@ -46,6 +46,13 @@ alter table public.pedidos
   add column if not exists pago_id text;
 create index if not exists pedidos_pago_id on public.pedidos (pago_id);
 
+-- Reparto propio a domicilio (oculto hasta activar delivery.activo en
+-- src/locales.js; ejecutar este bloque antes de activarlo).
+alter table public.pedidos
+  add column if not exists entrega text not null default 'recogida',
+  add column if not exists direccion text,
+  add column if not exists envio_cents integer not null default 0;
+
 -- Ajustes por local: pausar pedidos online desde /admin (pestaña Ajustes).
 create table if not exists public.ajustes (
   local      text primary key,

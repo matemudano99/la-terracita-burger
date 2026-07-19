@@ -9,9 +9,9 @@
 // en los importes que envía el navegador.
 // ─────────────────────────────────────────────────────────────────────────────
 import { randomUUID } from "node:crypto";
-import { priceLine, fmtEUR, itemName } from "../src/menu.js";
+import { priceLine, fmtEUR, itemName, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
 import { LOCALES, estadoLocal } from "../src/locales.js";
-import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, countNoShows, updateOrder, storeReady, usingSupabase } from "./_store.js";
+import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, countNoShows, pagosListos, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
 import { pagosDisponibles, crearPago, reembolsar } from "./_monei.js";
 
@@ -33,6 +33,9 @@ const publicView = (o) => ({
   created_at: o.created_at,
   pago_metodo: o.pago_metodo || "local",
   pago_estado: o.pago_estado || null,
+  entrega: o.entrega || "recogida",
+  direccion: o.direccion || null,
+  envio_cents: o.envio_cents || 0,
 });
 
 // Origen público de la petición (para las URLs de retorno y webhook del pago).
@@ -123,10 +126,31 @@ async function crear(req, res) {
   }
   if (total > 50000) return res.status(400).json({ error: "Para pedidos tan grandes, llámanos por teléfono y te lo preparamos 😉" });
 
+  // Modalidad de entrega. El reparto propio está oculto tras el flag
+  // delivery.activo de cada local (src/locales.js).
+  const domicilio = b.entrega === "domicilio";
+  if (domicilio && !loc.delivery?.activo) {
+    return res.status(400).json({ error: "El reparto a domicilio no está disponible — elige recogida en el local." });
+  }
+  let direccion = null;
+  let envioCents = 0;
+  if (domicilio) {
+    direccion = String(b.direccion || "").trim().slice(0, 200);
+    if (direccion.length < 8) return res.status(400).json({ error: "Escribe la dirección completa de entrega (calle, número, piso)." });
+    envioCents = loc.delivery.gastosCents || 0;
+  }
+
+  // Pedido mínimo (sobre los productos, sin contar gastos de envío).
+  const minimo = domicilio ? (loc.delivery.minimoCents || PEDIDO_MINIMO_CENTS) : PEDIDO_MINIMO_CENTS;
+  if (total < minimo) {
+    return res.status(400).json({ error: `El pedido mínimo ${domicilio ? "a domicilio" : "online"} es de ${fmtEUR(minimo)} — te faltan ${fmtEUR(minimo - total)}.` });
+  }
+  total += envioCents;
+
   // ¿Pago online? El pedido nace invisible ("pendiente_pago") y solo el
   // webhook de MONEI, tras confirmar el cobro, lo pasa a cocina.
   const pagoOnline = b.pago === "online";
-  if (pagoOnline && !pagosDisponibles) {
+  if (pagoOnline && !(pagosDisponibles && (await pagosListos()))) {
     return res.status(400).json({ error: "El pago online no está disponible ahora mismo — elige pagar al recoger." });
   }
 
@@ -144,9 +168,10 @@ async function crear(req, res) {
     status: pagoOnline ? "pendiente_pago" : "nuevo",
     ready_at: null,
     created_at: new Date().toISOString(),
-    // Los campos de pago solo se incluyen en pedidos online para no requerir
-    // las columnas nuevas en pedidos de pago al recoger.
+    // Los campos de pago/entrega solo se incluyen cuando se usan, para no
+    // requerir las columnas nuevas en los pedidos de siempre.
     ...(pagoOnline ? { pago_metodo: "online", pago_estado: "pendiente", pago_id: null } : {}),
+    ...(domicilio ? { entrega: "domicilio", direccion, envio_cents: envioCents } : {}),
   };
   const saved = await insertOrder(order);
 

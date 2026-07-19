@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
-import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento } from "../menu";
+import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
 import { LOCALES, estadoLocal, horarioTexto } from "../locales";
 import LtbMark from "../LtbMark";
 import PedirSplash, { debeMostrarSplash } from "./PedirSplash";
@@ -409,15 +409,26 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
   const [telefono, setTelefono] = useState(localStorage.getItem("ltb_telefono") || "");
   const [nota, setNota] = useState("");
   const [metodoPago, setMetodoPago] = useState("local"); // "local" | "online"
+  const [entrega, setEntrega] = useState("recogida"); // "recogida" | "domicilio"
+  const [direccion, setDireccion] = useState(localStorage.getItem("ltb_direccion") || "");
   const [web, setWeb] = useState(""); // honeypot antibots — un humano nunca lo ve
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
   const L = LOCALES[loc];
 
+  // Reparto propio: oculto hasta activar delivery.activo en src/locales.js.
+  const deliveryConf = L.delivery?.activo ? L.delivery : null;
+  const esDomicilio = entrega === "domicilio" && deliveryConf;
+  const envioCents = esDomicilio ? deliveryConf.gastosCents : 0;
+  const minimoCents = esDomicilio ? deliveryConf.minimoCents : PEDIDO_MINIMO_CENTS;
+  const totalFinal = totalCents + envioCents;
+  const faltaMinimo = cart.length > 0 && totalCents < minimoCents;
+
   const enviar = async () => {
     setError(null);
     if (nombre.trim().length < 2) return setError("Dinos tu nombre para el pedido.");
     if (!/^\+?[\d\s.-]{9,17}$/.test(telefono.trim())) return setError("Escribe un teléfono válido (9 dígitos).");
+    if (esDomicilio && direccion.trim().length < 8) return setError("Escribe la dirección completa de entrega.");
     setSending(true);
     try {
       const res = await fetch("/api/orders", {
@@ -429,6 +440,8 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
           telefono: telefono.trim(),
           nota: nota.trim(),
           pago: pagos ? metodoPago : "local",
+          entrega: esDomicilio ? "domicilio" : "recogida",
+          direccion: esDomicilio ? direccion.trim() : undefined,
           web, // honeypot: siempre vacío en humanos
           lineas: cart.map((l) => ({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, nota: l.nota })),
         }),
@@ -437,6 +450,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
       if (!res.ok) throw new Error(data.error || "No se pudo enviar el pedido.");
       localStorage.setItem("ltb_nombre", nombre.trim());
       localStorage.setItem("ltb_telefono", telefono.trim());
+      if (esDomicilio) localStorage.setItem("ltb_direccion", direccion.trim());
       const seguimiento = { id: data.id, code: data.code, local: loc, total_cents: data.total_cents, ts: Date.now() };
       if (data.pago?.redirectUrl) {
         // Pago online: guardamos el seguimiento y saltamos a la pasarela.
@@ -459,9 +473,30 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
           <button onClick={onClose} aria-label="Cerrar" style={sx("width:38px;height:38px;border-radius:50%;border:1px solid rgba(246,241,233,.2);background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>✕</button>
         </div>
 
+        {deliveryConf && (
+          <div style={sx("display:flex;gap:8px")}>
+            {[{ id: "recogida", label: "🏃 Recogida" }, { id: "domicilio", label: "🛵 A domicilio" }].map((m) => (
+              <button key={m.id} onClick={() => setEntrega(m.id)} style={sx(`flex:1;font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.03em;padding:12px 10px;border-radius:100px;cursor:pointer;border:1px solid ${entrega === m.id ? `rgb(${rgb})` : "rgba(246,241,233,.18)"};background:${entrega === m.id ? `rgb(${rgb})` : "transparent"};color:${entrega === m.id ? "#0a0806" : "#f6f1e9"}`)}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div style={sx("font-size:13px;color:rgba(246,241,233,.65)")}>
-          📍 Recogida en <strong style={{ color: `rgb(${rgb})` }}>{L.name}</strong> — {L.address}<br />💶 Pago al recoger (efectivo o tarjeta)
+          {esDomicilio ? (
+            <>🛵 Entrega a domicilio — zona: <strong style={{ color: `rgb(${rgb})` }}>{deliveryConf.zona}</strong><br />🚚 Gastos de envío: {fmtEUR(deliveryConf.gastosCents)}</>
+          ) : (
+            <>📍 Recogida en <strong style={{ color: `rgb(${rgb})` }}>{L.name}</strong> — {L.address}<br />💶 Pago al recoger (efectivo o tarjeta)</>
+          )}
         </div>
+
+        {esDomicilio && (
+          <div>
+            <span style={labelStyle}>Dirección de entrega * (calle, número, piso)</span>
+            <input value={direccion} onChange={(e) => setDireccion(e.target.value.slice(0, 200))} autoComplete="street-address" style={inputStyle} />
+          </div>
+        )}
 
         <div style={sx("display:flex;flex-direction:column;gap:12px")}>
           {cart.map((l, i) => {
@@ -499,10 +534,23 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
           {cart.length === 0 && <div style={sx("color:rgba(246,241,233,.55);font-size:14px")}>El carrito está vacío.</div>}
         </div>
 
-        <div style={sx("border-top:1px dashed rgba(246,241,233,.18);padding-top:14px;display:flex;justify-content:space-between;font-family:'Anton',sans-serif;font-size:22px")}>
-          <span>TOTAL</span>
-          <span style={{ color: `rgb(${rgb})` }}>{fmtEUR(totalCents)}</span>
+        <div style={sx("border-top:1px dashed rgba(246,241,233,.18);padding-top:14px;display:flex;flex-direction:column;gap:6px")}>
+          {envioCents > 0 && (
+            <div style={sx("display:flex;justify-content:space-between;font-size:14px;color:rgba(246,241,233,.72)")}>
+              <span>Envío</span><span>{fmtEUR(envioCents)}</span>
+            </div>
+          )}
+          <div style={sx("display:flex;justify-content:space-between;font-family:'Anton',sans-serif;font-size:22px")}>
+            <span>TOTAL</span>
+            <span style={{ color: `rgb(${rgb})` }}>{fmtEUR(totalFinal)}</span>
+          </div>
         </div>
+
+        {faltaMinimo && (
+          <div style={sx("padding:12px 16px;border-radius:12px;border:1px solid rgb(var(--acc) / .5);background:rgb(var(--acc) / .08);font-size:13.5px;color:#f6f1e9")}>
+            🍔 El pedido mínimo {esDomicilio ? "a domicilio" : "online"} es de <strong>{fmtEUR(minimoCents)}</strong> — te faltan {fmtEUR(minimoCents - totalCents)}.
+          </div>
+        )}
 
         <div>
           <span style={labelStyle}>Tu nombre *</span>
@@ -558,10 +606,10 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
 
         <button
           onClick={enviar}
-          disabled={sending || cart.length === 0 || !estado?.abierto}
-          style={{ ...sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.05em;padding:17px 20px;border-radius:100px;border:0;cursor:pointer;transition:opacity .2s"), background: `rgb(${rgb})`, color: "#0a0806", opacity: sending || cart.length === 0 || !estado?.abierto ? 0.45 : 1 }}
+          disabled={sending || cart.length === 0 || !estado?.abierto || faltaMinimo}
+          style={{ ...sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.05em;padding:17px 20px;border-radius:100px;border:0;cursor:pointer;transition:opacity .2s"), background: `rgb(${rgb})`, color: "#0a0806", opacity: sending || cart.length === 0 || !estado?.abierto || faltaMinimo ? 0.45 : 1 }}
         >
-          {sending ? "ENVIANDO…" : `ENVIAR PEDIDO · ${fmtEUR(totalCents)}`}
+          {sending ? "ENVIANDO…" : `ENVIAR PEDIDO · ${fmtEUR(totalFinal)}`}
         </button>
         <p style={sx("margin:0;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.5)")}>
           🤝 Sin pago por adelantado: al enviar el pedido te comprometes a recogerlo. Los pedidos que quedan
@@ -614,7 +662,9 @@ function Seguimiento({ pedido, onNuevo }) {
   const PASOS = {
     nuevo: { emoji: "📨", titulo: "Pedido enviado", texto: "El local lo está revisando. En un momento te confirmamos por aquí." },
     aceptado: { emoji: "🔥", titulo: "¡Confirmado! Ya está en plancha", texto: readyLabel ? `Estará listo sobre las ${readyLabel}.` : "Te avisamos aquí cuando esté listo." },
-    lista: { emoji: "✅", titulo: "¡Listo para recoger!", texto: "Pásate por el local, te esperamos." },
+    lista: info?.entrega === "domicilio"
+      ? { emoji: "🛵", titulo: "¡Va de camino!", texto: "Tu pedido acaba de salir hacia tu dirección." }
+      : { emoji: "✅", titulo: "¡Listo para recoger!", texto: "Pásate por el local, te esperamos." },
     entregado: { emoji: "🍔", titulo: "Entregado", texto: "¡Que aproveche! Nos vemos pronto." },
     rechazado: {
       emoji: "😔",
@@ -670,7 +720,9 @@ function Seguimiento({ pedido, onNuevo }) {
         )}
 
         <div style={sx("font-size:14px;line-height:1.6;color:rgba(246,241,233,.7)")}>
-          📍 {L?.name} — {L?.address}<br />
+          {info?.entrega === "domicilio"
+            ? <>🛵 Entrega a domicilio: <strong style={sx("color:#f6f1e9")}>{info?.direccion}</strong></>
+            : <>📍 {L?.name} — {L?.address}</>}<br />
           📞 <a href={`tel:${L?.tel}`} style={{ color: `rgb(${rgb})`, textDecoration: "none", fontWeight: 700 }}>{L?.phone}</a>
           {info?.total_cents != null && (
             pagoEstado === "pagado" ? <><br />💳 Pagado online: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong> — no pagas nada al recoger</>

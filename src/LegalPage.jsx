@@ -147,7 +147,8 @@ const Condiciones = () => (
     <h2 style={h2}>3. Precios y formas de pago</h2>
     <p style={p}>
       Todos los precios se muestran en <strong>euros (€) con IVA incluido</strong>. No hay gastos de envío ni
-      recargos: el precio final es la suma de los productos del carrito, visible antes de confirmar.
+      recargos: el precio final es la suma de los productos del carrito, visible antes de confirmar. El pedido
+      mínimo online es de <strong>9,00 €</strong>.
     </p>
     <ul style={ul}>
       <li><strong>Pago al recoger</strong>: en el local, en efectivo o con tarjeta.</li>

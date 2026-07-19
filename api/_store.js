@@ -103,6 +103,22 @@ export async function listHistorial({ desde, hasta, local }) {
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
+// ¿Existen ya las columnas de pago en la tabla? Evita ofrecer "pagar ahora"
+// si el SQL de pagos aún no se ha ejecutado (el deploy es seguro en cualquier
+// orden). Solo se cachea el sí; el no se re-comprueba en cada petición.
+let cachePagosListos = false;
+export async function pagosListos() {
+  if (!usingSupabase) return true;
+  if (cachePagosListos) return true;
+  try {
+    await supa(`${TABLE}?select=pago_metodo&limit=1`);
+    cachePagosListos = true;
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 // ── Estado de la carta por local: agotados y descuentos ──────────────────────
 const memCarta = new Map(); // clave `${local}|${itemId}`
 

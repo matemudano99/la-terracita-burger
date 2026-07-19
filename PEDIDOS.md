@@ -126,6 +126,18 @@ npm run dev
   días, el teléfono queda **bloqueado** para pedir online (se le invita a
   llamar). El checkout avisa de esta norma antes de enviar.
 
+## Pedido mínimo y reparto propio (oculto)
+
+- **Pedido mínimo online: 9 €** (constante `PEDIDO_MINIMO_CENTS` en
+  `src/menu.js`). El carrito avisa de lo que falta y el servidor lo revalida.
+- **Reparto a domicilio propio**: implementado pero **oculto** tras el flag
+  `delivery.activo` de cada local en `src/locales.js` (selector
+  recogida/domicilio, dirección, gastos de envío, mínimo propio, aviso 🛵 en
+  cocina y ticket). Para estrenarlo: (1) ejecutar el bloque de columnas de
+  entrega de `supabase/schema.sql`, (2) ajustar gastos/mínimo/zona y poner
+  `activo: true`, (3) actualizar la sección de entrega de /condiciones, que
+  hoy dice que no hay envíos.
+
 ## Gestión de la carta desde cocina
 
 En /cocina, botón **🍔 Carta**: cada local puede marcar productos como

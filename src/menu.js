@@ -206,6 +206,9 @@ export const MENU = [
 export const fmtEUR = (cents) =>
   (cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 
+// Pedido mínimo online para recogida (permite la Cheeseburger simple, 9,90 €).
+export const PEDIDO_MINIMO_CENTS = 900;
+
 // Forma que espera la sección "Carta" de Landing.jsx (rows [etiqueta, precio]).
 export const displayCats = () =>
   MENU.map((cat) => ({

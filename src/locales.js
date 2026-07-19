@@ -14,6 +14,11 @@ export const LOCALES = {
     rgb: "255 197 49",
     diasTexto: "Todos los días excepto martes",
     cerradoDias: [2], // 0=domingo … 2=martes
+    // Reparto propio — OCULTO hasta poner activo: true. Antes de activarlo:
+    // ejecutar el SQL de columnas de entrega (supabase/schema.sql) y
+    // actualizar la sección de entrega de /condiciones. Ajusta gastos, mínimo
+    // y el texto de la zona de reparto de cada local.
+    delivery: { activo: false, gastosCents: 250, minimoCents: 1500, zona: "Teatinos y alrededores" },
   },
   rincon: {
     id: "rincon",
@@ -24,6 +29,7 @@ export const LOCALES = {
     rgb: "255 92 40",
     diasTexto: "Todos los días",
     cerradoDias: [],
+    delivery: { activo: false, gastosCents: 250, minimoCents: 1500, zona: "Rincón de la Victoria centro" },
   },
 };
 
