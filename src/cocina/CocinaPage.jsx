@@ -131,6 +131,32 @@ export default function CocinaPage() {
     }
   };
 
+  // Menú "⋯" de cada tarjeta: cancelar (con reembolso automático si estaba
+  // pagado) y devolución manual del cobro sin tocar el estado del pedido.
+  const cancelarPedido = (o) => {
+    const conReembolso = o.pago_estado === "pagado" ? "\n\nEstá pagado online: se le devolverá el dinero automáticamente." : "";
+    if (window.confirm(`¿Cancelar el pedido ${o.code} de ${o.nombre}?${conReembolso}`)) {
+      patch(o.id, "rechazado");
+    }
+  };
+
+  const devolverDinero = async (o) => {
+    if (!window.confirm(`¿Devolver ${fmtEUR(o.total_cents)} a ${o.nombre} (pedido ${o.code})?\n\nEl pedido se queda como está; solo se reembolsa el cobro.`)) return;
+    try {
+      const res = await authFetch("/api/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: o.id, accion: "reembolsar" }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setOrders((prev) => prev.map((x) => (x.id === o.id ? data.order : x)));
+    } catch (e) {
+      setError(e.message);
+      if (/sesión/i.test(e.message)) salir();
+    }
+  };
+
   // ── Puerta de entrada: inicio de sesión y elección de local ────────────────
   if (!sesion) {
     return (
@@ -211,7 +237,7 @@ export default function CocinaPage() {
         <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px;align-items:start")}>
           <Columna icono="🔴" titulo="Nuevos" n={nuevos.length} tono="255 90 70" pulso={nuevos.length > 0} vacio="Sin pedidos nuevos — todo al día.">
             {nuevos.map((o) => (
-              <Card key={o.id} o={o} rgb={L.rgb} destacado onPrint={() => setPrintOrder(o)}>
+              <Card key={o.id} o={o} rgb={L.rgb} destacado onPrint={() => setPrintOrder(o)} onCancelar={cancelarPedido} onReembolsar={devolverDinero}>
                 <div style={sx("display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px")}>
                   {[15, 25, 40].map((m) => (
                     <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={btn(`rgb(${L.rgb})`)}>✓ {m}′</button>
@@ -224,7 +250,7 @@ export default function CocinaPage() {
 
           <Columna icono="🔥" titulo="En cocina" n={enCocina.length} tono={L.rgb} vacio="Nada en plancha ahora mismo.">
             {enCocina.map((o) => (
-              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)}>
+              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)} onCancelar={cancelarPedido} onReembolsar={devolverDinero}>
                 <button onClick={() => patch(o.id, "lista")} style={btn(`rgb(${L.rgb})`)}>✓ Lista para recoger</button>
               </Card>
             ))}
@@ -232,7 +258,7 @@ export default function CocinaPage() {
 
           <Columna icono="✅" titulo="Listas" n={listas.length} tono="120 220 130" vacio="Ninguna esperando recogida.">
             {listas.map((o) => (
-              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)}>
+              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)} onCancelar={cancelarPedido} onReembolsar={devolverDinero}>
                 <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
                   <button onClick={() => patch(o.id, "entregado")} style={{ ...btn("rgb(120 220 130 / .9)"), flex: 1 }}>✓ Entregada</button>
                   <button onClick={() => window.confirm(`¿Marcar el pedido ${o.code} de ${o.nombre} como NO recogido?\n\nCon 1 aviso la web pedirá confirmar sus próximos pedidos; con 2, su teléfono queda bloqueado para pedir online.`) && patch(o.id, "no_recogido")} style={btn("transparent", "rgb(255,120,90)")}>
@@ -249,7 +275,7 @@ export default function CocinaPage() {
             <summary style={sx("cursor:pointer;font-size:13px;color:rgba(246,241,233,.55)")}>Cerrados hoy ({cerrados.length})</summary>
             <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px;margin-top:12px;opacity:.55")}>
               {cerrados.map((o) => (
-                <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)} />
+                <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)} onReembolsar={devolverDinero} />
               ))}
             </div>
           </details>
@@ -276,10 +302,14 @@ function Columna({ icono, titulo, n, tono, pulso, vacio, children }) {
   );
 }
 
-function Card({ o, rgb, destacado, onPrint, children }) {
+function Card({ o, rgb, destacado, onPrint, onCancelar, onReembolsar, children }) {
+  const [menu, setMenu] = useState(false);
   const hora = new Date(o.created_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
   const ready = o.ready_at ? new Date(o.ready_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }) : null;
   const edad = haceCuanto(o.created_at);
+  const cancelable = onCancelar && ["nuevo", "aceptado", "lista"].includes(o.status);
+  const devolvible = onReembolsar && o.pago_estado === "pagado";
+  const itemMenu = sx("display:block;width:100%;text-align:left;font-size:13.5px;font-weight:600;padding:11px 14px;border:0;background:transparent;color:#f6f1e9;cursor:pointer;border-radius:9px");
   return (
     <div style={{ ...sx("border-radius:18px;padding:17px;display:flex;flex-direction:column;gap:10px;background:#100c08;animation:ltb-rise .35s both"), border: destacado ? `2px solid rgb(${rgb})` : "1px solid rgba(246,241,233,.12)", boxShadow: destacado ? `0 10px 40px -12px rgb(${rgb} / .5)` : "none" }}>
       <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px")}>
@@ -328,7 +358,32 @@ function Card({ o, rgb, destacado, onPrint, children }) {
       </div>
       <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px")}>
         <span style={sx("font-family:'Anton',sans-serif;font-size:19px")}>{fmtEUR(o.total_cents)}</span>
-        <button onClick={onPrint} style={sx("font-size:13px;padding:9px 14px;border-radius:10px;border:1px solid rgba(246,241,233,.25);background:transparent;color:#f6f1e9;cursor:pointer")}>🖨 Ticket</button>
+        <span style={sx("display:inline-flex;gap:8px;align-items:center")}>
+          <button onClick={onPrint} style={sx("font-size:13px;padding:9px 14px;border-radius:10px;border:1px solid rgba(246,241,233,.25);background:transparent;color:#f6f1e9;cursor:pointer")}>🖨 Ticket</button>
+          {(cancelable || devolvible) && (
+            <span style={{ ...sx("position:relative;display:inline-flex"), zIndex: menu ? 30 : "auto" }}>
+              <button onClick={() => setMenu((m) => !m)} aria-label="Más opciones" aria-expanded={menu} style={sx(`font-size:17px;line-height:1;width:38px;height:38px;border-radius:10px;border:1px solid ${menu ? "rgb(246 241 233 / .5)" : "rgba(246,241,233,.25)"};background:${menu ? "rgba(246,241,233,.1)" : "transparent"};color:#f6f1e9;cursor:pointer`)}>⋯</button>
+              {menu && (
+                <>
+                  {/* fondo invisible: cierra el menú al tocar fuera */}
+                  <span onClick={() => setMenu(false)} style={sx("position:fixed;inset:0;z-index:1")} />
+                  <span style={sx("position:absolute;right:0;bottom:calc(100% + 6px);z-index:2;min-width:230px;padding:6px;border-radius:14px;border:1px solid rgba(246,241,233,.18);background:#1a140e;box-shadow:0 14px 40px -10px rgba(0,0,0,.7);display:flex;flex-direction:column;gap:2px")}>
+                    {cancelable && (
+                      <button onClick={() => { setMenu(false); onCancelar(o); }} style={{ ...itemMenu, color: "rgb(255,120,90)" }}>
+                        ✕ Cancelar pedido{o.pago_estado === "pagado" ? " (devuelve el dinero)" : ""}
+                      </button>
+                    )}
+                    {devolvible && (
+                      <button onClick={() => { setMenu(false); onReembolsar(o); }} style={itemMenu}>
+                        ↩️ Devolver el dinero ({fmtEUR(o.total_cents)})
+                      </button>
+                    )}
+                  </span>
+                </>
+              )}
+            </span>
+          )}
+        </span>
       </div>
       {children}
     </div>

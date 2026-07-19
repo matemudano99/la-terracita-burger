@@ -231,7 +231,6 @@ async function actualizar(req, res) {
   if (!user) return;
   const b = req.body || {};
   if (!b.id) return res.status(400).json({ error: "Falta id" });
-  if (!ESTADOS.includes(b.status)) return res.status(400).json({ error: "Estado no válido" });
 
   const existente = await getOrder(String(b.id));
   if (!existente) return res.status(404).json({ error: "Pedido no encontrado" });
@@ -241,6 +240,24 @@ async function actualizar(req, res) {
   if (user.rol === "empleado" && user.local && existente.local !== user.local) {
     return res.status(403).json({ error: `Tu cuenta solo tiene acceso al local ${LOCALES[user.local]?.name || user.local}.` });
   }
+
+  // Devolución manual: reembolsa el cobro online SIN cambiar el estado del
+  // pedido (p. ej. una reclamación después de entregarlo).
+  if (b.accion === "reembolsar") {
+    if (existente.pago_estado !== "pagado" || !existente.pago_id) {
+      return res.status(409).json({ error: "Este pedido no tiene un cobro online pendiente de devolver." });
+    }
+    try {
+      await reembolsar(existente.pago_id, existente.total_cents);
+    } catch (err) {
+      console.error("[api/orders] reembolso manual", err);
+      return res.status(502).json({ error: "No se pudo hacer la devolución — reintenta en unos segundos o gestiónala desde el panel de MONEI." });
+    }
+    const updated = await updateOrder(String(b.id), { pago_estado: "reembolsado" });
+    return res.status(200).json({ ok: true, order: updated });
+  }
+
+  if (!ESTADOS.includes(b.status)) return res.status(400).json({ error: "Estado no válido" });
 
   const patch = { status: b.status };
   if (b.status === "aceptado") {

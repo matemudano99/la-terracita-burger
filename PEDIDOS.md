@@ -159,6 +159,10 @@ página segura de MONEI) o "💶 Pagar al recoger". Cómo funciona por dentro:
 - En cocina y en el ticket aparece **💳 PAGADO — NO COBRAR** bien grande.
 - Si cocina **rechaza** un pedido cobrado → **reembolso automático** (si el
   reembolso fallara, el rechazo no se completa y se avisa al panel).
+- Menú **⋯** en cada tarjeta de /cocina: **Cancelar pedido** (en cualquier
+  fase previa a la entrega; devuelve el dinero solo si estaba pagado) y
+  **Devolver el dinero** (reembolso manual de un pedido pagado sin cambiar su
+  estado — para reclamaciones después de entregar).
 - Pedido pagado que nadie recoge → sin reembolso automático (comida hecha);
   se valora a mano desde el panel de MONEI.
 
