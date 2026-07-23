@@ -46,7 +46,12 @@ export default function CocinaPage() {
   const [muted, setMuted] = useState(false);
   const [printOrder, setPrintOrder] = useState(null);
   const [vista, setVista] = useState("pedidos"); // "pedidos" | "carta"
+  const [refundParcial, setRefundParcial] = useState(false); // ¿existe la columna acumuladora?
   const audioCtx = useRef(null);
+
+  useEffect(() => {
+    fetch("/api/ajustes").then((r) => r.json()).then((d) => setRefundParcial(!!d.refundParcial)).catch(() => {});
+  }, []);
 
   const L = LOCALES[local];
   const salir = useCallback(() => { logout(); setSesion(null); setOrders([]); }, []);
@@ -152,9 +157,15 @@ export default function CocinaPage() {
     }
   };
 
-  // Devolución (total o por productos) desde un modal.
-  const [devolucion, setDevolucion] = useState(null); // pedido en devolución
-  const abrirDevolucion = (o) => setDevolucion(o);
+  // Devolución. Con la columna acumuladora → modal (total o por productos);
+  // sin ella (SQL sin ejecutar) → devolución total con confirmación simple.
+  const [devolucion, setDevolucion] = useState(null);
+  const abrirDevolucion = (o) => {
+    if (refundParcial) { setDevolucion(o); return; }
+    const queda = o.total_cents - (o.reembolsado_cents || 0);
+    if (!window.confirm(`¿Devolver ${fmtEUR(queda)} a ${o.nombre} (pedido ${o.code})?`)) return;
+    hacerDevolucion(o, queda).catch((e) => { setError(e.message); if (/sesión/i.test(e.message)) salir(); });
+  };
   const hacerDevolucion = async (o, importe_cents) => {
     const res = await authFetch("/api/orders", {
       method: "PATCH",

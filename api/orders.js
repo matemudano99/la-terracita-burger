@@ -264,10 +264,13 @@ async function actualizar(req, res) {
     if (!(existente.pago_id && ["pagado", "reembolso_parcial"].includes(existente.pago_estado))) {
       return res.status(409).json({ error: "Este pedido no tiene un cobro online que se pueda devolver." });
     }
+    // Las devoluciones parciales necesitan la columna acumuladora. Si aún no
+    // existe (SQL sin ejecutar), solo se admite la devolución total.
+    const parcialOk = await tieneColumna("reembolsado_cents");
     const yaDevuelto = existente.reembolsado_cents || 0;
     const disponible = existente.total_cents - yaDevuelto;
-    // Sin importe → devolver lo que quede (cuenta entera / resto).
     let importe = b.importe_cents == null ? disponible : Math.floor(Number(b.importe_cents));
+    if (!parcialOk) importe = disponible; // sin columna: siempre total
     if (!Number.isFinite(importe) || importe <= 0) return res.status(400).json({ error: "Importe a devolver no válido." });
     if (importe > disponible) return res.status(400).json({ error: `Solo quedan ${fmtEUR(disponible)} por devolver de este pedido.` });
     try {
@@ -277,10 +280,9 @@ async function actualizar(req, res) {
       return res.status(502).json({ error: "No se pudo hacer la devolución — reintenta en unos segundos o gestiónala desde el panel de MONEI." });
     }
     const totalDevuelto = yaDevuelto + importe;
-    const updated = await updateOrder(String(b.id), {
-      reembolsado_cents: totalDevuelto,
-      pago_estado: totalDevuelto >= existente.total_cents ? "reembolsado" : "reembolso_parcial",
-    });
+    const patch = { pago_estado: totalDevuelto >= existente.total_cents ? "reembolsado" : "reembolso_parcial" };
+    if (parcialOk) patch.reembolsado_cents = totalDevuelto;
+    const updated = await updateOrder(String(b.id), patch);
     return res.status(200).json({ ok: true, order: updated });
   }
 
@@ -299,8 +301,8 @@ async function actualizar(req, res) {
     if (disponible > 0) {
       try {
         await reembolsar(existente.pago_id, disponible);
-        patch.reembolsado_cents = existente.total_cents;
         patch.pago_estado = "reembolsado";
+        if (await tieneColumna("reembolsado_cents")) patch.reembolsado_cents = existente.total_cents;
       } catch (err) {
         console.error("[api/orders] reembolso", err);
         return res.status(502).json({ error: "No se pudo hacer el reembolso — reintenta en unos segundos o gestiónalo desde el panel de MONEI antes de rechazar." });

@@ -21,7 +21,8 @@ export default async function handler(req, res) {
       }
       const pagos = pagosDisponibles && (await pagosListos());
       const programar = storeReady && (await tieneColumna("programado_para"));
-      return res.status(200).json({ ajustes, carta, pagos, programar });
+      const refundParcial = storeReady && (await tieneColumna("reembolsado_cents"));
+      return res.status(200).json({ ajustes, carta, pagos, programar, refundParcial });
     }
 
     if (req.method === "PUT") {
