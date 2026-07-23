@@ -128,10 +128,14 @@ const SLOT_MIN = 15;
 // relativo a `ahora`. Usa la diferencia de minutos en reloj de pared Madrid
 // (exacto salvo en las 2 madrugadas de cambio de hora al año, sin impacto real:
 // el servidor revalida el instante contra el horario con Intl).
+// `ahora` se ancla al minuto exacto para que el ISO de una franja sea ESTABLE
+// entre recálculos (si no, cambiaría cada segundo y el desplegable se
+// desincronizaría) y caiga siempre en HH:MM:00.
 function instanteDe(ahora, off, m) {
   const { minutos } = ahoraMadrid(ahora);
+  const base = Math.floor(ahora.getTime() / 60000) * 60000;
   const delta = off * 1440 + m - minutos;
-  return new Date(ahora.getTime() + delta * 60000);
+  return new Date(base + delta * 60000);
 }
 
 // Franjas de 15 min disponibles para programar (hoy y mañana), respetando
