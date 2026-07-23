@@ -150,21 +150,20 @@ const Condiciones = () => (
       recargos: el precio final es la suma de los productos del carrito, visible antes de confirmar. El pedido
       mínimo online es de <strong>9,00 €</strong>.
     </p>
-    <ul style={ul}>
-      <li><strong>Pago al recoger</strong>: en el local, en efectivo o con tarjeta.</li>
-      <li>
-        <strong>Pago online</strong> (cuando esté disponible): tarjeta Visa o Mastercard, Bizum, Apple Pay o
-        Google Pay a través de la pasarela de pago segura de MONEI DIGITAL PAYMENTS, S.L. No almacenamos los
-        datos de tu tarjeta; el cargo se realiza al completar el pago.
-      </li>
-    </ul>
-
-    <h2 style={h2}>4. Proceso de pedido</h2>
     <p style={p}>
-      El pedido enviado es una propuesta de compra: queda <strong>confirmado cuando el local lo acepta</strong>
-      en su panel (lo verás en la pantalla de seguimiento, junto con la hora estimada de recogida). Si el local
-      no puede prepararlo (p. ej. por falta de producto), lo rechazará y te lo indicará en la misma pantalla,
-      con reembolso automático si ya lo habías pagado.
+      El pago se realiza <strong>online y por adelantado</strong> con tarjeta Visa o Mastercard, Bizum, Apple Pay
+      o Google Pay, a través de la pasarela de pago segura de MONEI DIGITAL PAYMENTS, S.L. No almacenamos los
+      datos de tu tarjeta; el cargo se efectúa al completar el pago y el pedido se envía a cocina solo tras
+      confirmarse el cobro.
+    </p>
+
+    <h2 style={h2}>4. Proceso de pedido y pedidos programados</h2>
+    <p style={p}>
+      Tras el pago, el pedido queda <strong>confirmado cuando el local lo acepta</strong> (lo verás en la
+      pantalla de seguimiento, junto con la hora estimada de recogida). Puedes pedir para «lo antes posible» o
+      <strong> programarlo</strong> para una hora posterior, incluso fuera del horario de apertura: en ese caso
+      lo preparamos para la franja que elijas. Si el local no puede prepararlo (p. ej. por falta de producto),
+      lo rechazará y te lo indicará en la misma pantalla, con reembolso automático del importe.
     </p>
 
     <h2 style={h2}>5. Entrega: recogida en el local (sin envíos)</h2>
@@ -181,27 +180,26 @@ const Condiciones = () => (
     <ul style={ul}>
       <li>
         <strong>Cancelación por el cliente</strong>: puedes cancelar sin coste <strong>llamando al local antes
-        de que el pedido se acepte o empiece a prepararse</strong>. Si habías pagado online, se reembolsa el
-        importe íntegro. Una vez en preparación, la comida se elabora expresamente para ti y ya no es posible
-        cancelar.
+        de que el pedido empiece a prepararse</strong>; se reembolsa el importe íntegro. Una vez en preparación,
+        la comida se elabora expresamente para ti y ya no es posible cancelar.
       </li>
       <li>
         <strong>Cancelación por el local</strong>: si el local rechaza tu pedido, te lo indicamos en la
-        pantalla de seguimiento y, si lo habías pagado online, el <strong>reembolso es automático e íntegro</strong>
-        por el mismo medio de pago.
+        pantalla de seguimiento y el <strong>reembolso es automático e íntegro</strong> por el mismo medio de pago.
       </li>
       <li>
-        <strong>Reembolsos</strong>: se emiten siempre por el mismo medio de pago utilizado. El abono suele
-        reflejarse en 1-3 días laborables, según tu banco.
+        <strong>Reembolsos totales o parciales</strong>: se emiten siempre por el mismo medio de pago utilizado.
+        Si faltara o no fuera correcto un producto concreto, podemos devolver solo la parte correspondiente. El
+        abono suele reflejarse en 1-3 días laborables, según tu banco.
       </li>
       <li>
         <strong>Pedido incorrecto o en mal estado</strong>: llámanos o escríbenos y lo solucionamos
         reponiendo el producto o reembolsando su importe.
       </li>
       <li>
-        <strong>Pedidos no recogidos</strong>: los pedidos pagados que no se recojan no dan derecho a
-        reembolso automático, al tratarse de comida preparada expresamente; valoraremos cada caso si nos
-        llamas. Los teléfonos con pedidos reiterados sin recoger pueden quedar excluidos del pedido online.
+        <strong>Pedidos no recogidos</strong>: al estar pagados por adelantado, un pedido preparado que no se
+        recoja no da derecho a reembolso automático, al tratarse de comida elaborada expresamente; valoraremos
+        cada caso si nos llamas.
       </li>
     </ul>
 

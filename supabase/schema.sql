@@ -53,6 +53,14 @@ alter table public.pedidos
   add column if not exists direccion text,
   add column if not exists envio_cents integer not null default 0;
 
+-- Pedidos programados (para más tarde / fuera de horario) y devoluciones
+-- parciales (importe acumulado ya reembolsado de un pedido). Sin este bloque,
+-- la web sigue funcionando: la opción de programar no aparece y las
+-- devoluciones son totales.
+alter table public.pedidos
+  add column if not exists programado_para timestamptz,
+  add column if not exists reembolsado_cents integer not null default 0;
+
 -- Ajustes por local: pausar pedidos online desde /admin (pestaña Ajustes).
 create table if not exists public.ajustes (
   local      text primary key,

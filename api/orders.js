@@ -10,18 +10,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { randomUUID } from "node:crypto";
 import { priceLine, fmtEUR, itemName, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
-import { LOCALES, estadoLocal } from "../src/locales.js";
-import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, countNoShows, pagosListos, updateOrder, storeReady, usingSupabase } from "./_store.js";
+import { LOCALES, estadoLocal, validarProgramado, distanciaKm } from "../src/locales.js";
+import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
 import { pagosDisponibles, crearPago, reembolsar } from "./_monei.js";
+import { geocodificar } from "./_geo.js";
 
 const ESTADOS = ["nuevo", "aceptado", "lista", "entregado", "rechazado", "no_recogido"];
-// Ventana y umbrales anti pedidos fantasma (pedidos que nadie recoge):
-// con 1 sin recoger se avisa a cocina; con 2 el teléfono queda bloqueado.
-// 30 días para ser coherentes con la retención de datos de la política
-// de privacidad (pasado ese plazo los pedidos se anonimizan).
-const NO_SHOW_DIAS = 30;
-const NO_SHOW_BLOQUEO = 2;
 
 const publicView = (o) => ({
   id: o.id,
@@ -36,6 +31,8 @@ const publicView = (o) => ({
   entrega: o.entrega || "recogida",
   direccion: o.direccion || null,
   envio_cents: o.envio_cents || 0,
+  programado_para: o.programado_para || null,
+  reembolsado_cents: o.reembolsado_cents || 0,
 });
 
 // Origen público de la petición (para las URLs de retorno y webhook del pago).
@@ -71,8 +68,24 @@ async function crear(req, res) {
   const loc = LOCALES[b.local];
   if (!loc) return res.status(400).json({ error: "Elige un local válido." });
 
-  const estado = estadoLocal(b.local);
-  if (!estado.abierto) return res.status(409).json({ error: `${estado.mensaje} — ${estado.detalle}` });
+  const ahora = new Date();
+
+  // Pedido programado (para más tarde o cuando está cerrado). Si es válido, se
+  // salta la comprobación de "abierto ahora".
+  let programadoISO = null;
+  if (b.programado_para) {
+    if (!(await tieneColumna("programado_para"))) {
+      return res.status(400).json({ error: "Los pedidos programados no están disponibles todavía." });
+    }
+    const v = validarProgramado(b.local, b.programado_para, ahora);
+    if (!v.ok) return res.status(400).json({ error: v.error });
+    programadoISO = v.iso;
+  }
+
+  const estado = estadoLocal(b.local, ahora);
+  if (!programadoISO && !estado.abierto) {
+    return res.status(409).json({ error: `${estado.mensaje} — ${estado.detalle}. Puedes dejar tu pedido programado.` });
+  }
 
   // ¿Pedidos pausados desde el panel de administración? Si la consulta falla
   // (p. ej. tabla aún no creada), se asume "sin pausa": nunca bloquea pedidos.
@@ -87,23 +100,16 @@ async function crear(req, res) {
   if (nombre.length < 2) return res.status(400).json({ error: "Dinos tu nombre para el pedido." });
   if (!/^\+?\d{9,15}$/.test(telefono)) return res.status(400).json({ error: "Necesitamos un teléfono válido por si hay dudas con el pedido." });
 
-  // Antiabuso: un solo pedido pendiente por teléfono, y límite de frecuencia
-  // por teléfono e IP en las últimas 2 horas.
+  // Antiabuso: límite de frecuencia por teléfono e IP en las últimas 2 horas.
+  // Los pagos sin completar (pendiente_pago) no cuentan, para no penalizar
+  // reintentos de pago. Con prepago no hay pedidos fantasma que bloquear.
   const ip = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket?.remoteAddress || "";
   const recientes = await listRecientes(new Date(Date.now() - 2 * 3600 * 1000).toISOString());
-  const delTelefono = recientes.filter((o) => o.telefono === telefono);
-  const deLaIp = ip ? recientes.filter((o) => o.ip === ip) : [];
-  if (delTelefono.some((o) => o.status === "nuevo")) {
-    return res.status(429).json({ error: "Ya tienes un pedido pendiente de confirmar. Espera a que el local lo acepte o llámanos para cambiarlo." });
-  }
-  if (delTelefono.length >= 3 || deLaIp.length >= 5) {
+  const reales = recientes.filter((o) => o.status !== "pendiente_pago");
+  const delTelefono = reales.filter((o) => o.telefono === telefono);
+  const deLaIp = ip ? reales.filter((o) => o.ip === ip) : [];
+  if (delTelefono.length >= 4 || deLaIp.length >= 6) {
     return res.status(429).json({ error: "Has llegado al límite de pedidos online por ahora. Si necesitas algo más, llámanos por teléfono 🙏" });
-  }
-
-  // Pedidos fantasma: si este teléfono ya dejó pedidos sin recoger, se escala.
-  const noShows = await countNoShows(telefono, new Date(Date.now() - NO_SHOW_DIAS * 24 * 3600 * 1000).toISOString()).catch(() => 0);
-  if (noShows >= NO_SHOW_BLOQUEO) {
-    return res.status(403).json({ error: `Este teléfono tiene pedidos anteriores sin recoger, así que no podemos aceptar más pedidos online. Llámanos y te atendemos encantados: ${loc.phone}.` });
   }
 
   if (!Array.isArray(b.lineas) || b.lineas.length < 1 || b.lineas.length > 30) {
@@ -127,7 +133,7 @@ async function crear(req, res) {
   if (total > 50000) return res.status(400).json({ error: "Para pedidos tan grandes, llámanos por teléfono y te lo preparamos 😉" });
 
   // Modalidad de entrega. El reparto propio está oculto tras el flag
-  // delivery.activo de cada local (src/locales.js).
+  // delivery.activo del local (src/locales.js).
   const domicilio = b.entrega === "domicilio";
   if (domicilio && !loc.delivery?.activo) {
     return res.status(400).json({ error: "El reparto a domicilio no está disponible — elige recogida en el local." });
@@ -135,8 +141,22 @@ async function crear(req, res) {
   let direccion = null;
   let envioCents = 0;
   if (domicilio) {
-    direccion = String(b.direccion || "").trim().slice(0, 200);
-    if (direccion.length < 8) return res.status(400).json({ error: "Escribe la dirección completa de entrega (calle, número, piso)." });
+    const calle = String(b.direccion || "").trim().slice(0, 160);
+    const piso = String(b.piso || "").trim().slice(0, 60);
+    if (calle.length < 6) return res.status(400).json({ error: "Escribe la calle y el número de entrega." });
+
+    // Control de zona: geocodifica la dirección y comprueba la distancia al local.
+    if (loc.delivery.radioKm && loc.lat != null) {
+      const punto = await geocodificar(`${calle}, ${loc.name}, Málaga, España`);
+      if (!punto) {
+        return res.status(400).json({ error: "No hemos encontrado esa dirección. Revisa la calle y el número, o llámanos y te ayudamos." });
+      }
+      const km = distanciaKm(loc.lat, loc.lon, punto.lat, punto.lon);
+      if (km > loc.delivery.radioKm) {
+        return res.status(400).json({ error: `Tu dirección está a ${km.toFixed(1)} km del local — fuera de nuestra zona de reparto (máx. ${loc.delivery.radioKm} km). Puedes elegir recogida.` });
+      }
+    }
+    direccion = piso ? `${calle} (${piso})` : calle;
     envioCents = loc.delivery.gastosCents || 0;
   }
 
@@ -147,11 +167,10 @@ async function crear(req, res) {
   }
   total += envioCents;
 
-  // ¿Pago online? El pedido nace invisible ("pendiente_pago") y solo el
+  // Todo prepagado: el pedido nace invisible ("pendiente_pago") y solo el
   // webhook de MONEI, tras confirmar el cobro, lo pasa a cocina.
-  const pagoOnline = b.pago === "online";
-  if (pagoOnline && !(pagosDisponibles && (await pagosListos()))) {
-    return res.status(400).json({ error: "El pago online no está disponible ahora mismo — elige pagar al recoger." });
+  if (!(pagosDisponibles && (await pagosListos()))) {
+    return res.status(503).json({ error: `Los pedidos online no están disponibles ahora mismo. Llámanos y te atendemos: ${loc.phone}.` });
   }
 
   const order = {
@@ -163,29 +182,27 @@ async function crear(req, res) {
     items,
     nota: String(b.nota || "").trim().slice(0, 300) || null,
     ip: ip || null,
-    alerta: noShows === 1 && !pagoOnline ? "Este teléfono dejó 1 pedido sin recoger — confirma por teléfono antes de cocinar" : null,
     total_cents: total,
-    status: pagoOnline ? "pendiente_pago" : "nuevo",
+    status: "pendiente_pago",
     ready_at: null,
     created_at: new Date().toISOString(),
-    // Los campos de pago/entrega solo se incluyen cuando se usan, para no
-    // requerir las columnas nuevas en los pedidos de siempre.
-    ...(pagoOnline ? { pago_metodo: "online", pago_estado: "pendiente", pago_id: null } : {}),
+    pago_metodo: "online",
+    pago_estado: "pendiente",
+    pago_id: null,
+    // Campos opcionales solo si se usan (requieren su columna en Supabase).
     ...(domicilio ? { entrega: "domicilio", direccion, envio_cents: envioCents } : {}),
+    ...(programadoISO ? { programado_para: programadoISO } : {}),
   };
   const saved = await insertOrder(order);
 
-  if (pagoOnline) {
-    try {
-      const pago = await crearPago({ amountCents: total, orderId: saved.id, code: saved.code, origin: origenDe(req) });
-      await updateOrder(saved.id, { pago_id: pago.id });
-      return res.status(201).json({ ...publicView(saved), total_label: fmtEUR(total), pago: { redirectUrl: pago.redirectUrl } });
-    } catch (err) {
-      console.error("[api/orders] crearPago", err);
-      return res.status(502).json({ error: 'No se pudo iniciar el pago online. Elige "pagar al recoger" o inténtalo de nuevo.' });
-    }
+  try {
+    const pago = await crearPago({ amountCents: total, orderId: saved.id, code: saved.code, origin: origenDe(req) });
+    await updateOrder(saved.id, { pago_id: pago.id });
+    return res.status(201).json({ ...publicView(saved), total_label: fmtEUR(total), pago: { redirectUrl: pago.redirectUrl } });
+  } catch (err) {
+    console.error("[api/orders] crearPago", err);
+    return res.status(502).json({ error: "No se pudo iniciar el pago online. Inténtalo de nuevo o llámanos por teléfono." });
   }
-  return res.status(201).json({ ...publicView(saved), total_label: fmtEUR(saved.total_cents) });
 }
 
 async function consultar(req, res) {
@@ -241,19 +258,29 @@ async function actualizar(req, res) {
     return res.status(403).json({ error: `Tu cuenta solo tiene acceso al local ${LOCALES[user.local]?.name || user.local}.` });
   }
 
-  // Devolución manual: reembolsa el cobro online SIN cambiar el estado del
-  // pedido (p. ej. una reclamación después de entregarlo).
+  // Devolución manual (total o parcial) SIN cambiar el estado del pedido
+  // (p. ej. una reclamación después de entregarlo, o devolver solo un producto).
   if (b.accion === "reembolsar") {
-    if (existente.pago_estado !== "pagado" || !existente.pago_id) {
-      return res.status(409).json({ error: "Este pedido no tiene un cobro online pendiente de devolver." });
+    if (!(existente.pago_id && ["pagado", "reembolso_parcial"].includes(existente.pago_estado))) {
+      return res.status(409).json({ error: "Este pedido no tiene un cobro online que se pueda devolver." });
     }
+    const yaDevuelto = existente.reembolsado_cents || 0;
+    const disponible = existente.total_cents - yaDevuelto;
+    // Sin importe → devolver lo que quede (cuenta entera / resto).
+    let importe = b.importe_cents == null ? disponible : Math.floor(Number(b.importe_cents));
+    if (!Number.isFinite(importe) || importe <= 0) return res.status(400).json({ error: "Importe a devolver no válido." });
+    if (importe > disponible) return res.status(400).json({ error: `Solo quedan ${fmtEUR(disponible)} por devolver de este pedido.` });
     try {
-      await reembolsar(existente.pago_id, existente.total_cents);
+      await reembolsar(existente.pago_id, importe);
     } catch (err) {
       console.error("[api/orders] reembolso manual", err);
       return res.status(502).json({ error: "No se pudo hacer la devolución — reintenta en unos segundos o gestiónala desde el panel de MONEI." });
     }
-    const updated = await updateOrder(String(b.id), { pago_estado: "reembolsado" });
+    const totalDevuelto = yaDevuelto + importe;
+    const updated = await updateOrder(String(b.id), {
+      reembolsado_cents: totalDevuelto,
+      pago_estado: totalDevuelto >= existente.total_cents ? "reembolsado" : "reembolso_parcial",
+    });
     return res.status(200).json({ ok: true, order: updated });
   }
 
@@ -265,15 +292,19 @@ async function actualizar(req, res) {
     patch.ready_at = new Date(Date.now() + mins * 60000).toISOString();
   }
 
-  // Rechazar un pedido ya cobrado → reembolso automático. Si el reembolso
-  // falla, NO se rechaza: el dinero manda, que el personal reintente.
-  if (b.status === "rechazado" && existente.pago_estado === "pagado" && existente.pago_id) {
-    try {
-      await reembolsar(existente.pago_id, existente.total_cents);
-      patch.pago_estado = "reembolsado";
-    } catch (err) {
-      console.error("[api/orders] reembolso", err);
-      return res.status(502).json({ error: "No se pudo hacer el reembolso — reintenta en unos segundos o gestiónalo desde el panel de MONEI antes de rechazar." });
+  // Rechazar un pedido cobrado → reembolso automático de lo que quede. Si el
+  // reembolso falla, NO se rechaza: el dinero manda, que el personal reintente.
+  if (b.status === "rechazado" && existente.pago_id && ["pagado", "reembolso_parcial"].includes(existente.pago_estado)) {
+    const disponible = existente.total_cents - (existente.reembolsado_cents || 0);
+    if (disponible > 0) {
+      try {
+        await reembolsar(existente.pago_id, disponible);
+        patch.reembolsado_cents = existente.total_cents;
+        patch.pago_estado = "reembolsado";
+      } catch (err) {
+        console.error("[api/orders] reembolso", err);
+        return res.status(502).json({ error: "No se pudo hacer el reembolso — reintenta en unos segundos o gestiónalo desde el panel de MONEI antes de rechazar." });
+      }
     }
   }
 

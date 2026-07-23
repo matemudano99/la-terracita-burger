@@ -57,7 +57,9 @@ export async function obtenerPago(pagoId) {
   return monei(`/payments/${encodeURIComponent(pagoId)}`);
 }
 
-// Reembolso total de un pago (al rechazar un pedido ya cobrado).
+// Reembolso de un pago (total o parcial). `amountCents` es el importe a
+// devolver en esta operación; MONEI admite varios reembolsos parciales
+// mientras la suma no supere el cobro.
 export async function reembolsar(pagoId, amountCents) {
   if (devPagos) return { simulado: true };
   return monei(`/payments/${encodeURIComponent(pagoId)}/refund`, {

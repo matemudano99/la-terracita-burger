@@ -118,7 +118,7 @@ export default function Delivery() {
           <span style={sx("position:relative;flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:14px;font-size:26px;background:rgba(10,8,6,.14)")}>🍔</span>
           <span style={sx("display:flex;flex-direction:column;gap:2px;flex:1;min-width:min(100%,220px)")}>
             <span style={sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase")}>Pide online y recoge</span>
-            <span style={sx("font-size:13px;color:rgba(10,8,6,.72);font-weight:600")}>Sin comisiones — directo a nuestra cocina, pagas al recoger</span>
+            <span style={sx("font-size:13px;color:rgba(10,8,6,.72);font-weight:600")}>Sin comisiones — pago seguro online y recoges cuando quieras</span>
           </span>
           <span style={sx("font-family:'Anton',sans-serif;font-size:clamp(20px,3vw,26px);letter-spacing:.04em")}>PEDIR →</span>
         </a>

@@ -12,13 +12,16 @@ export const LOCALES = {
     tel: "628053065",
     phone: "628 053 065",
     rgb: "255 197 49",
+    lat: 36.7241,
+    lon: -4.47978,
     diasTexto: "Todos los días excepto martes",
     cerradoDias: [2], // 0=domingo … 2=martes
-    // Reparto propio — OCULTO hasta poner activo: true. Antes de activarlo:
-    // ejecutar el SQL de columnas de entrega (supabase/schema.sql) y
-    // actualizar la sección de entrega de /condiciones. Ajusta gastos, mínimo
-    // y el texto de la zona de reparto de cada local.
-    delivery: { activo: false, gastosCents: 250, minimoCents: 1500, zona: "Teatinos y alrededores" },
+    // Teatinos NO tiene reparto propio (solo plataformas: Just Eat/Glovo/Uber).
+    delivery: null,
+    // Enlace para dejar reseña en Google. TODO Mateo: sustituir por el enlace
+    // exacto "escribir reseña" del local (Google Maps → tu ficha → Reseñas →
+    // Escribir reseña → copiar enlace). El de abajo abre la ficha para valorar.
+    reviewUrl: "https://www.google.com/maps/search/?api=1&query=La+Terracita+Burger+Teatinos+M%C3%A1laga",
   },
   rincon: {
     id: "rincon",
@@ -27,9 +30,16 @@ export const LOCALES = {
     tel: "622220826",
     phone: "622 220 826",
     rgb: "255 92 40",
+    lat: 36.71391,
+    lon: -4.27483,
     diasTexto: "Todos los días",
     cerradoDias: [],
-    delivery: { activo: false, gastosCents: 250, minimoCents: 1500, zona: "Rincón de la Victoria centro" },
+    // Reparto propio — OCULTO hasta poner activo: true. Antes de activarlo:
+    // ejecutar el SQL de columnas de entrega (supabase/schema.sql) y
+    // actualizar la sección de entrega de /condiciones.
+    // radioKm: distancia máxima de reparto desde el local (control por dirección).
+    delivery: { activo: false, gastosCents: 150, minimoCents: 1500, radioKm: 4, zona: "hasta 4 km del local" },
+    reviewUrl: "https://www.google.com/maps/search/?api=1&query=La+Terracita+Burger+Rinc%C3%B3n+de+la+Victoria",
   },
 };
 
@@ -107,3 +117,81 @@ function proximaApertura(loc, dia, minutos) {
 // Turnos de hoy formateados, p. ej. "13:00–16:00 y 20:00–23:30".
 export const horarioTexto = () =>
   TURNOS.map(([i, f]) => `${fmtHM(i)}–${fmtHM(f)}`).join(" y ");
+
+// ── Pedidos programados ──────────────────────────────────────────────────────
+export const PROGRAMAR_ANTELACION_MIN = 45; // antelación mínima que se ofrece
+export const PROGRAMAR_MIN_SERVIDOR_MIN = 30; // mínimo que acepta el servidor
+export const PROGRAMAR_HORIZONTE_DIAS = 1; // hoy y mañana
+const SLOT_MIN = 15;
+
+// Instante (Date) para un slot: `off` días y `m` minutos-del-día en Madrid,
+// relativo a `ahora`. Usa la diferencia de minutos en reloj de pared Madrid
+// (exacto salvo en las 2 madrugadas de cambio de hora al año, sin impacto real:
+// el servidor revalida el instante contra el horario con Intl).
+function instanteDe(ahora, off, m) {
+  const { minutos } = ahoraMadrid(ahora);
+  const delta = off * 1440 + m - minutos;
+  return new Date(ahora.getTime() + delta * 60000);
+}
+
+// Franjas de 15 min disponibles para programar (hoy y mañana), respetando
+// turnos, días cerrados y la antelación mínima. Devuelve [{off,label,horas:[{hm,iso}]}].
+export function franjasProgramables(localId, ahora = new Date()) {
+  const loc = LOCALES[localId];
+  if (!loc) return [];
+  const { dia, minutos } = ahoraMadrid(ahora);
+  const minDesde = minutos + PROGRAMAR_ANTELACION_MIN;
+  const dias = [];
+  for (let off = 0; off <= PROGRAMAR_HORIZONTE_DIAS; off++) {
+    const d = (dia + off) % 7;
+    if (loc.cerradoDias.includes(d)) continue;
+    const horas = [];
+    for (const [ini, fin] of TURNOS) {
+      const primer = Math.ceil(ini / SLOT_MIN) * SLOT_MIN;
+      for (let m = primer; m <= fin - SLOT_MIN; m += SLOT_MIN) {
+        if (off === 0 && m < minDesde) continue;
+        horas.push({ hm: fmtHM(m), iso: instanteDe(ahora, off, m).toISOString() });
+      }
+    }
+    if (horas.length) dias.push({ off, label: off === 0 ? "Hoy" : off === 1 ? "Mañana" : "", horas });
+  }
+  return dias;
+}
+
+// Valida en el servidor un instante programado (ISO). Devuelve {ok, error?, iso?}.
+export function validarProgramado(localId, iso, ahora = new Date()) {
+  const loc = LOCALES[localId];
+  if (!loc) return { ok: false, error: "Local no válido." };
+  const cuando = new Date(iso);
+  if (isNaN(cuando)) return { ok: false, error: "Hora programada no válida." };
+  if (cuando.getTime() < ahora.getTime() + PROGRAMAR_MIN_SERVIDOR_MIN * 60000) {
+    return { ok: false, error: `Programa el pedido con al menos ${PROGRAMAR_ANTELACION_MIN} min de antelación.` };
+  }
+  if (cuando.getTime() > ahora.getTime() + (PROGRAMAR_HORIZONTE_DIAS + 1) * 24 * 3600 * 1000) {
+    return { ok: false, error: "Solo puedes programar para hoy o mañana." };
+  }
+  const { dia, minutos } = ahoraMadrid(cuando);
+  if (loc.cerradoDias.includes(dia)) return { ok: false, error: "Ese día el local está cerrado." };
+  const dentro = TURNOS.some(([ini, fin]) => minutos >= ini && minutos <= fin);
+  if (!dentro) return { ok: false, error: "Esa hora está fuera de nuestro horario." };
+  return { ok: true, iso: cuando.toISOString() };
+}
+
+// Hora programada legible, p. ej. "hoy a las 21:30" / "mañana a las 13:15".
+export function programadoTexto(iso, ahora = new Date()) {
+  const hoy = ahoraMadrid(ahora).dia;
+  const { dia, minutos } = ahoraMadrid(new Date(iso));
+  const cuando = dia === hoy ? "hoy" : "mañana";
+  return `${cuando} a las ${fmtHM(minutos)}`;
+}
+
+// ── Distancia (control de zona de reparto) ───────────────────────────────────
+// Distancia en km entre dos coordenadas (haversine).
+export function distanciaKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(lat2 - lat1);
+  const dLon = rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}

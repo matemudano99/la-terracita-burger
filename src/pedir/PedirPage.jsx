@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
 import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
-import { LOCALES, estadoLocal, horarioTexto } from "../locales";
+import { LOCALES, estadoLocal, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
 import LtbMark from "../LtbMark";
 import PedirSplash, { debeMostrarSplash } from "./PedirSplash";
 
 // ─────────────────────────────────────────────────────────────────────────────
-// /pedir — pedidos online para recoger en el local. Pago al recoger.
-// El pedido se envía a /api/orders y aparece en el panel /cocina del local.
+// /pedir — pedidos online con pago seguro por adelantado. El cliente recoge en
+// el local (o recibe a domicilio si está activo). Puede pedir "lo antes posible"
+// o programar para más tarde. El pedido se envía a /api/orders y, tras el cobro,
+// aparece en el panel /cocina del local.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LS_LOCAL = "ltb_pedir_local";
@@ -86,14 +88,16 @@ export default function PedirPage() {
   // para que los cambios aparezcan sin recargar la página.
   const [ajustes, setAjustes] = useState({});
   const [cartaEstado, setCartaEstado] = useState({});
-  const [pagos, setPagos] = useState(false); // ¿está disponible "pagar ahora"?
+  const [pagos, setPagos] = useState(true); // ¿pago online disponible?
+  const [programar, setProgramar] = useState(false); // ¿se pueden programar pedidos?
   useEffect(() => {
     fetch("/api/ajustes")
       .then((r) => (r.ok ? r.json() : {}))
       .then((d) => {
         setAjustes(d.ajustes || {});
         setCartaEstado(d.carta || {});
-        setPagos(!!d.pagos);
+        setPagos(d.pagos !== false);
+        setProgramar(!!d.programar);
       })
       .catch(() => {});
   }, [ahora]);
@@ -168,7 +172,7 @@ export default function PedirPage() {
       <main style={sx("max-width:1100px;margin:0 auto;padding:110px 5vw 0")}>
         <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:10px;animation:ltb-rise .55s both")}>Pedidos online — recogida en local</div>
         <h1 style={sx("margin:0 0 6px;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(38px,7vw,80px);line-height:.9;text-transform:uppercase;animation:ltb-rise .6s .08s both")}>Pide y <span style={{ ...sx("text-shadow:0 0 30px rgb(var(--acc) / .5)"), color: `rgb(${rgb})` }}>recoge</span></h1>
-        <p style={sx("margin:0 0 26px;font-size:15px;line-height:1.55;color:rgba(246,241,233,.62);max-width:560px;animation:ltb-rise .6s .16s both")}>Sin comisiones, directo a nuestra cocina. Pagas al recoger, en efectivo o con tarjeta.</p>
+        <p style={sx("margin:0 0 26px;font-size:15px;line-height:1.55;color:rgba(246,241,233,.62);max-width:560px;animation:ltb-rise .6s .16s both")}>Sin comisiones, directo a nuestra cocina. Pago seguro online — recoge cuando quieras.</p>
 
         {/* Selector de local */}
         <div style={sx("display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;animation:ltb-rise .6s .24s both")}>
@@ -273,7 +277,7 @@ export default function PedirPage() {
       )}
 
       {modalItem && <OpcionesModal {...modalItem} carta={carta} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
-      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} rgb={rgb} estado={estado} pagos={pagos} totalCents={totalCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
+      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} rgb={rgb} estado={estado} pagos={pagos} programar={programar} ahora={ahora} totalCents={totalCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
     </div>
   );
 }
@@ -404,13 +408,15 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
 }
 
 // ── Carrito + checkout ───────────────────────────────────────────────────────
-function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, onClose, onDone }) {
+function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, ahora, totalCents, onClose, onDone }) {
   const [nombre, setNombre] = useState(localStorage.getItem("ltb_nombre") || "");
   const [telefono, setTelefono] = useState(localStorage.getItem("ltb_telefono") || "");
   const [nota, setNota] = useState("");
-  const [metodoPago, setMetodoPago] = useState("local"); // "local" | "online"
   const [entrega, setEntrega] = useState("recogida"); // "recogida" | "domicilio"
-  const [direccion, setDireccion] = useState(localStorage.getItem("ltb_direccion") || "");
+  const [calle, setCalle] = useState(localStorage.getItem("ltb_calle") || "");
+  const [piso, setPiso] = useState(localStorage.getItem("ltb_piso") || "");
+  const [cuando, setCuando] = useState("asap"); // "asap" | "programado"
+  const [slotIso, setSlotIso] = useState("");
   const [web, setWeb] = useState(""); // honeypot antibots — un humano nunca lo ve
   const [sending, setSending] = useState(false);
   const [error, setError] = useState(null);
@@ -424,11 +430,32 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
   const totalFinal = totalCents + envioCents;
   const faltaMinimo = cart.length > 0 && totalCents < minimoCents;
 
+  // Programación: franjas disponibles (hoy y mañana). Si el local está cerrado
+  // y se puede programar, se fuerza esta opción.
+  const franjas = useMemo(() => (programar ? franjasProgramables(loc, ahora) : []), [programar, loc, ahora]);
+  const hayFranjas = franjas.some((d) => d.horas.length > 0);
+  const cerrado = !estado?.abierto;
+  const debeProgramar = cerrado && programar && hayFranjas;
+  const modo = debeProgramar ? "programado" : cuando;
+  const programado = modo === "programado";
+
+  // Selecciona la primera franja disponible por defecto cuando toca programar.
+  useEffect(() => {
+    if (programado && !slotIso) {
+      const primera = franjas.find((d) => d.horas.length > 0)?.horas[0]?.iso;
+      if (primera) setSlotIso(primera);
+    }
+  }, [programado, slotIso, franjas]);
+
+  // ¿Se puede enviar? Pago disponible y: abierto (asap) o franja válida elegida.
+  const puedeEnviar = pagos && (programado ? !!slotIso : !cerrado);
+
   const enviar = async () => {
     setError(null);
     if (nombre.trim().length < 2) return setError("Dinos tu nombre para el pedido.");
     if (!/^\+?[\d\s.-]{9,17}$/.test(telefono.trim())) return setError("Escribe un teléfono válido (9 dígitos).");
-    if (esDomicilio && direccion.trim().length < 8) return setError("Escribe la dirección completa de entrega.");
+    if (esDomicilio && calle.trim().length < 6) return setError("Escribe la calle y el número de entrega.");
+    if (programado && !slotIso) return setError("Elige la hora para tu pedido programado.");
     setSending(true);
     try {
       const res = await fetch("/api/orders", {
@@ -439,9 +466,10 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
           nombre: nombre.trim(),
           telefono: telefono.trim(),
           nota: nota.trim(),
-          pago: pagos ? metodoPago : "local",
           entrega: esDomicilio ? "domicilio" : "recogida",
-          direccion: esDomicilio ? direccion.trim() : undefined,
+          direccion: esDomicilio ? calle.trim() : undefined,
+          piso: esDomicilio ? piso.trim() : undefined,
+          programado_para: programado ? slotIso : undefined,
           web, // honeypot: siempre vacío en humanos
           lineas: cart.map((l) => ({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, nota: l.nota })),
         }),
@@ -450,7 +478,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
       if (!res.ok) throw new Error(data.error || "No se pudo enviar el pedido.");
       localStorage.setItem("ltb_nombre", nombre.trim());
       localStorage.setItem("ltb_telefono", telefono.trim());
-      if (esDomicilio) localStorage.setItem("ltb_direccion", direccion.trim());
+      if (esDomicilio) { localStorage.setItem("ltb_calle", calle.trim()); localStorage.setItem("ltb_piso", piso.trim()); }
       const seguimiento = { id: data.id, code: data.code, local: loc, total_cents: data.total_cents, ts: Date.now() };
       if (data.pago?.redirectUrl) {
         // Pago online: guardamos el seguimiento y saltamos a la pasarela.
@@ -487,14 +515,50 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
           {esDomicilio ? (
             <>🛵 Entrega a domicilio — zona: <strong style={{ color: `rgb(${rgb})` }}>{deliveryConf.zona}</strong><br />🚚 Gastos de envío: {fmtEUR(deliveryConf.gastosCents)}</>
           ) : (
-            <>📍 Recogida en <strong style={{ color: `rgb(${rgb})` }}>{L.name}</strong> — {L.address}<br />💶 Pago al recoger (efectivo o tarjeta)</>
+            <>📍 Recogida en <strong style={{ color: `rgb(${rgb})` }}>{L.name}</strong> — {L.address}<br />💳 Pago seguro online por adelantado</>
           )}
         </div>
 
         {esDomicilio && (
+          <div style={sx("display:flex;flex-direction:column;gap:10px")}>
+            <div>
+              <span style={labelStyle}>Calle y número *</span>
+              <input value={calle} onChange={(e) => setCalle(e.target.value.slice(0, 160))} placeholder="Av. del Mediterráneo 139" autoComplete="street-address" style={inputStyle} />
+            </div>
+            <div>
+              <span style={labelStyle}>Piso / puerta (opcional)</span>
+              <input value={piso} onChange={(e) => setPiso(e.target.value.slice(0, 60))} placeholder="3ºB, portal 2…" style={inputStyle} />
+            </div>
+          </div>
+        )}
+
+        {/* ¿Cuándo? Lo antes posible o programado. */}
+        {programar && hayFranjas && (
           <div>
-            <span style={labelStyle}>Dirección de entrega * (calle, número, piso)</span>
-            <input value={direccion} onChange={(e) => setDireccion(e.target.value.slice(0, 200))} autoComplete="street-address" style={inputStyle} />
+            <span style={labelStyle}>¿Para cuándo?</span>
+            {!debeProgramar && (
+              <div style={sx("display:flex;gap:8px;margin-bottom:10px")}>
+                {[{ id: "asap", label: "🔥 Lo antes posible" }, { id: "programado", label: "⏰ Programar" }].map((m) => (
+                  <button key={m.id} onClick={() => setCuando(m.id)} disabled={m.id === "asap" && cerrado} style={sx(`flex:1;font-family:'Anton',sans-serif;font-size:13.5px;letter-spacing:.03em;padding:12px 8px;border-radius:100px;cursor:pointer;border:1px solid ${modo === m.id ? `rgb(${rgb})` : "rgba(246,241,233,.18)"};background:${modo === m.id ? `rgb(${rgb})` : "transparent"};color:${modo === m.id ? "#0a0806" : "#f6f1e9"};opacity:${m.id === "asap" && cerrado ? 0.4 : 1}`)}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {debeProgramar && (
+              <p style={sx("margin:0 0 10px;font-size:12.5px;color:rgba(246,241,233,.6)")}>Ahora estamos cerrados — deja tu pedido programado y lo tendremos listo a la hora que elijas.</p>
+            )}
+            {programado && (
+              <select value={slotIso} onChange={(e) => setSlotIso(e.target.value)} style={{ ...inputStyle, appearance: "auto" }}>
+                {franjas.map((d) => (
+                  <optgroup key={d.off} label={d.label}>
+                    {d.horas.map((h) => (
+                      <option key={h.iso} value={h.iso}>{d.label} · {h.hm}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
           </div>
         )}
 
@@ -565,26 +629,6 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
           <input value={nota} onChange={(e) => setNota(e.target.value.slice(0, 300))} placeholder="Opcional" style={inputStyle} />
         </div>
 
-        {pagos && (
-          <div>
-            <span style={labelStyle}>¿Cómo quieres pagar?</span>
-            <div style={sx("display:flex;flex-direction:column;gap:8px")}>
-              {[
-                { id: "online", titulo: "💳 Pagar ahora", sub: "Tarjeta, Bizum, Apple Pay o Google Pay — pago seguro" },
-                { id: "local", titulo: "💶 Pagar al recoger", sub: "En el local, efectivo o tarjeta" },
-              ].map((m) => (
-                <label key={m.id} style={sx(`display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:12px;cursor:pointer;border:1px solid ${metodoPago === m.id ? `rgb(${rgb})` : "rgba(246,241,233,.15)"};background:${metodoPago === m.id ? `rgb(${rgb} / .1)` : "transparent"}`)}>
-                  <input type="radio" name="pago" checked={metodoPago === m.id} onChange={() => setMetodoPago(m.id)} />
-                  <span style={sx("display:flex;flex-direction:column;gap:1px")}>
-                    <span style={sx("font-weight:700;font-size:14.5px")}>{m.titulo}</span>
-                    <span style={sx("font-size:12px;color:rgba(246,241,233,.55)")}>{m.sub}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Honeypot: invisible y fuera del orden de tabulación; los bots lo rellenan */}
         <div aria-hidden="true" style={sx("position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden")}>
           <label>
@@ -593,9 +637,14 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
           </label>
         </div>
 
-        {!estado?.abierto && (
+        {!pagos && (
           <div style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.4);background:rgba(255,92,40,.08);color:#f6f1e9;font-size:14px")}>
-            {estado?.mensaje} — {estado?.detalle}. Horario: {horarioTexto()}.
+            Los pedidos online no están disponibles ahora mismo. Llámanos y te atendemos: {L.phone}.
+          </div>
+        )}
+        {pagos && cerrado && !programado && (
+          <div style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.4);background:rgba(255,92,40,.08);color:#f6f1e9;font-size:14px")}>
+            {estado?.mensaje} — {estado?.detalle}.{programar && hayFranjas ? " Puedes dejar tu pedido programado ⏰." : ` Horario: ${horarioTexto()}.`}
           </div>
         )}
         {error && (
@@ -606,17 +655,17 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, totalCents, 
 
         <button
           onClick={enviar}
-          disabled={sending || cart.length === 0 || !estado?.abierto || faltaMinimo}
-          style={{ ...sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.05em;padding:17px 20px;border-radius:100px;border:0;cursor:pointer;transition:opacity .2s"), background: `rgb(${rgb})`, color: "#0a0806", opacity: sending || cart.length === 0 || !estado?.abierto || faltaMinimo ? 0.45 : 1 }}
+          disabled={sending || cart.length === 0 || !puedeEnviar || faltaMinimo}
+          style={{ ...sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.05em;padding:17px 20px;border-radius:100px;border:0;cursor:pointer;transition:opacity .2s"), background: `rgb(${rgb})`, color: "#0a0806", opacity: sending || cart.length === 0 || !puedeEnviar || faltaMinimo ? 0.45 : 1 }}
         >
-          {sending ? "ENVIANDO…" : `ENVIAR PEDIDO · ${fmtEUR(totalFinal)}`}
+          {sending ? "ENVIANDO…" : `💳 PAGAR ${fmtEUR(totalFinal)}`}
         </button>
         <p style={sx("margin:0;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.5)")}>
-          🤝 Sin pago por adelantado: al enviar el pedido te comprometes a recogerlo. Los pedidos que quedan
-          sin recoger bloquean el teléfono para futuros pedidos online.
+          💳 Pago seguro por adelantado: tarjeta, Bizum, Apple Pay o Google Pay. Si el local no pudiera preparar
+          tu pedido, se te devuelve el importe automáticamente.
         </p>
         <p style={sx("margin:0;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.5)")}>
-          Al enviar el pedido aceptas los <a href="/condiciones" style={sx("color:rgba(246,241,233,.7)")}>términos y condiciones</a> (cancelaciones y reembolsos incluidos).
+          Al pagar aceptas los <a href="/condiciones" style={sx("color:rgba(246,241,233,.7)")}>términos y condiciones</a> (cancelaciones y reembolsos incluidos).
           Usamos tu nombre y teléfono solo para gestionar este pedido — más info en <a href="/privacidad" style={sx("color:rgba(246,241,233,.7)")}>privacidad</a>.
         </p>
       </div>
@@ -659,9 +708,12 @@ function Seguimiento({ pedido, onNuevo }) {
     : null;
 
   const pagoEstado = info?.pago_estado || null;
+  const progTxt = info?.programado_para ? programadoTexto(info.programado_para) : null;
   const PASOS = {
-    nuevo: { emoji: "📨", titulo: "Pedido enviado", texto: "El local lo está revisando. En un momento te confirmamos por aquí." },
-    aceptado: { emoji: "🔥", titulo: "¡Confirmado! Ya está en plancha", texto: readyLabel ? `Estará listo sobre las ${readyLabel}.` : "Te avisamos aquí cuando esté listo." },
+    nuevo: progTxt
+      ? { emoji: "⏰", titulo: "Pedido programado", texto: `Lo tendremos listo ${progTxt}. Te avisamos por aquí cuando lo pongamos en plancha.` }
+      : { emoji: "📨", titulo: "Pedido enviado", texto: "El local lo está revisando. En un momento te confirmamos por aquí." },
+    aceptado: { emoji: "🔥", titulo: "¡Confirmado! Ya está en plancha", texto: readyLabel ? `Estará listo sobre las ${readyLabel}.` : (progTxt ? `Lo tendrás listo ${progTxt}.` : "Te avisamos aquí cuando esté listo.") },
     lista: info?.entrega === "domicilio"
       ? { emoji: "🛵", titulo: "¡Va de camino!", texto: "Tu pedido acaba de salir hacia tu dirección." }
       : { emoji: "✅", titulo: "¡Listo para recoger!", texto: "Pásate por el local, te esperamos." },
@@ -725,11 +777,22 @@ function Seguimiento({ pedido, onNuevo }) {
             : <>📍 {L?.name} — {L?.address}</>}<br />
           📞 <a href={`tel:${L?.tel}`} style={{ color: `rgb(${rgb})`, textDecoration: "none", fontWeight: 700 }}>{L?.phone}</a>
           {info?.total_cents != null && (
-            pagoEstado === "pagado" ? <><br />💳 Pagado online: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong> — no pagas nada al recoger</>
-            : pagoEstado === "reembolsado" ? <><br />↩️ Importe devuelto: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong></>
-            : <><br />💶 Total al recoger: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong></>
+            pagoEstado === "reembolsado" ? <><br />↩️ Importe devuelto: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong> (1-3 días en tu banco)</>
+            : pagoEstado === "reembolso_parcial" ? <><br />💳 Pagado: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong> · ↩️ devuelto {fmtEUR(info.reembolsado_cents || 0)}</>
+            : <><br />💳 Pagado online: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong></>
           )}
         </div>
+
+        {status === "entregado" && L?.reviewUrl && (
+          <a
+            href={L.reviewUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{ ...sx("display:inline-flex;align-items:center;gap:9px;margin-top:20px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.03em;padding:14px 26px;border-radius:100px;text-decoration:none;color:#0a0806"), background: `rgb(${rgb})` }}
+          >
+            ⭐ ¿Todo rico? Déjanos 5 estrellas
+          </a>
+        )}
 
         {caido && <p style={sx("margin:18px 0 0;font-size:12.5px;color:rgba(246,241,233,.5)")}>No podemos actualizar el estado ahora mismo — tu pedido sigue en marcha. Si tienes dudas, llámanos.</p>}
         {!FINALES.includes(status) && !caido && (

@@ -2,10 +2,14 @@
 
 La web tiene un sistema de pedidos propio, sin comisiones:
 
-- **`/pedir`** — el cliente elige local, monta su pedido y lo envía. Paga al recoger.
+- **`/pedir`** — el cliente monta su pedido y **paga online por adelantado**
+  (mínimo 9 €). Puede pedir «lo antes posible» o **programarlo** para más tarde,
+  incluso con el local cerrado.
 - **`/cocina`** — panel para el local (móvil/tablet): suena una alarma con cada
   pedido, se acepta con un tiempo de preparación, se marca lista/entregada y se
-  imprime el ticket. El cliente ve el estado en su móvil en tiempo real.
+  imprime el ticket. Sección **⏰ Programados** para los pedidos con hora futura
+  (pasan solos a Nuevos con alarma cuando faltan ≤30 min). El cliente ve el
+  estado en su móvil en tiempo real.
 - **`/admin`** — panel de administración (solo admin): resumen de ventas
   (ingresos, ticket medio, horas punta, top productos), historial con búsqueda
   y export a CSV, gestión de cuentas de empleados y pausa de pedidos por local.
@@ -126,17 +130,37 @@ npm run dev
   días, el teléfono queda **bloqueado** para pedir online (se le invita a
   llamar). El checkout avisa de esta norma antes de enviar.
 
-## Pedido mínimo y reparto propio (oculto)
+## Pedido mínimo, programados y reparto propio (oculto)
 
 - **Pedido mínimo online: 9 €** (constante `PEDIDO_MINIMO_CENTS` en
   `src/menu.js`). El carrito avisa de lo que falta y el servidor lo revalida.
-- **Reparto a domicilio propio**: implementado pero **oculto** tras el flag
-  `delivery.activo` de cada local en `src/locales.js` (selector
-  recogida/domicilio, dirección, gastos de envío, mínimo propio, aviso 🛵 en
-  cocina y ticket). Para estrenarlo: (1) ejecutar el bloque de columnas de
-  entrega de `supabase/schema.sql`, (2) ajustar gastos/mínimo/zona y poner
-  `activo: true`, (3) actualizar la sección de entrega de /condiciones, que
-  hoy dice que no hay envíos.
+- **Todo prepagado**: no hay «pagar al recoger». Todo pedido se paga online
+  antes de llegar a cocina. Esto elimina los pedidos fantasma.
+- **Pedidos programados**: el cliente elige franja (hoy/mañana, cada 15 min,
+  mín. 45 min de antelación) o «lo antes posible». Se ajusta en las constantes
+  `PROGRAMAR_*` de `src/locales.js`. Requiere la columna `programado_para` (ver
+  SQL abajo); si no está, la opción no aparece.
+- **Reparto a domicilio propio (solo Rincón)**: implementado pero **oculto**
+  tras `rincon.delivery.activo` en `src/locales.js`. Incluye **control de zona
+  por distancia**: geocodifica la dirección (Nominatim/OpenStreetMap, gratis) y
+  rechaza fuera de `radioKm` (4 km). Envío 1,50 €, mínimo propio 15 €. Teatinos
+  no tiene reparto propio. Para estrenarlo: (1) ejecutar el SQL de columnas de
+  entrega, (2) ajustar gastos/mínimo/radio y poner `activo: true`, (3)
+  actualizar la sección de entrega de /condiciones (hoy dice que no hay envíos).
+
+## Devoluciones (totales o por producto)
+
+En /cocina, menú **⋯** de cada pedido pagado:
+- **Cancelar pedido** (antes de entregar) → rechaza y reembolsa lo que quede.
+- **Devolver dinero** → modal para reembolsar la cuenta entera, una cantidad
+  libre, o **marcar solo los productos** a devolver (reclamaciones parciales).
+  El servidor acumula lo devuelto y nunca deja devolver más de lo cobrado.
+
+## Reseñas de Google
+
+Al marcar un pedido como **entregado**, la pantalla del cliente muestra un
+botón «⭐ Déjanos 5 estrellas» con el enlace del local (`reviewUrl` en
+`src/locales.js` — sustituir por el enlace exacto de «escribir reseña»).
 
 ## Gestión de la carta desde cocina
 
@@ -151,8 +175,8 @@ editan en `src/mesData.js` (campo `precioCents`).
 
 ## Pago online (MONEI)
 
-Checkout híbrido: "💳 Pagar ahora" (tarjeta, Bizum, Apple/Google Pay en la
-página segura de MONEI) o "💶 Pagar al recoger". Cómo funciona por dentro:
+**Todo prepagado**: el cliente paga siempre por adelantado (tarjeta, Bizum,
+Apple/Google Pay en la página segura de MONEI). Cómo funciona por dentro:
 
 - El pedido pagado online **no llega a cocina hasta que MONEI confirma el
   cobro** (webhook verificado contra su API, con comprobación de importe).
@@ -166,12 +190,23 @@ página segura de MONEI) o "💶 Pagar al recoger". Cómo funciona por dentro:
 - Pedido pagado que nadie recoge → sin reembolso automático (comida hecha);
   se valora a mano desde el panel de MONEI.
 
-Activación:
-1. Ejecutar en Supabase el bloque de columnas `pago_*` de `supabase/schema.sql`.
-2. Poner `MONEI_API_KEY` en Vercel (primero la key de **test**, probar un
-   pedido completo, y después cambiarla por la **live**).
-3. Sin `MONEI_API_KEY`, el botón "Pagar ahora" no aparece y todo sigue como
-   siempre. En desarrollo local hay una pasarela simulada (/pago-simulado).
+Activación: ya está activo en producción (`MONEI_API_KEY` en Vercel). En
+desarrollo local sin clave hay una pasarela simulada (`/pago-simulado`).
+
+## SQL pendiente para las últimas mejoras
+
+Para activar **pedidos programados** y **devoluciones parciales**, ejecuta una
+vez en Supabase → SQL Editor (la web funciona sin esto: la opción de programar
+no aparece y las devoluciones son totales):
+
+```sql
+alter table public.pedidos
+  add column if not exists programado_para timestamptz,
+  add column if not exists reembolsado_cents integer not null default 0;
+```
+
+(El bloque completo, incluidas las columnas de reparto, está en
+`supabase/schema.sql`.)
 
 ## Seguimiento por WhatsApp
 

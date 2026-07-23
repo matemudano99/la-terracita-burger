@@ -166,8 +166,9 @@ function Resumen({ orders, localF }) {
   if (orders === null) return <Cargando />;
 
   const validos = orders.filter((o) => o.status !== "rechazado" && o.status !== "no_recogido");
-  const ingresos = validos.reduce((s, o) => s + o.total_cents, 0);
-  const ingresosOnline = validos.filter((o) => o.pago_estado === "pagado").reduce((s, o) => s + o.total_cents, 0);
+  // Ingresos netos: total cobrado menos lo devuelto (parcial o total).
+  const ingresos = validos.reduce((s, o) => s + o.total_cents - (o.reembolsado_cents || 0), 0);
+  const devoluciones = orders.reduce((s, o) => s + (o.reembolsado_cents || 0), 0);
   const ticketMedio = validos.length ? Math.round(ingresos / validos.length) : 0;
   const rechazados = orders.filter((o) => o.status === "rechazado").length;
   const noRecogidos = orders.filter((o) => o.status === "no_recogido").length;
@@ -191,7 +192,7 @@ function Resumen({ orders, localF }) {
   const porLocal = Object.keys(LOCALES).map((id) => ({
     id,
     n: validos.filter((o) => o.local === id).length,
-    eur: validos.filter((o) => o.local === id).reduce((s, o) => s + o.total_cents, 0),
+    eur: validos.filter((o) => o.local === id).reduce((s, o) => s + o.total_cents - (o.reembolsado_cents || 0), 0),
   }));
 
   const kpi = (titulo, valor, extra) => (
@@ -206,7 +207,7 @@ function Resumen({ orders, localF }) {
     <div style={sx("display:flex;flex-direction:column;gap:16px")}>
       <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:14px")}>
         {kpi("Pedidos", validos.length, rechazados || noRecogidos ? `+ ${rechazados} rechazados · ${noRecogidos} sin recoger` : "ninguno rechazado")}
-        {kpi("Ingresos", fmtEUR(ingresos), ingresosOnline > 0 ? `${fmtEUR(ingresosOnline)} cobrados online · ${fmtEUR(ingresos - ingresosOnline)} al recoger` : "pago al recoger")}
+        {kpi("Ingresos netos", fmtEUR(ingresos), devoluciones > 0 ? `cobrado online · ${fmtEUR(devoluciones)} devueltos` : "cobrado online por adelantado")}
         {kpi("Ticket medio", validos.length ? fmtEUR(ticketMedio) : "—")}
         {kpi("Pendientes ahora", orders.filter((o) => o.status === "nuevo" || o.status === "aceptado" || o.status === "lista").length, "nuevos + en cocina + listas")}
       </div>
@@ -314,7 +315,10 @@ function Historial({ orders }) {
                 <span style={{ ...sx("font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 11px;border-radius:100px"), color: `rgb(${e.color})`, border: `1px solid rgb(${e.color} / .5)`, background: `rgb(${e.color} / .1)` }}>{e.label}</span>
                 <span style={{ ...sx("font-size:12px;font-weight:700;text-transform:uppercase"), color: `rgb(${LOCALES[o.local]?.rgb || "255 197 49"})` }}>{LOCALES[o.local]?.name || o.local}</span>
                 <span style={sx("flex:1")}>{o.nombre}</span>
+                {o.programado_para && <span title={`Programado: ${horaDe(o.programado_para)}`} style={sx("font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;border:1px solid rgb(180 165 255 / .5);color:rgb(190,178,255)")}>⏰</span>}
+                {o.entrega === "domicilio" && <span title="A domicilio" style={sx("font-size:11px;padding:3px 9px;border-radius:100px;border:1px solid rgb(var(--emb) / .5);color:rgb(var(--emb))")}>🛵</span>}
                 {o.pago_estado === "pagado" && <span title="Pagado online" style={sx("font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;border:1px solid rgb(120 220 130 / .5);color:rgb(120,220,130)")}>💳</span>}
+                {o.pago_estado === "reembolso_parcial" && <span title={`Devuelto ${fmtEUR(o.reembolsado_cents || 0)}`} style={sx("font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;border:1px solid rgb(255 180 90 / .5);color:rgb(255,190,110)")}>↩️</span>}
                 {o.pago_estado === "reembolsado" && <span title="Reembolsado" style={sx("font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;border:1px solid rgba(246,241,233,.3);color:rgba(246,241,233,.7)")}>↩️</span>}
                 <strong style={sx("font-family:'Anton',sans-serif;font-size:17px")}>{fmtEUR(o.total_cents)}</strong>
                 <span style={sx("color:rgba(246,241,233,.4)")}>{open ? "▲" : "▼"}</span>

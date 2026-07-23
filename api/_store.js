@@ -103,21 +103,24 @@ export async function listHistorial({ desde, hasta, local }) {
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
-// ¿Existen ya las columnas de pago en la tabla? Evita ofrecer "pagar ahora"
-// si el SQL de pagos aún no se ha ejecutado (el deploy es seguro en cualquier
-// orden). Solo se cachea el sí; el no se re-comprueba en cada petición.
-let cachePagosListos = false;
-export async function pagosListos() {
+// ¿Existe ya una columna en la tabla `pedidos`? Permite desplegar código que
+// usa columnas nuevas ANTES de ejecutar su SQL (el deploy es seguro en
+// cualquier orden). Solo se cachea el sí; el no se re-comprueba cada vez.
+const cacheColumnas = new Set();
+export async function tieneColumna(col) {
   if (!usingSupabase) return true;
-  if (cachePagosListos) return true;
+  if (cacheColumnas.has(col)) return true;
   try {
-    await supa(`${TABLE}?select=pago_metodo&limit=1`);
-    cachePagosListos = true;
+    await supa(`${TABLE}?select=${encodeURIComponent(col)}&limit=1`);
+    cacheColumnas.add(col);
   } catch {
     return false;
   }
   return true;
 }
+
+// ¿Están las columnas de pago? (compatibilidad con el nombre anterior)
+export const pagosListos = () => tieneColumna("pago_metodo");
 
 // ── Estado de la carta por local: agotados y descuentos ──────────────────────
 const memCarta = new Map(); // clave `${local}|${itemId}`
