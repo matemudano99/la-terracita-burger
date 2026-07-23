@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import Landing from "./Landing";
 import LegalPage, { LEGAL_ROUTES } from "./LegalPage";
 
@@ -23,6 +24,7 @@ function App() {
     <>
       <Suspense fallback={null}>{page}</Suspense>
       <Analytics />
+      <SpeedInsights />
     </>
   );
 }
