@@ -439,13 +439,16 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
   const modo = debeProgramar ? "programado" : cuando;
   const programado = modo === "programado";
 
-  // Selecciona la primera franja disponible por defecto cuando toca programar.
+  // Mantiene una franja válida seleccionada: si no hay ninguna elegida (o la
+  // elegida ha caducado con el paso del tiempo), coge la primera disponible.
   useEffect(() => {
-    if (programado && !slotIso) {
-      const primera = franjas.find((d) => d.horas.length > 0)?.horas[0]?.iso;
-      if (primera) setSlotIso(primera);
-    }
+    if (!programado) return;
+    const existe = franjas.some((d) => d.horas.some((h) => h.iso === slotIso));
+    if (!existe) setSlotIso(franjas.find((d) => d.horas.length > 0)?.horas[0]?.iso || "");
   }, [programado, slotIso, franjas]);
+
+  // Día que contiene la franja elegida (para resaltar la pestaña y sus horas).
+  const diaSel = franjas.find((d) => d.horas.some((h) => h.iso === slotIso)) || franjas.find((d) => d.horas.length > 0);
 
   // ¿Se puede enviar? Pago disponible y: abierto (asap) o franja válida elegida.
   const puedeEnviar = pagos && (programado ? !!slotIso : !cerrado);
@@ -532,32 +535,52 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
           </div>
         )}
 
-        {/* ¿Cuándo? Lo antes posible o programado. */}
+        {/* ¿Cuándo? Lo antes posible o programado (pestañas de día + chips de hora). */}
         {programar && hayFranjas && (
-          <div>
+          <div style={sx("border:1px solid rgba(246,241,233,.14);border-radius:16px;padding:16px;background:#0d0a07")}>
             <span style={labelStyle}>¿Para cuándo?</span>
-            {!debeProgramar && (
-              <div style={sx("display:flex;gap:8px;margin-bottom:10px")}>
+            {!debeProgramar ? (
+              <div style={sx("display:flex;gap:8px")}>
                 {[{ id: "asap", label: "🔥 Lo antes posible" }, { id: "programado", label: "⏰ Programar" }].map((m) => (
-                  <button key={m.id} onClick={() => setCuando(m.id)} disabled={m.id === "asap" && cerrado} style={sx(`flex:1;font-family:'Anton',sans-serif;font-size:13.5px;letter-spacing:.03em;padding:12px 8px;border-radius:100px;cursor:pointer;border:1px solid ${modo === m.id ? `rgb(${rgb})` : "rgba(246,241,233,.18)"};background:${modo === m.id ? `rgb(${rgb})` : "transparent"};color:${modo === m.id ? "#0a0806" : "#f6f1e9"};opacity:${m.id === "asap" && cerrado ? 0.4 : 1}`)}>
+                  <button key={m.id} onClick={() => setCuando(m.id)} disabled={m.id === "asap" && cerrado} style={sx(`flex:1;font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.03em;padding:13px 8px;border-radius:12px;cursor:pointer;transition:all .2s;border:1px solid ${modo === m.id ? `rgb(${rgb})` : "rgba(246,241,233,.18)"};background:${modo === m.id ? `rgb(${rgb})` : "transparent"};color:${modo === m.id ? "#0a0806" : "#f6f1e9"};opacity:${m.id === "asap" && cerrado ? 0.4 : 1}`)}>
                     {m.label}
                   </button>
                 ))}
               </div>
+            ) : (
+              <p style={sx("margin:0 0 4px;font-size:13px;line-height:1.5;color:rgba(246,241,233,.7)")}>🌙 Ahora estamos cerrados — <strong>deja tu pedido programado</strong> y lo tendremos listo a la hora que elijas.</p>
             )}
-            {debeProgramar && (
-              <p style={sx("margin:0 0 10px;font-size:12.5px;color:rgba(246,241,233,.6)")}>Ahora estamos cerrados — deja tu pedido programado y lo tendremos listo a la hora que elijas.</p>
-            )}
-            {programado && (
-              <select value={slotIso} onChange={(e) => setSlotIso(e.target.value)} style={{ ...inputStyle, appearance: "auto" }}>
-                {franjas.map((d) => (
-                  <optgroup key={d.off} label={d.label}>
-                    {d.horas.map((h) => (
-                      <option key={h.iso} value={h.iso}>{d.label} · {h.hm}</option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
+
+            {programado && diaSel && (
+              <div style={sx("margin-top:14px")}>
+                {/* Pestañas de día (Hoy / Mañana) */}
+                {franjas.filter((d) => d.horas.length > 0).length > 1 && (
+                  <div style={sx("display:flex;gap:8px;margin-bottom:12px")}>
+                    {franjas.filter((d) => d.horas.length > 0).map((d) => {
+                      const activo = d.off === diaSel.off;
+                      return (
+                        <button key={d.off} onClick={() => setSlotIso(d.horas[0].iso)} style={sx(`flex:1;font-size:13px;font-weight:700;letter-spacing:.02em;padding:10px 8px;border-radius:10px;cursor:pointer;transition:all .2s;border:1px solid ${activo ? `rgb(${rgb})` : "rgba(246,241,233,.16)"};background:${activo ? `rgb(${rgb} / .14)` : "transparent"};color:${activo ? `rgb(${rgb})` : "rgba(246,241,233,.7)"}`)}>
+                          {d.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {/* Chips de hora del día seleccionado */}
+                <div style={sx("display:flex;flex-wrap:wrap;gap:8px;max-height:168px;overflow:auto")}>
+                  {diaSel.horas.map((h) => {
+                    const activo = h.iso === slotIso;
+                    return (
+                      <button key={h.iso} onClick={() => setSlotIso(h.iso)} style={sx(`font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.02em;padding:9px 16px;border-radius:100px;cursor:pointer;transition:all .15s;border:1px solid ${activo ? "transparent" : "rgba(246,241,233,.18)"};background:${activo ? `rgb(${rgb})` : "transparent"};color:${activo ? "#0a0806" : "#f6f1e9"};box-shadow:${activo ? `0 6px 18px -6px rgb(${rgb})` : "none"}`)}>
+                        {h.hm}
+                      </button>
+                    );
+                  })}
+                </div>
+                {slotIso && (
+                  <p style={sx("margin:12px 0 0;font-size:13.5px;color:rgba(246,241,233,.75)")}>⏰ Listo <strong style={{ color: `rgb(${rgb})` }}>{programadoTexto(slotIso, ahora)}</strong></p>
+                )}
+              </div>
             )}
           </div>
         )}

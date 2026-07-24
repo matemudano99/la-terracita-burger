@@ -6,7 +6,7 @@
 //   PUT (admin)  → { local, pausado, motivo? }
 // ─────────────────────────────────────────────────────────────────────────────
 import { requireUser } from "./_auth.js";
-import { getAjustes, setAjuste, getCarta, pagosListos, tieneColumna, storeReady } from "./_store.js";
+import { getAjustes, setAjuste, getCartaTodos, pagosListos, tieneColumna, storeReady } from "./_store.js";
 import { LOCALES } from "../src/locales.js";
 import { pagosDisponibles } from "./_monei.js";
 
@@ -14,14 +14,17 @@ export default async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const ajustes = storeReady ? await getAjustes().catch(() => ({})) : {};
-      // Estado de la carta (agotados/descuentos) por local — público, lo usa /pedir.
-      const carta = {};
-      if (storeReady) {
-        for (const id of Object.keys(LOCALES)) carta[id] = await getCarta(id).catch(() => ({}));
-      }
+      // Estado de la carta (agotados/descuentos) de todos los locales en una
+      // sola consulta — público, lo usa /pedir.
+      const carta = storeReady ? await getCartaTodos().catch(() => ({})) : {};
       const pagos = pagosDisponibles && (await pagosListos());
       const programar = storeReady && (await tieneColumna("programado_para"));
       const refundParcial = storeReady && (await tieneColumna("reembolsado_cents"));
+      // Datos poco cambiantes y no personalizados: la red de Vercel puede
+      // cachearlos unos segundos y ahorrar invocaciones bajo carga. Como mucho,
+      // un cambio (pausa/agotado) tarda ~10 s en verse (antes /pedir ya sondeaba
+      // cada 60 s, así que es más fresco que antes).
+      res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=30");
       return res.status(200).json({ ajustes, carta, pagos, programar, refundParcial });
     }
 

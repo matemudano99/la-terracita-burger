@@ -138,6 +138,25 @@ export async function getCarta(local) {
   return out;
 }
 
+// Estado de la carta de TODOS los locales en una sola consulta (lo usa
+// /api/ajustes, que sirve a todos los visitantes de /pedir).
+export async function getCartaTodos() {
+  if (usingSupabase) {
+    const rows = await supa("carta?select=local,item_id,agotado,descuento");
+    const out = {};
+    for (const r of rows) {
+      (out[r.local] ||= {})[r.item_id] = { agotado: !!r.agotado, descuento: r.descuento || 0 };
+    }
+    return out;
+  }
+  const out = {};
+  for (const [k, v] of memCarta) {
+    const [l, item] = k.split("|");
+    (out[l] ||= {})[item] = v;
+  }
+  return out;
+}
+
 export async function setCartaItem(local, itemId, estado) {
   if (usingSupabase) {
     await supa("carta", {
