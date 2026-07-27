@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { sx } from "../sx";
 import { MENU, fmtEUR } from "../menu";
 import { LOCALES } from "../locales";
 import LtbMark from "../LtbMark";
 import LoginBox from "../LoginBox";
 import { getSesion, logout, authFetch } from "../authClient";
+import { imprimirTicket } from "./ticket";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /cocina — panel para el local. Abre esta página en el móvil/tablet del
@@ -44,9 +44,9 @@ export default function CocinaPage() {
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState(null);
   const [muted, setMuted] = useState(false);
-  const [printOrder, setPrintOrder] = useState(null);
   const [vista, setVista] = useState("pedidos"); // "pedidos" | "carta"
   const [refundParcial, setRefundParcial] = useState(false); // ¿existe la columna acumuladora?
+  const [pantallaOn, setPantallaOn] = useState(false); // ¿wake lock activo?
   const audioCtx = useRef(null);
 
   useEffect(() => {
@@ -100,6 +100,31 @@ export default function CocinaPage() {
     return () => clearInterval(iv);
   }, [sesion, L, cargar]);
 
+  // Mantener la PANTALLA ENCENDIDA mientras el panel está abierto (Screen Wake
+  // Lock API — estándar web, sin necesidad de crear una APK). El sistema la
+  // libera al minimizar o bloquear, así que se vuelve a pedir al reaparecer.
+  // Requiere HTTPS; en producción (laterracitaburger.com) funciona.
+  useEffect(() => {
+    if (!sesion || !L || !("wakeLock" in navigator)) return;
+    let lock = null;
+    let vivo = true;
+    const pedir = async () => {
+      try {
+        lock = await navigator.wakeLock.request("screen");
+        setPantallaOn(true);
+        lock.addEventListener("release", () => { setPantallaOn(false); lock = null; });
+      } catch { setPantallaOn(false); } // p. ej. batería baja o ahorro de energía
+    };
+    const onVisible = () => { if (document.visibilityState === "visible" && vivo && !lock) pedir(); };
+    pedir();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      vivo = false;
+      document.removeEventListener("visibilitychange", onVisible);
+      if (lock) lock.release().catch(() => {});
+    };
+  }, [sesion, L]);
+
   // Un pedido programado con más de 30 min por delante no es "para ya": va a la
   // columna Programados y no dispara alarma. Cuando faltan ≤30 min, pasa solo a
   // Nuevos (el sondeo de 2 s recalcula esto sin necesidad de cron).
@@ -116,20 +141,6 @@ export default function CocinaPage() {
 
   useEffect(() => { document.title = hayNuevos ? "🔴 PEDIDO NUEVO — Cocina LTB" : "Cocina — La Terracita"; }, [hayNuevos]);
 
-  // Impresión: al fijar printOrder se pinta el ticket y se abre el diálogo.
-  useEffect(() => {
-    if (!printOrder) return;
-    document.body.classList.add("ltb-printing");
-    const t = setTimeout(() => window.print(), 120);
-    const after = () => setPrintOrder(null);
-    window.addEventListener("afterprint", after);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener("afterprint", after);
-      document.body.classList.remove("ltb-printing");
-    };
-  }, [printOrder]);
-
   const patch = async (id, status, ready_minutes) => {
     try {
       const res = await authFetch("/api/orders", {
@@ -140,7 +151,7 @@ export default function CocinaPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
       setOrders((prev) => prev.map((o) => (o.id === id ? data.order : o)));
-      if (status === "aceptado") setPrintOrder(data.order); // ticket automático
+      if (status === "aceptado") imprimirTicket(data.order, L.name); // ticket automático
     } catch (e) {
       setError(e.message);
       if (/sesión/i.test(e.message)) salir();
@@ -230,7 +241,7 @@ export default function CocinaPage() {
           <LtbMark size={22} style={{ color: "#f6f1e9" }} />
           <div>
             <div style={sx("font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.06em;line-height:1")}>COCINA · <span style={{ color: `rgb(${L.rgb})` }}>{L.name.toUpperCase()}</span></div>
-            <div style={sx("font-size:11px;color:rgba(246,241,233,.5)")}>{error ? `⚠️ ${error}` : `${sesion.user?.nombre} · actualiza cada ${POLL_MS / 1000}s`}</div>
+            <div style={sx("font-size:11px;color:rgba(246,241,233,.5)")}>{error ? `⚠️ ${error}` : `${sesion.user?.nombre} · actualiza cada ${POLL_MS / 1000}s${pantallaOn ? " · 🔆 pantalla activa" : ""}`}</div>
           </div>
         </div>
         <div style={sx("display:flex;align-items:center;gap:10px")}>
@@ -267,7 +278,7 @@ export default function CocinaPage() {
             </div>
             <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px")}>
               {programados.map((o) => (
-                <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
+                <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
                   <div style={sx("display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px")}>
                     {[15, 25, 40].map((m) => (
                       <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={btn(`rgb(${L.rgb})`)}>✓ {m}′</button>
@@ -281,7 +292,7 @@ export default function CocinaPage() {
         <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px;align-items:start")}>
           <Columna icono="🔴" titulo="Nuevos" n={nuevos.length} tono="255 90 70" pulso={nuevos.length > 0} vacio="Sin pedidos nuevos — todo al día.">
             {nuevos.map((o) => (
-              <Card key={o.id} o={o} rgb={L.rgb} destacado onPrint={() => setPrintOrder(o)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
+              <Card key={o.id} o={o} rgb={L.rgb} destacado onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
                 <div style={sx("display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px")}>
                   {[15, 25, 40].map((m) => (
                     <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={btn(`rgb(${L.rgb})`)}>✓ {m}′</button>
@@ -294,7 +305,7 @@ export default function CocinaPage() {
 
           <Columna icono="🔥" titulo="En cocina" n={enCocina.length} tono={L.rgb} vacio="Nada en plancha ahora mismo.">
             {enCocina.map((o) => (
-              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
+              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
                 <button onClick={() => patch(o.id, "lista")} style={btn(`rgb(${L.rgb})`)}>✓ Lista para recoger</button>
               </Card>
             ))}
@@ -302,7 +313,7 @@ export default function CocinaPage() {
 
           <Columna icono="✅" titulo="Listas" n={listas.length} tono="120 220 130" vacio="Ninguna esperando recogida.">
             {listas.map((o) => (
-              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
+              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
                 <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
                   <button onClick={() => patch(o.id, "entregado")} style={{ ...btn("rgb(120 220 130 / .9)"), flex: 1 }}>✓ Entregada</button>
                   <button onClick={() => window.confirm(`¿Marcar el pedido ${o.code} de ${o.nombre} como NO recogido?\n\nCon 1 aviso la web pedirá confirmar sus próximos pedidos; con 2, su teléfono queda bloqueado para pedir online.`) && patch(o.id, "no_recogido")} style={btn("transparent", "rgb(255,120,90)")}>
@@ -319,7 +330,7 @@ export default function CocinaPage() {
             <summary style={sx("cursor:pointer;font-size:13px;color:rgba(246,241,233,.55)")}>Cerrados hoy ({cerrados.length})</summary>
             <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px;margin-top:12px;opacity:.55")}>
               {cerrados.map((o) => (
-                <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => setPrintOrder(o)} onReembolsar={abrirDevolucion} />
+                <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onReembolsar={abrirDevolucion} />
               ))}
             </div>
           </details>
@@ -327,7 +338,6 @@ export default function CocinaPage() {
       </main>
       )}
 
-      {printOrder && <Ticket o={printOrder} localName={L.name} />}
       {devolucion && (
         <DevolucionModal
           o={devolucion}
@@ -623,55 +633,3 @@ function DevolucionModal({ o, rgb, onClose, onConfirm }) {
   );
 }
 
-// Ticket 58mm — solo visible al imprimir (ver @media print en ltb.css).
-// Se monta con un portal en <body>, fuera de #root, que queda oculto al imprimir.
-function Ticket({ o, localName }) {
-  const hm = (iso) => new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
-  const hora = new Date(o.created_at).toLocaleString("es-ES", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
-  const ready = o.ready_at ? hm(o.ready_at) : null;
-  const pagado = ["pagado", "reembolso_parcial"].includes(o.pago_estado);
-  const devuelto = o.reembolsado_cents || 0;
-  return createPortal(
-    <div className="ltb-ticket">
-      <div className="tk-brand">LA TERRACITA BURGER</div>
-      <div className="tk-sub-brand">{localName} · Pedido web</div>
-
-      <div className="tk-code">#{o.code}</div>
-
-      {o.programado_para && <div className="tk-band tk-band-lg">⏰ PARA LAS {hm(o.programado_para)}</div>}
-      {o.entrega === "domicilio"
-        ? <div className="tk-band">🛵 A DOMICILIO<br />{o.direccion}</div>
-        : <div className="tk-center">🏃 RECOGIDA{ready ? ` · lista ~${ready}` : ""}</div>}
-
-      <div className="tk-center">Pedido: {hora}</div>
-      <div className="tk-sep" />
-      <div className="tk-who">{o.nombre}</div>
-      <div>Tel: {o.telefono}</div>
-      <div className="tk-sep" />
-
-      {(o.items || []).map((it, i) => (
-        <div key={i} className="tk-item">
-          <div className="tk-item-main">
-            <span>{it.qty}x {it.name}{it.variant ? ` ${it.variant}` : ""}</span>
-            <span>{fmtEUR(it.lineCents)}</span>
-          </div>
-          {it.upgrade && <div className="tk-sub">+ {it.upgrade}</div>}
-          {it.pan && <div className="tk-sub">+ {it.pan}</div>}
-          {(it.extras || []).map((x) => <div key={x} className="tk-sub">+ {x}</div>)}
-          {it.nota && <div className="tk-note">&gt;&gt; {it.nota}</div>}
-        </div>
-      ))}
-      {o.nota && <div className="tk-ordernote">&gt;&gt; NOTA: {o.nota}</div>}
-
-      <div className="tk-sep" />
-      <div className="tk-total"><span>TOTAL</span><span>{fmtEUR(o.total_cents)}</span></div>
-      {o.pago_estado === "reembolsado"
-        ? <div className="tk-band">DEVUELTO {fmtEUR(o.total_cents)}</div>
-        : pagado
-        ? <div className="tk-band">PAGADO ONLINE — NO COBRAR{devuelto > 0 ? ` (devuelto ${fmtEUR(devuelto)})` : ""}</div>
-        : <div className="tk-band">PENDIENTE DE PAGO</div>}
-      <div className="tk-foot">¡Gracias! 🍔</div>
-    </div>,
-    document.body
-  );
-}
