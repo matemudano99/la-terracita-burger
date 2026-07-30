@@ -8,11 +8,13 @@ const PedirPage = lazy(() => import("./pedir/PedirPage"));
 const CocinaPage = lazy(() => import("./cocina/CocinaPage"));
 const AdminPage = lazy(() => import("./admin/AdminPage"));
 const PagoSimulado = lazy(() => import("./pedir/PagoSimulado"));
+const CartaPage = lazy(() => import("./carta/CartaPage"));
 
 function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   let page;
   if (path === "/pedir") page = <PedirPage />;
+  else if (path === "/carta") page = <CartaPage />;
   else if (path === "/cocina") page = <CocinaPage />;
   else if (path === "/admin") page = <AdminPage />;
   else if (path === "/pago-simulado") page = <PagoSimulado />;

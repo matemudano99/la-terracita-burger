@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "optimize:images": "node scripts/optimize-images.mjs",
     "make:favicon": "node scripts/make-favicon.mjs",
-    "make:logo": "node scripts/make-logo.mjs"
+    "make:logo": "node scripts/make-logo.mjs",
+    "make:qr": "node scripts/make-qr.mjs"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
@@ -25,6 +26,7 @@
     "eslint-plugin-react": "^7.33.2",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "qrcode": "^1.5.4",
     "sharp": "^0.35.3",
     "vite": "^5.1.4"
   }
