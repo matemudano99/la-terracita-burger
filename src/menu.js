@@ -216,6 +216,7 @@ export const displayCats = () =>
     label: cat.label,
     nota: cat.nota,
     items: cat.items.map((it) => ({
+      id: it.id,
       name: it.name,
       desc: it.desc,
       tag: it.tag,
