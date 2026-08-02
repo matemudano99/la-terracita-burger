@@ -15,6 +15,7 @@ export const LOCALES = {
     lat: 36.7241,
     lon: -4.47978,
     diasTexto: "Todos los días excepto martes",
+    diasKey: "deliv.dias.teatinos",
     cerradoDias: [2], // 0=domingo … 2=martes
     // Teatinos NO tiene reparto propio (solo plataformas: Just Eat/Glovo/Uber).
     delivery: null,
@@ -33,6 +34,7 @@ export const LOCALES = {
     lat: 36.71391,
     lon: -4.27483,
     diasTexto: "Todos los días",
+    diasKey: "deliv.dias.todos",
     cerradoDias: [],
     // Reparto propio — OCULTO hasta poner activo: true. Antes de activarlo:
     // ejecutar el SQL de columnas de entrega (supabase/schema.sql) y
@@ -72,46 +74,75 @@ export function ahoraMadrid(date = new Date()) {
   };
 }
 
+// Textos de horario en los dos idiomas. Viven aquí (y no en src/i18n.js)
+// porque este módulo lo comparten la web y el backend (api/*).
+const TXT = {
+  es: {
+    noValido: "Local no válido", abierto: "Abierto ahora", hasta: (h) => `Aceptamos pedidos hasta las ${h}`,
+    descansamos: "Hoy descansamos", cerrado: "Cerrado ahora",
+    abrimos: (cuando, h) => `Abrimos ${cuando} a las ${h}`,
+    hoy: "hoy", manana: "mañana", elDia: (d) => `el ${d}`,
+    faltanMin: (m) => ` — faltan ${m} min`, faltanH: (h, m) => ` — faltan ${h} h ${m} min`,
+    consulta: "Consulta el horario por teléfono",
+    dias: ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
+    hoyLabel: "Hoy", mananaLabel: "Mañana",
+    programado: (cuando, h) => `${cuando} a las ${h}`,
+  },
+  en: {
+    noValido: "Invalid location", abierto: "Open now", hasta: (h) => `We take orders until ${h}`,
+    descansamos: "Closed today", cerrado: "Closed right now",
+    abrimos: (cuando, h) => `We open ${cuando} at ${h}`,
+    hoy: "today", manana: "tomorrow", elDia: (d) => `on ${d}`,
+    faltanMin: (m) => ` — in ${m} min`, faltanH: (h, m) => ` — in ${h} h ${m} min`,
+    consulta: "Please check our opening hours by phone",
+    dias: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    hoyLabel: "Today", mananaLabel: "Tomorrow",
+    programado: (cuando, h) => `${cuando} at ${h}`,
+  },
+};
+const txt = (idioma) => TXT[idioma] || TXT.es;
+
 // ¿Admite pedidos online este local ahora mismo?
 // Devuelve { abierto, mensaje, detalle }: mensaje es el titular ("Abierto
 // ahora"), detalle la línea de apoyo ("Aceptamos pedidos hasta las 15:45").
-export function estadoLocal(localId, date = new Date()) {
+// `idioma` solo lo usa la web; el backend lo llama sin él (español).
+export function estadoLocal(localId, date = new Date(), idioma = "es") {
+  const T = txt(idioma);
   const loc = LOCALES[localId];
-  if (!loc) return { abierto: false, mensaje: "Local no válido", detalle: "" };
+  if (!loc) return { abierto: false, mensaje: T.noValido, detalle: "" };
   const { dia, minutos } = ahoraMadrid(date);
 
   if (!loc.cerradoDias.includes(dia)) {
     for (const [ini, fin] of TURNOS) {
       if (minutos >= ini && minutos <= fin - CIERRE_PEDIDOS_MIN) {
-        return { abierto: true, mensaje: "Abierto ahora", detalle: `Aceptamos pedidos hasta las ${fmtHM(fin - CIERRE_PEDIDOS_MIN)}` };
+        return { abierto: true, mensaje: T.abierto, detalle: T.hasta(fmtHM(fin - CIERRE_PEDIDOS_MIN)) };
       }
     }
   }
   return {
     abierto: false,
-    mensaje: loc.cerradoDias.includes(dia) ? "Hoy descansamos" : "Cerrado ahora",
-    detalle: proximaApertura(loc, dia, minutos),
+    mensaje: loc.cerradoDias.includes(dia) ? T.descansamos : T.cerrado,
+    detalle: proximaApertura(loc, dia, minutos, T),
   };
 }
 
 // "Abrimos hoy a las 20:00 — faltan 2 h 10 min" / "mañana" / "el miércoles".
-function proximaApertura(loc, dia, minutos) {
-  const DIAS = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+function proximaApertura(loc, dia, minutos, T) {
   for (let off = 0; off < 8; off++) {
     const d = (dia + off) % 7;
     if (loc.cerradoDias.includes(d)) continue;
     for (const [ini] of TURNOS) {
       if (off === 0 && minutos >= ini) continue;
-      const cuando = off === 0 ? "hoy" : off === 1 ? "mañana" : `el ${DIAS[d]}`;
-      let txt = `Abrimos ${cuando} a las ${fmtHM(ini)}`;
+      const cuando = off === 0 ? T.hoy : off === 1 ? T.manana : T.elDia(T.dias[d]);
+      let out = T.abrimos(cuando, fmtHM(ini));
       if (off === 0) {
         const faltan = ini - minutos;
-        txt += faltan < 60 ? ` — faltan ${faltan} min` : ` — faltan ${Math.floor(faltan / 60)} h ${faltan % 60} min`;
+        out += faltan < 60 ? T.faltanMin(faltan) : T.faltanH(Math.floor(faltan / 60), faltan % 60);
       }
-      return txt;
+      return out;
     }
   }
-  return "Consulta el horario por teléfono";
+  return T.consulta;
 }
 
 // Turnos de hoy formateados, p. ej. "13:00–16:00 y 20:00–23:30".
@@ -140,7 +171,8 @@ function instanteDe(ahora, off, m) {
 
 // Franjas de 15 min disponibles para programar (hoy y mañana), respetando
 // turnos, días cerrados y la antelación mínima. Devuelve [{off,label,horas:[{hm,iso}]}].
-export function franjasProgramables(localId, ahora = new Date()) {
+export function franjasProgramables(localId, ahora = new Date(), idioma = "es") {
+  const T = txt(idioma);
   const loc = LOCALES[localId];
   if (!loc) return [];
   const { dia, minutos } = ahoraMadrid(ahora);
@@ -157,7 +189,7 @@ export function franjasProgramables(localId, ahora = new Date()) {
         horas.push({ hm: fmtHM(m), iso: instanteDe(ahora, off, m).toISOString() });
       }
     }
-    if (horas.length) dias.push({ off, label: off === 0 ? "Hoy" : off === 1 ? "Mañana" : "", horas });
+    if (horas.length) dias.push({ off, label: off === 0 ? T.hoyLabel : off === 1 ? T.mananaLabel : "", horas });
   }
   return dias;
 }
@@ -182,11 +214,12 @@ export function validarProgramado(localId, iso, ahora = new Date()) {
 }
 
 // Hora programada legible, p. ej. "hoy a las 21:30" / "mañana a las 13:15".
-export function programadoTexto(iso, ahora = new Date()) {
+export function programadoTexto(iso, ahora = new Date(), idioma = "es") {
+  const T = txt(idioma);
   const hoy = ahoraMadrid(ahora).dia;
   const { dia, minutos } = ahoraMadrid(new Date(iso));
-  const cuando = dia === hoy ? "hoy" : "mañana";
-  return `${cuando} a las ${fmtHM(minutos)}`;
+  const cuando = dia === hoy ? T.hoy : T.manana;
+  return T.programado(cuando, fmtHM(minutos));
 }
 
 // ── Distancia (control de zona de reparto) ───────────────────────────────────

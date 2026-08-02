@@ -6,7 +6,7 @@
 // inglés se muestra el texto en español (nunca se rompe ni queda vacío).
 // Los nombres propios (Cheeseburger, Paquito, Oklahoma…) no se traducen.
 // ─────────────────────────────────────────────────────────────────────────────
-import { displayCats } from "./menu";
+import { MENU, displayCats } from "./menu";
 
 // Categorías: etiqueta y nota.
 const CAT_EN = {
@@ -166,14 +166,42 @@ const TAG_EN = {
   "Del mes": "Of the month",
 };
 
-// Opciones de /pedir (acompañamiento, pan) — se traducen por texto exacto.
+// Opciones de /pedir (acompañamiento, pan y extras) — por texto exacto, que es
+// como llegan desde UPGRADES / PANES / EXTRAS de src/menu.js.
 const OPCION_EN = {
+  // Acompañamiento y pan
   "Patatas fritas (incluidas)": "Fries (included)",
   "Cambiar a boniatos fritos": "Swap for sweet potato fries",
   "Patatas con cheddar y bacon": "Cheddar & bacon fries",
   "Pan de patata (incluido)": "Potato bun (included)",
   "Pan sin gluten brioche (posible contaminación cruzada)": "Gluten-free brioche bun (possible cross-contamination)",
+  // Extras
+  "Aros de cebolla": "Onion rings",
+  Bacon: "Bacon",
+  "Medallón extra (ternera, veggie o pollo)": "Extra patty (beef, veggie or chicken)",
+  "Cambiar medallón a pollo o veggie": "Swap patty for chicken or veggie",
+  "Cebolla natural": "Fresh onion",
+  "Cebolla caramelizada": "Caramelised onion",
+  "Cebolla crispy": "Crispy onion",
+  "Cheddar loncha": "Cheddar slice",
+  "Derrumbe de cheddar": "Cheddar landslide sauce",
+  Guacamole: "Guacamole",
+  Huevo: "Fried egg",
+  "Jeringa de cheddar": "Cheddar shot",
+  Lechuga: "Lettuce",
+  Pepinillos: "Pickles",
+  "Queso de cabra": "Goat cheese",
+  Setas: "Mushrooms",
+  Tomate: "Tomato",
+  Guantes: "Gloves",
 };
+
+// Nombre de un plato por id, en el idioma pedido (para el carrito, donde el
+// nombre llega ya calculado en español desde priceLine).
+export function nombreItem(itemId, idioma, fallback) {
+  if (idioma !== "en") return fallback;
+  return ITEM_EN[itemId]?.name || fallback;
+}
 
 // Traduce una etiqueta suelta (variante, distintivo u opción).
 export const tEtiqueta = (txt, idioma) =>
@@ -186,7 +214,29 @@ export function precioEn(txt) {
   return txt === "Consulta" ? "Ask us" : txt;
 }
 
-// Carta lista para pintar, en el idioma pedido.
+// MENU para /pedir en el idioma pedido: conserva la estructura completa
+// (variants con céntimos, flags upgrades/extras/panes…) y solo traduce los
+// textos. NO usar cartaEn() aquí: esa devuelve precios ya formateados.
+export function menuPedir(idioma) {
+  if (idioma !== "en") return MENU;
+  return MENU.map((cat) => ({
+    ...cat,
+    label: CAT_EN[cat.id]?.label || cat.label,
+    nota: CAT_EN[cat.id]?.nota ?? cat.nota,
+    items: cat.items.map((it) => {
+      const tr = ITEM_EN[it.id] || {};
+      return {
+        ...it,
+        name: tr.name || it.name,
+        desc: tr.desc ?? it.desc,
+        tag: it.tag ? TAG_EN[it.tag] || it.tag : it.tag,
+        priceLabel: it.priceLabel === "Consulta" ? "Ask us" : it.priceLabel,
+      };
+    }),
+  }));
+}
+
+// Carta lista para pintar (solo lectura), en el idioma pedido.
 export function cartaEn(idioma) {
   const cats = displayCats();
   if (idioma !== "en") return cats;

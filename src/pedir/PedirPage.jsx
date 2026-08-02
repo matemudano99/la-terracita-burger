@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
 import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
 import { LOCALES, estadoLocal, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
+import { useI18n } from "../i18n";
+import { menuPedir, tEtiqueta, precioEn, nombreItem } from "../menuI18n";
+import LangSwitcher from "../LangSwitcher";
 import LtbMark from "../LtbMark";
 import PedirSplash, { debeMostrarSplash } from "./PedirSplash";
 
@@ -31,6 +34,8 @@ function pricedOf(l, carta) {
 }
 
 export default function PedirPage() {
+  const { t, idioma } = useI18n();
+  const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
   const [loc, setLoc] = useState(() => {
     const saved = localStorage.getItem(LS_LOCAL);
     return LOCALES[saved] ? saved : null;
@@ -81,7 +86,7 @@ export default function PedirPage() {
     const iv = setInterval(() => setAhora(new Date()), 60000);
     return () => clearInterval(iv);
   }, []);
-  const estadoHorario = useMemo(() => (loc ? estadoLocal(loc, ahora) : null), [loc, ahora]);
+  const estadoHorario = useMemo(() => (loc ? estadoLocal(loc, ahora, idioma) : null), [loc, ahora, idioma]);
 
   // Pausa (el "cerrar tienda" de las apps) y estado de la carta del local
   // (agotados/descuentos desde /cocina). Se refresca con cada tick de `ahora`
@@ -107,10 +112,10 @@ export default function PedirPage() {
   const estado = useMemo(() => {
     if (!estadoHorario) return null;
     if (estadoHorario.abierto && pausa?.pausado) {
-      return { abierto: false, mensaje: "Pedidos pausados un momento", detalle: pausa.motivo || "La cocina está a tope — llámanos y te atendemos." };
+      return { abierto: false, mensaje: t("pedir.pausa"), detalle: pausa.motivo || t("pedir.pausaSub") };
     }
     return estadoHorario;
-  }, [estadoHorario, pausa]);
+  }, [estadoHorario, pausa, t]);
 
   const totalCents = cart.reduce((s, l) => s + (pricedOf(l, carta)?.lineCents || 0), 0);
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
@@ -140,8 +145,8 @@ export default function PedirPage() {
   }, [loc]);
 
   useEffect(() => {
-    document.title = "Pedir online — La Terracita Burger";
-  }, []);
+    document.title = idioma === "en" ? "Order online — La Terracita Burger" : "Pedir online — La Terracita Burger";
+  }, [idioma]);
 
   if (pedido) {
     return <Seguimiento pedido={pedido} onNuevo={() => { localStorage.removeItem(LS_PEDIDO); setPedido(null); setCart([]); }} />;
@@ -150,7 +155,7 @@ export default function PedirPage() {
 
   // Las categorías "solo carta" (p. ej. Extras) no se muestran en /pedir:
   // sus conceptos se eligen dentro de cada producto.
-  const CATS_PEDIR = MENU.filter((c) => !c.soloCarta);
+  const CATS_PEDIR = menuPedir(idioma).filter((c) => !c.soloCarta);
   const categoria = CATS_PEDIR.find((c) => c.id === cat) || CATS_PEDIR[0];
 
   return (
@@ -164,15 +169,18 @@ export default function PedirPage() {
           <LtbMark size={22} style={{ color: "#f6f1e9" }} />
           <span style={sx("font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.08em")}>LA TERRACITA</span>
         </a>
-        <button onClick={() => totalQty > 0 && setDrawer(true)} aria-label="Ver carrito" style={{ ...sx("display:inline-flex;align-items:center;gap:10px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:11px 22px;border-radius:100px;border:0;cursor:pointer;transition:all .25s"), background: totalQty > 0 ? `rgb(${rgb})` : "rgba(246,241,233,.12)", color: totalQty > 0 ? "#0a0806" : "rgba(246,241,233,.55)" }}>
-          🛒 {totalQty > 0 ? `${totalQty} · ${fmtEUR(totalCents)}` : "Carrito vacío"}
+        <div style={sx("display:flex;align-items:center;gap:10px")}>
+        <LangSwitcher size="sm" />
+        <button onClick={() => totalQty > 0 && setDrawer(true)} aria-label={t("pedir.verCarrito")} style={{ ...sx("display:inline-flex;align-items:center;gap:10px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:11px 22px;border-radius:100px;border:0;cursor:pointer;transition:all .25s"), background: totalQty > 0 ? `rgb(${rgb})` : "rgba(246,241,233,.12)", color: totalQty > 0 ? "#0a0806" : "rgba(246,241,233,.55)" }}>
+          🛒 {totalQty > 0 ? `${totalQty} · ${fmtP(totalCents)}` : t("pedir.carritoVacio")}
         </button>
+        </div>
       </nav>
 
       <main style={sx("max-width:1100px;margin:0 auto;padding:110px 5vw 0")}>
-        <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:10px;animation:ltb-rise .55s both")}>Pedidos online — recogida en local</div>
-        <h1 style={sx("margin:0 0 6px;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(38px,7vw,80px);line-height:.9;text-transform:uppercase;animation:ltb-rise .6s .08s both")}>Pide y <span style={{ ...sx("text-shadow:0 0 30px rgb(var(--acc) / .5)"), color: `rgb(${rgb})` }}>recoge</span></h1>
-        <p style={sx("margin:0 0 26px;font-size:15px;line-height:1.55;color:rgba(246,241,233,.62);max-width:560px;animation:ltb-rise .6s .16s both")}>Sin comisiones, directo a nuestra cocina. Pago seguro online — recoge cuando quieras.</p>
+        <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:10px;animation:ltb-rise .55s both")}>{t("pedir.kicker")}</div>
+        <h1 style={sx("margin:0 0 6px;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(38px,7vw,80px);line-height:.9;text-transform:uppercase;animation:ltb-rise .6s .08s both")}>{t("pedir.h1a")} <span style={{ ...sx("text-shadow:0 0 30px rgb(var(--acc) / .5)"), color: `rgb(${rgb})` }}>{t("pedir.h1b")}</span></h1>
+        <p style={sx("margin:0 0 26px;font-size:15px;line-height:1.55;color:rgba(246,241,233,.62);max-width:560px;animation:ltb-rise .6s .16s both")}>{t("pedir.claim")}</p>
 
         {/* Selector de local */}
         <div style={sx("display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;animation:ltb-rise .6s .24s both")}>
@@ -185,7 +193,7 @@ export default function PedirPage() {
 
         {!loc && (
           <div style={sx("margin:30px 0;padding:22px;border-radius:16px;border:1px dashed rgba(246,241,233,.25);color:rgba(246,241,233,.72);font-size:15px")}>
-            👆 Elige primero el local donde quieres recoger tu pedido.
+            {t("pedir.eligeLocal")}
           </div>
         )}
 
@@ -200,8 +208,8 @@ export default function PedirPage() {
                 </div>
               </div>
               <div style={sx("font-size:12.5px;line-height:1.6;color:rgba(246,241,233,.55);border-left:1px solid rgba(246,241,233,.14);padding-left:22px")}>
-                🕒 Mediodía y noche: <strong style={sx("color:rgba(246,241,233,.85)")}>{horarioTexto()}</strong>
-                <br />📅 {L.diasTexto}
+                {t("pedir.horario")} <strong style={sx("color:rgba(246,241,233,.85)")}>{horarioTexto()}</strong>
+                <br />📅 {t(L.diasKey)}
               </div>
             </div>
 
@@ -240,20 +248,20 @@ export default function PedirPage() {
                       <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:19px;display:inline-flex;align-items:baseline;gap:8px"), color: `rgb(${rgb})` }}>
                         {item.orderable === false ? item.priceLabel : (
                           <>
-                            {descuento > 0 && !agotado && <s style={sx("font-size:14px;color:rgba(246,241,233,.4)")}>{fmtEUR(desdeBase)}</s>}
-                            {item.variants.length > 1 ? `desde ${fmtEUR(desde)}` : fmtEUR(desde)}
+                            {descuento > 0 && !agotado && <s style={sx("font-size:14px;color:rgba(246,241,233,.4)")}>{fmtP(desdeBase)}</s>}
+                            {item.variants.length > 1 ? t("pedir.desde", { p: fmtP(desde) }) : fmtP(desde)}
                           </>
                         )}
                       </span>
                       {agotado ? (
-                        <span style={sx("font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:9px 16px;border-radius:100px;border:1px solid rgba(255,100,80,.5);color:rgb(255,120,90)")}>Agotado hoy</span>
+                        <span style={sx("font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:9px 16px;border-radius:100px;border:1px solid rgba(255,100,80,.5);color:rgb(255,120,90)")}>{t("pedir.agotado")}</span>
                       ) : item.orderable === false ? (
-                        <a href={`tel:${L.tel}`} style={sx("font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:9px 16px;border-radius:100px;border:1px solid rgba(246,241,233,.25);color:#f6f1e9;text-decoration:none")}>Llámanos</a>
+                        <a href={`tel:${L.tel}`} style={sx("font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:9px 16px;border-radius:100px;border:1px solid rgba(246,241,233,.25);color:#f6f1e9;text-decoration:none")}>{t("pedir.llamanos")}</a>
                       ) : item.soloLocal ? (
-                        <span style={sx("font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:9px 16px;border-radius:100px;border:1px dashed rgba(246,241,233,.25);color:rgba(246,241,233,.55)")}>Solo en el local</span>
+                        <span style={sx("font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:9px 16px;border-radius:100px;border:1px dashed rgba(246,241,233,.25);color:rgba(246,241,233,.55)")}>{t("pedir.soloLocal")}</span>
                       ) : (
                         <button onClick={() => setModalItem({ catId: categoria.id, item })} style={{ ...sx("font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.05em;padding:9px 20px;border-radius:100px;border:0;cursor:pointer"), background: `rgb(${rgb})`, color: "#0a0806" }}>
-                          Añadir +
+                          {t("pedir.anadir")}
                         </button>
                       )}
                     </div>
@@ -270,8 +278,8 @@ export default function PedirPage() {
       {totalQty > 0 && !drawer && (
         <div style={sx("position:fixed;left:0;right:0;bottom:0;z-index:40;padding:14px clamp(16px,4vw,34px);background:rgba(10,8,6,.92);backdrop-filter:blur(10px);border-top:1px solid rgba(246,241,233,.1)")}>
           <button onClick={() => setDrawer(true)} style={{ ...sx("display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;max-width:560px;margin:0 auto;font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.05em;padding:16px 26px;border-radius:100px;border:0;cursor:pointer"), background: `rgb(${rgb})`, color: "#0a0806" }}>
-            <span>VER PEDIDO ({totalQty})</span>
-            <span>{fmtEUR(totalCents)} →</span>
+            <span>{t("pedir.verPedido", { n: totalQty })}</span>
+            <span>{fmtP(totalCents)} →</span>
           </button>
         </div>
       )}
@@ -284,7 +292,9 @@ export default function PedirPage() {
 
 // ── Modal de opciones (tamaño, acompañamiento, extras, pan, cantidad, nota) ──
 function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
-  const categoria = MENU.find((c) => c.id === catId);
+  const { t, idioma } = useI18n();
+  const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
+  const categoria = menuPedir(idioma).find((c) => c.id === catId);
   const descuentoItem = carta?.[item.id]?.descuento || 0;
   const [variantId, setVariantId] = useState(item.variants[0].id);
   const [upgradeId, setUpgradeId] = useState("no");
@@ -302,27 +312,27 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
     sx(`display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-radius:12px;cursor:pointer;font-size:14.5px;border:1px solid ${checked ? `rgb(${rgb})` : "rgba(246,241,233,.15)"};background:${checked ? `rgb(${rgb} / .1)` : "transparent"};color:#f6f1e9`);
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`Opciones de ${item.name}`} onClick={onClose} style={sx("position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;background:rgba(5,4,3,.72);backdrop-filter:blur(4px)")}>
+    <div role="dialog" aria-modal="true" aria-label={t("pedir.opcionesDe", { name: item.name })} onClick={onClose} style={sx("position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center;background:rgba(5,4,3,.72);backdrop-filter:blur(4px)")}>
       <div onClick={(e) => e.stopPropagation()} style={sx("width:min(560px,100%);max-height:88vh;overflow:auto;background:#120e0a;border:1px solid rgba(246,241,233,.14);border-radius:22px 22px 0 0;padding:26px;animation:ltb-rise .3s both")}>
         <div style={sx("display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:4px")}>
           <h3 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:26px;text-transform:uppercase")}>{item.name}</h3>
-          <button onClick={onClose} aria-label="Cerrar" style={sx("width:38px;height:38px;border-radius:50%;border:1px solid rgba(246,241,233,.2);background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>✕</button>
+          <button onClick={onClose} aria-label={t("pedir.cerrar")} style={sx("width:38px;height:38px;border-radius:50%;border:1px solid rgba(246,241,233,.2);background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>✕</button>
         </div>
         <p style={sx("margin:0 0 18px;font-size:13.5px;line-height:1.5;color:rgba(246,241,233,.68)")}>{item.desc}</p>
 
         {item.variants.length > 1 && (
           <div style={sx("margin-bottom:18px")}>
-            <span style={labelStyle}>Elige</span>
+            <span style={labelStyle}>{t("pedir.elige")}</span>
             <div style={sx("display:flex;flex-direction:column;gap:8px")}>
               {item.variants.map((v) => (
                 <label key={v.id} style={radio(variantId === v.id)}>
                   <span style={sx("display:inline-flex;align-items:center;gap:10px")}>
                     <input type="radio" name="variant" checked={variantId === v.id} onChange={() => setVariantId(v.id)} />
-                    {v.label}
+                    {tEtiqueta(v.label, idioma)}
                   </span>
                   <strong style={{ ...sx("display:inline-flex;align-items:baseline;gap:7px"), color: `rgb(${rgb})` }}>
-                    {descuentoItem > 0 && <s style={sx("font-size:12px;color:rgba(246,241,233,.4)")}>{fmtEUR(v.cents)}</s>}
-                    {fmtEUR(conDescuento(v.cents, descuentoItem))}
+                    {descuentoItem > 0 && <s style={sx("font-size:12px;color:rgba(246,241,233,.4)")}>{fmtP(v.cents)}</s>}
+                    {fmtP(conDescuento(v.cents, descuentoItem))}
                   </strong>
                 </label>
               ))}
@@ -332,15 +342,15 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
 
         {categoria?.upgrades && (
           <div style={sx("margin-bottom:18px")}>
-            <span style={labelStyle}>Elige tu acompañamiento</span>
+            <span style={labelStyle}>{t("pedir.acompanamiento")}</span>
             <div style={sx("display:flex;flex-direction:column;gap:8px")}>
               {UPGRADES.map((u) => (
                 <label key={u.id} style={radio(upgradeId === u.id)}>
                   <span style={sx("display:inline-flex;align-items:center;gap:10px")}>
                     <input type="radio" name="upgrade" checked={upgradeId === u.id} onChange={() => setUpgradeId(u.id)} />
-                    {u.label}
+                    {tEtiqueta(u.label, idioma)}
                   </span>
-                  <strong style={{ color: `rgb(${rgb})` }}>{u.cents ? `+${fmtEUR(u.cents)}` : ""}</strong>
+                  <strong style={{ color: `rgb(${rgb})` }}>{u.cents ? `+${fmtP(u.cents)}` : ""}</strong>
                 </label>
               ))}
             </div>
@@ -349,15 +359,15 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
 
         {categoria?.panes && (
           <div style={sx("margin-bottom:18px")}>
-            <span style={labelStyle}>Elige tu pan</span>
+            <span style={labelStyle}>{t("pedir.pan")}</span>
             <div style={sx("display:flex;flex-direction:column;gap:8px")}>
               {PANES.map((p) => (
                 <label key={p.id} style={radio(panId === p.id)}>
                   <span style={sx("display:inline-flex;align-items:center;gap:10px")}>
                     <input type="radio" name="pan" checked={panId === p.id} onChange={() => setPanId(p.id)} />
-                    {p.label}
+                    {tEtiqueta(p.label, idioma)}
                   </span>
-                  <strong style={{ color: `rgb(${rgb})` }}>{p.cents ? `+${fmtEUR(p.cents)}` : ""}</strong>
+                  <strong style={{ color: `rgb(${rgb})` }}>{p.cents ? `+${fmtP(p.cents)}` : ""}</strong>
                 </label>
               ))}
             </div>
@@ -366,7 +376,7 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
 
         {categoria?.extras && (
           <div style={sx("margin-bottom:18px")}>
-            <span style={labelStyle}>Extras {extraIds.length > 0 ? `(${extraIds.length})` : "(opcional)"}</span>
+            <span style={labelStyle}>{t("pedir.extras")} {extraIds.length > 0 ? `(${extraIds.length})` : t("pedir.opcionalParen")}</span>
             <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,225px),1fr));gap:8px")}>
               {EXTRAS.map((e) => {
                 const on = extraIds.includes(e.id);
@@ -374,9 +384,9 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
                   <label key={e.id} style={{ ...radio(on), padding: "9px 12px", fontSize: "13px" }}>
                     <span style={sx("display:inline-flex;align-items:center;gap:8px")}>
                       <input type="checkbox" checked={on} onChange={() => toggleExtra(e.id)} />
-                      {e.label}
+                      {tEtiqueta(e.label, idioma)}
                     </span>
-                    <strong style={{ color: `rgb(${rgb})`, whiteSpace: "nowrap" }}>+{fmtEUR(e.cents)}</strong>
+                    <strong style={{ color: `rgb(${rgb})`, whiteSpace: "nowrap" }}>+{fmtP(e.cents)}</strong>
                   </label>
                 );
               })}
@@ -385,21 +395,21 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
         )}
 
         <div style={sx("margin-bottom:18px")}>
-          <span style={labelStyle}>Notas (sin cebolla, punto de la carne…)</span>
-          <input value={nota} onChange={(e) => setNota(e.target.value.slice(0, 140))} placeholder={item.notaHint || categoria?.notaHint || "Opcional"} style={inputStyle} />
+          <span style={labelStyle}>{t("pedir.notasItem")}</span>
+          <input value={nota} onChange={(e) => setNota(e.target.value.slice(0, 140))} placeholder={item.notaHint || categoria?.notaHint || t("pedir.opcional")} style={inputStyle} />
         </div>
 
         <div style={sx("display:flex;align-items:center;gap:14px")}>
           <div style={sx("display:inline-flex;align-items:center;gap:0;border:1px solid rgba(246,241,233,.2);border-radius:100px;overflow:hidden")}>
-            <button onClick={() => setQtyN((q) => Math.max(1, q - 1))} aria-label="Menos" style={sx("width:44px;height:44px;border:0;background:transparent;color:#f6f1e9;font-size:20px;cursor:pointer")}>−</button>
+            <button onClick={() => setQtyN((q) => Math.max(1, q - 1))} aria-label={t("pedir.menos")} style={sx("width:44px;height:44px;border:0;background:transparent;color:#f6f1e9;font-size:20px;cursor:pointer")}>−</button>
             <span style={sx("min-width:34px;text-align:center;font-family:'Anton',sans-serif;font-size:18px")}>{qty}</span>
-            <button onClick={() => setQtyN((q) => Math.min(20, q + 1))} aria-label="Más" style={sx("width:44px;height:44px;border:0;background:transparent;color:#f6f1e9;font-size:20px;cursor:pointer")}>+</button>
+            <button onClick={() => setQtyN((q) => Math.min(20, q + 1))} aria-label={t("pedir.mas")} style={sx("width:44px;height:44px;border:0;background:transparent;color:#f6f1e9;font-size:20px;cursor:pointer")}>+</button>
           </div>
           <button
             onClick={() => onAdd({ itemId: item.id, variantId, upgradeId, extraIds, panId, qty, nota: nota.trim() })}
             style={{ ...sx("flex:1;font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.05em;padding:15px 20px;border-radius:100px;border:0;cursor:pointer"), background: `rgb(${rgb})`, color: "#0a0806" }}
           >
-            AÑADIR · {priced ? fmtEUR(priced.lineCents) : "—"}
+            {t("pedir.anadirPrecio", { p: priced ? fmtP(priced.lineCents) : "—" })}
           </button>
         </div>
       </div>
@@ -409,6 +419,8 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
 
 // ── Carrito + checkout ───────────────────────────────────────────────────────
 function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, ahora, totalCents, onClose, onDone }) {
+  const { t, idioma } = useI18n();
+  const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
   const [nombre, setNombre] = useState(localStorage.getItem("ltb_nombre") || "");
   const [telefono, setTelefono] = useState(localStorage.getItem("ltb_telefono") || "");
   const [nota, setNota] = useState("");
@@ -432,7 +444,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
 
   // Programación: franjas disponibles (hoy y mañana). Si el local está cerrado
   // y se puede programar, se fuerza esta opción.
-  const franjas = useMemo(() => (programar ? franjasProgramables(loc, ahora) : []), [programar, loc, ahora]);
+  const franjas = useMemo(() => (programar ? franjasProgramables(loc, ahora, idioma) : []), [programar, loc, ahora, idioma]);
   const hayFranjas = franjas.some((d) => d.horas.length > 0);
   const cerrado = !estado?.abierto;
   const debeProgramar = cerrado && programar && hayFranjas;
@@ -455,10 +467,10 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
 
   const enviar = async () => {
     setError(null);
-    if (nombre.trim().length < 2) return setError("Dinos tu nombre para el pedido.");
-    if (!/^\+?[\d\s.-]{9,17}$/.test(telefono.trim())) return setError("Escribe un teléfono válido (9 dígitos).");
-    if (esDomicilio && calle.trim().length < 6) return setError("Escribe la calle y el número de entrega.");
-    if (programado && !slotIso) return setError("Elige la hora para tu pedido programado.");
+    if (nombre.trim().length < 2) return setError(t("pedir.err.nombre"));
+    if (!/^\+?[\d\s.-]{9,17}$/.test(telefono.trim())) return setError(t("pedir.err.telefono"));
+    if (esDomicilio && calle.trim().length < 6) return setError(t("pedir.err.direccion"));
+    if (programado && !slotIso) return setError(t("pedir.err.hora"));
     setSending(true);
     try {
       const res = await fetch("/api/orders", {
@@ -478,7 +490,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "No se pudo enviar el pedido.");
+      if (!res.ok) throw new Error(data.error || t("pedir.err.generico"));
       localStorage.setItem("ltb_nombre", nombre.trim());
       localStorage.setItem("ltb_telefono", telefono.trim());
       if (esDomicilio) { localStorage.setItem("ltb_calle", calle.trim()); localStorage.setItem("ltb_piso", piso.trim()); }
@@ -497,16 +509,16 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Tu pedido" onClick={onClose} style={sx("position:fixed;inset:0;z-index:60;display:flex;justify-content:flex-end;background:rgba(5,4,3,.72);backdrop-filter:blur(4px)")}>
+    <div role="dialog" aria-modal="true" aria-label={t("pedir.tuPedido")} onClick={onClose} style={sx("position:fixed;inset:0;z-index:60;display:flex;justify-content:flex-end;background:rgba(5,4,3,.72);backdrop-filter:blur(4px)")}>
       <div onClick={(e) => e.stopPropagation()} style={sx("width:min(480px,100%);height:100%;overflow:auto;background:#120e0a;border-left:1px solid rgba(246,241,233,.14);padding:26px;display:flex;flex-direction:column;gap:18px")}>
         <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:12px")}>
-          <h3 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:26px;text-transform:uppercase")}>Tu pedido</h3>
-          <button onClick={onClose} aria-label="Cerrar" style={sx("width:38px;height:38px;border-radius:50%;border:1px solid rgba(246,241,233,.2);background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>✕</button>
+          <h3 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:26px;text-transform:uppercase")}>{t("pedir.tuPedido")}</h3>
+          <button onClick={onClose} aria-label={t("pedir.cerrar")} style={sx("width:38px;height:38px;border-radius:50%;border:1px solid rgba(246,241,233,.2);background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>✕</button>
         </div>
 
         {deliveryConf && (
           <div style={sx("display:flex;gap:8px")}>
-            {[{ id: "recogida", label: "🏃 Recogida" }, { id: "domicilio", label: "🛵 A domicilio" }].map((m) => (
+            {[{ id: "recogida", label: t("pedir.recogida") }, { id: "domicilio", label: t("pedir.domicilio") }].map((m) => (
               <button key={m.id} onClick={() => setEntrega(m.id)} style={sx(`flex:1;font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.03em;padding:12px 10px;border-radius:100px;cursor:pointer;border:1px solid ${entrega === m.id ? `rgb(${rgb})` : "rgba(246,241,233,.18)"};background:${entrega === m.id ? `rgb(${rgb})` : "transparent"};color:${entrega === m.id ? "#0a0806" : "#f6f1e9"}`)}>
                 {m.label}
               </button>
@@ -516,20 +528,20 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
 
         <div style={sx("font-size:13px;color:rgba(246,241,233,.65)")}>
           {esDomicilio ? (
-            <>🛵 Entrega a domicilio — zona: <strong style={{ color: `rgb(${rgb})` }}>{deliveryConf.zona}</strong><br />🚚 Gastos de envío: {fmtEUR(deliveryConf.gastosCents)}</>
+            <>{t("pedir.entregaZona")} <strong style={{ color: `rgb(${rgb})` }}>{deliveryConf.zona}</strong><br />{t("pedir.gastosEnvio")} {fmtP(deliveryConf.gastosCents)}</>
           ) : (
-            <>📍 Recogida en <strong style={{ color: `rgb(${rgb})` }}>{L.name}</strong> — {L.address}<br />💳 Pago seguro online por adelantado</>
+            <>{t("pedir.recogidaEn")} <strong style={{ color: `rgb(${rgb})` }}>{L.name}</strong> — {L.address}<br />{t("pedir.pagoSeguroLinea")}</>
           )}
         </div>
 
         {esDomicilio && (
           <div style={sx("display:flex;flex-direction:column;gap:10px")}>
             <div>
-              <span style={labelStyle}>Calle y número *</span>
+              <span style={labelStyle}>{t("pedir.calle")}</span>
               <input value={calle} onChange={(e) => setCalle(e.target.value.slice(0, 160))} placeholder="Av. del Mediterráneo 139" autoComplete="street-address" style={inputStyle} />
             </div>
             <div>
-              <span style={labelStyle}>Piso / puerta (opcional)</span>
+              <span style={labelStyle}>{t("pedir.piso")}</span>
               <input value={piso} onChange={(e) => setPiso(e.target.value.slice(0, 60))} placeholder="3ºB, portal 2…" style={inputStyle} />
             </div>
           </div>
@@ -538,17 +550,17 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
         {/* ¿Cuándo? Lo antes posible o programado (pestañas de día + chips de hora). */}
         {programar && hayFranjas && (
           <div style={sx("border:1px solid rgba(246,241,233,.14);border-radius:16px;padding:16px;background:#0d0a07")}>
-            <span style={labelStyle}>¿Para cuándo?</span>
+            <span style={labelStyle}>{t("pedir.cuando")}</span>
             {!debeProgramar ? (
               <div style={sx("display:flex;gap:8px")}>
-                {[{ id: "asap", label: "🔥 Lo antes posible" }, { id: "programado", label: "⏰ Programar" }].map((m) => (
+                {[{ id: "asap", label: t("pedir.asap") }, { id: "programado", label: t("pedir.programar") }].map((m) => (
                   <button key={m.id} onClick={() => setCuando(m.id)} disabled={m.id === "asap" && cerrado} style={sx(`flex:1;font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.03em;padding:13px 8px;border-radius:12px;cursor:pointer;transition:all .2s;border:1px solid ${modo === m.id ? `rgb(${rgb})` : "rgba(246,241,233,.18)"};background:${modo === m.id ? `rgb(${rgb})` : "transparent"};color:${modo === m.id ? "#0a0806" : "#f6f1e9"};opacity:${m.id === "asap" && cerrado ? 0.4 : 1}`)}>
                     {m.label}
                   </button>
                 ))}
               </div>
             ) : (
-              <p style={sx("margin:0 0 4px;font-size:13px;line-height:1.5;color:rgba(246,241,233,.7)")}>🌙 Ahora estamos cerrados — <strong>deja tu pedido programado</strong> y lo tendremos listo a la hora que elijas.</p>
+              <p style={sx("margin:0 0 4px;font-size:13px;line-height:1.5;color:rgba(246,241,233,.7)")}>{t("pedir.cerradoProgramar")}</p>
             )}
 
             {programado && diaSel && (
@@ -578,7 +590,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
                   })}
                 </div>
                 {slotIso && (
-                  <p style={sx("margin:12px 0 0;font-size:13.5px;color:rgba(246,241,233,.75)")}>⏰ Listo <strong style={{ color: `rgb(${rgb})` }}>{programadoTexto(slotIso, ahora)}</strong></p>
+                  <p style={sx("margin:12px 0 0;font-size:13.5px;color:rgba(246,241,233,.75)")}>{t("pedir.listoA")} <strong style={{ color: `rgb(${rgb})` }}>{programadoTexto(slotIso, ahora, idioma)}</strong></p>
                 )}
               </div>
             )}
@@ -593,81 +605,81 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
               return (
                 <div key={lineKey(l) + i} style={sx("display:flex;align-items:center;gap:12px;padding:14px;border-radius:14px;background:#0a0806;border:1px solid rgba(255,100,80,.4)")}>
                   <div style={sx("flex:1;font-size:13.5px;color:rgba(246,241,233,.7)")}>
-                    <s>{itemName(l.itemId)}</s> — agotado hoy 😔
+                    <s>{nombreItem(l.itemId, idioma, itemName(l.itemId))}</s> {t("pedir.agotadoQuitar")}
                   </div>
-                  <button onClick={() => setQty(i, 0)} style={sx("font-size:12px;font-weight:700;padding:8px 14px;border-radius:100px;border:1px solid rgba(255,100,80,.5);background:transparent;color:rgb(255,120,90);cursor:pointer")}>Quitar</button>
+                  <button onClick={() => setQty(i, 0)} style={sx("font-size:12px;font-weight:700;padding:8px 14px;border-radius:100px;border:1px solid rgba(255,100,80,.5);background:transparent;color:rgb(255,120,90);cursor:pointer")}>{t("pedir.quitar")}</button>
                 </div>
               );
             }
             return (
               <div key={lineKey(l) + i} style={sx("display:flex;align-items:flex-start;gap:12px;padding:14px;border-radius:14px;background:#0a0806;border:1px solid rgba(246,241,233,.1)")}>
                 <div style={sx("flex:1;min-width:0")}>
-                  <div style={sx("font-weight:700;font-size:14.5px")}>{p.name}{p.variant ? ` · ${p.variant}` : ""}</div>
-                  {p.upgrade && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>+ {p.upgrade}</div>}
-                  {p.pan && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>🍞 {p.pan}</div>}
-                  {p.extras.map((x) => <div key={x} style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>+ {x}</div>)}
+                  <div style={sx("font-weight:700;font-size:14.5px")}>{nombreItem(l.itemId, idioma, p.name)}{p.variant ? ` · ${tEtiqueta(p.variant, idioma)}` : ""}</div>
+                  {p.upgrade && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>+ {tEtiqueta(p.upgrade, idioma)}</div>}
+                  {p.pan && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>🍞 {tEtiqueta(p.pan, idioma)}</div>}
+                  {p.extras.map((x) => <div key={x} style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>+ {tEtiqueta(x, idioma)}</div>)}
                   {p.descuento && <div style={sx("font-size:12.5px;font-weight:700;color:rgb(var(--emb))")}>🏷 −{p.descuento}% aplicado</div>}
                   {l.nota && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.6)")}>✎ {l.nota}</div>}
-                  <div style={{ ...sx("font-family:'Anton',sans-serif;font-size:16px;margin-top:4px"), color: `rgb(${rgb})` }}>{fmtEUR(p.lineCents)}</div>
+                  <div style={{ ...sx("font-family:'Anton',sans-serif;font-size:16px;margin-top:4px"), color: `rgb(${rgb})` }}>{fmtP(p.lineCents)}</div>
                 </div>
                 <div style={sx("display:inline-flex;align-items:center;border:1px solid rgba(246,241,233,.18);border-radius:100px")}>
-                  <button onClick={() => setQty(i, l.qty - 1)} aria-label="Menos" style={sx("width:34px;height:34px;border:0;background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>−</button>
+                  <button onClick={() => setQty(i, l.qty - 1)} aria-label={t("pedir.menos")} style={sx("width:34px;height:34px;border:0;background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>−</button>
                   <span style={sx("min-width:26px;text-align:center;font-size:14px;font-weight:700")}>{l.qty}</span>
-                  <button onClick={() => setQty(i, l.qty + 1)} aria-label="Más" style={sx("width:34px;height:34px;border:0;background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>+</button>
+                  <button onClick={() => setQty(i, l.qty + 1)} aria-label={t("pedir.mas")} style={sx("width:34px;height:34px;border:0;background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>+</button>
                 </div>
               </div>
             );
           })}
-          {cart.length === 0 && <div style={sx("color:rgba(246,241,233,.55);font-size:14px")}>El carrito está vacío.</div>}
+          {cart.length === 0 && <div style={sx("color:rgba(246,241,233,.55);font-size:14px")}>{t("pedir.vacio")}</div>}
         </div>
 
         <div style={sx("border-top:1px dashed rgba(246,241,233,.18);padding-top:14px;display:flex;flex-direction:column;gap:6px")}>
           {envioCents > 0 && (
             <div style={sx("display:flex;justify-content:space-between;font-size:14px;color:rgba(246,241,233,.72)")}>
-              <span>Envío</span><span>{fmtEUR(envioCents)}</span>
+              <span>{t("pedir.envio")}</span><span>{fmtP(envioCents)}</span>
             </div>
           )}
           <div style={sx("display:flex;justify-content:space-between;font-family:'Anton',sans-serif;font-size:22px")}>
-            <span>TOTAL</span>
-            <span style={{ color: `rgb(${rgb})` }}>{fmtEUR(totalFinal)}</span>
+            <span>{t("pedir.total")}</span>
+            <span style={{ color: `rgb(${rgb})` }}>{fmtP(totalFinal)}</span>
           </div>
         </div>
 
         {faltaMinimo && (
           <div style={sx("padding:12px 16px;border-radius:12px;border:1px solid rgb(var(--acc) / .5);background:rgb(var(--acc) / .08);font-size:13.5px;color:#f6f1e9")}>
-            🍔 El pedido mínimo {esDomicilio ? "a domicilio" : "online"} es de <strong>{fmtEUR(minimoCents)}</strong> — te faltan {fmtEUR(minimoCents - totalCents)}.
+            {t("pedir.minimo", { tipo: esDomicilio ? t("pedir.tipoDomicilio") : t("pedir.tipoOnline"), min: fmtP(minimoCents), falta: fmtP(minimoCents - totalCents) })}
           </div>
         )}
 
         <div>
-          <span style={labelStyle}>Tu nombre *</span>
+          <span style={labelStyle}>{t("pedir.nombre")}</span>
           <input value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="name" style={inputStyle} />
         </div>
         <div>
-          <span style={labelStyle}>Teléfono * (te llamamos si hay dudas)</span>
+          <span style={labelStyle}>{t("pedir.telefono")}</span>
           <input value={telefono} onChange={(e) => setTelefono(e.target.value)} inputMode="tel" autoComplete="tel" style={inputStyle} />
         </div>
         <div>
-          <span style={labelStyle}>Notas para el local</span>
-          <input value={nota} onChange={(e) => setNota(e.target.value.slice(0, 300))} placeholder="Opcional" style={inputStyle} />
+          <span style={labelStyle}>{t("pedir.notasLocal")}</span>
+          <input value={nota} onChange={(e) => setNota(e.target.value.slice(0, 300))} placeholder={t("pedir.opcional")} style={inputStyle} />
         </div>
 
         {/* Honeypot: invisible y fuera del orden de tabulación; los bots lo rellenan */}
         <div aria-hidden="true" style={sx("position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden")}>
           <label>
-            Deja este campo vacío
+            {/* honeypot */}
             <input type="text" name="web" tabIndex={-1} autoComplete="off" value={web} onChange={(e) => setWeb(e.target.value)} />
           </label>
         </div>
 
         {!pagos && (
           <div style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.4);background:rgba(255,92,40,.08);color:#f6f1e9;font-size:14px")}>
-            Los pedidos online no están disponibles ahora mismo. Llámanos y te atendemos: {L.phone}.
+            {t("pedir.noDisponible", { phone: L.phone })}
           </div>
         )}
         {pagos && cerrado && !programado && (
           <div style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.4);background:rgba(255,92,40,.08);color:#f6f1e9;font-size:14px")}>
-            {estado?.mensaje} — {estado?.detalle}.{programar && hayFranjas ? " Puedes dejar tu pedido programado ⏰." : ` Horario: ${horarioTexto()}.`}
+            {estado?.mensaje} — {estado?.detalle}. {programar && hayFranjas ? t("pedir.puedesProgramar") : t("pedir.cerradoAviso", { horario: horarioTexto() })}
           </div>
         )}
         {error && (
@@ -681,15 +693,14 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
           disabled={sending || cart.length === 0 || !puedeEnviar || faltaMinimo}
           style={{ ...sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.05em;padding:17px 20px;border-radius:100px;border:0;cursor:pointer;transition:opacity .2s"), background: `rgb(${rgb})`, color: "#0a0806", opacity: sending || cart.length === 0 || !puedeEnviar || faltaMinimo ? 0.45 : 1 }}
         >
-          {sending ? "ENVIANDO…" : `💳 PAGAR ${fmtEUR(totalFinal)}`}
+          {sending ? t("pedir.enviando") : t("pedir.enviar", { total: fmtP(totalFinal) })}
         </button>
+        <p style={sx("margin:0;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.5)")}>{t("pedir.legalPago")}</p>
         <p style={sx("margin:0;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.5)")}>
-          💳 Pago seguro por adelantado: tarjeta, Bizum, Apple Pay o Google Pay. Si el local no pudiera preparar
-          tu pedido, se te devuelve el importe automáticamente.
-        </p>
-        <p style={sx("margin:0;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.5)")}>
-          Al pagar aceptas los <a href="/condiciones" style={sx("color:rgba(246,241,233,.7)")}>términos y condiciones</a> (cancelaciones y reembolsos incluidos).
-          Usamos tu nombre y teléfono solo para gestionar este pedido — más info en <a href="/privacidad" style={sx("color:rgba(246,241,233,.7)")}>privacidad</a>.
+          {t("pedir.legalTerminosA")}
+          <a href="/condiciones" style={sx("color:rgba(246,241,233,.7)")}>{t("pedir.legalTerminosLink")}</a>
+          {t("pedir.legalTerminosB")}
+          <a href="/privacidad" style={sx("color:rgba(246,241,233,.7)")}>{t("pedir.legalPrivacidad")}</a>.
         </p>
       </div>
     </div>
@@ -698,6 +709,8 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
 
 // ── Seguimiento del pedido enviado ───────────────────────────────────────────
 function Seguimiento({ pedido, onNuevo }) {
+  const { t, idioma } = useI18n();
+  const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
   const [info, setInfo] = useState(null);
   const [caido, setCaido] = useState(false);
   const timer = useRef(null);
@@ -731,34 +744,40 @@ function Seguimiento({ pedido, onNuevo }) {
     : null;
 
   const pagoEstado = info?.pago_estado || null;
-  const progTxt = info?.programado_para ? programadoTexto(info.programado_para) : null;
+  const progTxt = info?.programado_para ? programadoTexto(info.programado_para, new Date(), idioma) : null;
   const PASOS = {
     nuevo: progTxt
-      ? { emoji: "⏰", titulo: "Pedido programado", texto: `Lo tendremos listo ${progTxt}. Te avisamos por aquí cuando lo pongamos en plancha.` }
-      : { emoji: "📨", titulo: "Pedido enviado", texto: "El local lo está revisando. En un momento te confirmamos por aquí." },
-    aceptado: { emoji: "🔥", titulo: "¡Confirmado! Ya está en plancha", texto: readyLabel ? `Estará listo sobre las ${readyLabel}.` : (progTxt ? `Lo tendrás listo ${progTxt}.` : "Te avisamos aquí cuando esté listo.") },
+      ? { emoji: "⏰", titulo: t("pedir.seg.progT"), texto: t("pedir.seg.progD", { cuando: progTxt }) }
+      : { emoji: "📨", titulo: t("pedir.seg.nuevoT"), texto: t("pedir.seg.nuevoD") },
+    aceptado: {
+      emoji: "🔥",
+      titulo: t("pedir.seg.aceptadoT"),
+      texto: readyLabel
+        ? t("pedir.seg.aceptadoD", { hora: readyLabel })
+        : progTxt
+        ? t("pedir.seg.aceptadoDprog", { cuando: progTxt })
+        : t("pedir.seg.aceptadoDsin"),
+    },
     lista: info?.entrega === "domicilio"
-      ? { emoji: "🛵", titulo: "¡Va de camino!", texto: "Tu pedido acaba de salir hacia tu dirección." }
-      : { emoji: "✅", titulo: "¡Listo para recoger!", texto: "Pásate por el local, te esperamos." },
-    entregado: { emoji: "🍔", titulo: "Entregado", texto: "¡Que aproveche! Nos vemos pronto." },
+      ? { emoji: "🛵", titulo: t("pedir.seg.caminoT"), texto: t("pedir.seg.caminoD") }
+      : { emoji: "✅", titulo: t("pedir.seg.listaT"), texto: t("pedir.seg.listaD") },
+    entregado: { emoji: "🍔", titulo: t("pedir.seg.entregadoT"), texto: t("pedir.seg.entregadoD") },
     rechazado: {
       emoji: "😔",
-      titulo: "No hemos podido aceptarlo",
-      texto: pagoEstado === "reembolsado"
-        ? "Lo sentimos — te hemos devuelto el importe (lo verás en tu banco en 1-3 días). Llámanos si quieres y lo resolvemos."
-        : `Lo sentimos — llámanos al ${L?.phone} y lo resolvemos.`,
+      titulo: t("pedir.seg.rechazadoT"),
+      texto: pagoEstado === "reembolsado" ? t("pedir.seg.rechazadoDrf") : t("pedir.seg.rechazadoD", { phone: L?.phone }),
     },
-    no_recogido: { emoji: "📦", titulo: "Quedó sin recoger", texto: `Este pedido no llegó a recogerse. Si hubo un problema, llámanos al ${L?.phone}.` },
+    no_recogido: { emoji: "📦", titulo: t("pedir.seg.noRecogidoT"), texto: t("pedir.seg.noRecogidoD", { phone: L?.phone }) },
     pendiente_pago: pagoEstado === "fallido"
-      ? { emoji: "💳", titulo: "El pago no se completó", texto: "Tranquilo: no se te ha cobrado. Vuelve a hacer el pedido — y si lo prefieres, elige pagar al recoger." }
-      : { emoji: "⏳", titulo: "Confirmando el pago…", texto: "Un momento — estamos confirmando el cobro con el banco. Esta pantalla se actualiza sola." },
+      ? { emoji: "💳", titulo: t("pedir.seg.pagoFalloT"), texto: t("pedir.seg.pagoFalloD") }
+      : { emoji: "⏳", titulo: t("pedir.seg.confirmandoT"), texto: t("pedir.seg.confirmandoD") },
   };
   const paso = PASOS[status] || PASOS.nuevo;
 
   // Enlace universal de seguimiento — se comparte por WhatsApp para reabrirlo
   // desde cualquier dispositivo aunque se cierre el navegador.
   const urlSeguimiento = `${window.location.origin}/pedir?p=${pedido.id}.${pedido.code}`;
-  const waHref = `https://wa.me/?text=${encodeURIComponent(`Mi pedido en La Terracita Burger 🍔 nº ${pedido.code} — seguimiento: ${urlSeguimiento}`)}`;
+  const waHref = `https://wa.me/?text=${encodeURIComponent(t("pedir.seg.waMsg", { code: pedido.code, url: urlSeguimiento }))}`;
 
   return (
     <div style={sx("min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 5vw;text-align:center")}>
@@ -774,7 +793,7 @@ function Seguimiento({ pedido, onNuevo }) {
         <p style={sx("margin:0 0 22px;font-size:15px;line-height:1.55;color:rgba(246,241,233,.7)")}>{paso.texto}</p>
 
         <div style={sx("display:inline-flex;flex-direction:column;gap:4px;padding:16px 30px;border-radius:16px;border:1px dashed rgba(246,241,233,.25);margin-bottom:16px")}>
-          <span style={sx("font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Tu número de pedido</span>
+          <span style={sx("font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>{t("pedir.seg.numero")}</span>
           <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:44px;line-height:1"), color: `rgb(${rgb})` }}>{pedido.code}</span>
         </div>
 
@@ -786,23 +805,23 @@ function Seguimiento({ pedido, onNuevo }) {
               rel="noreferrer"
               style={sx("display:inline-flex;align-items:center;gap:9px;font-size:14px;font-weight:700;padding:12px 22px;border-radius:100px;background:#25d366;color:#0a0806;text-decoration:none")}
             >
-              💬 Guardar seguimiento en WhatsApp
+              {t("pedir.seg.wa")}
             </a>
             <div style={sx("margin-top:8px;font-size:11.5px;color:rgba(246,241,233,.45)")}>
-              Envíatelo a ti mismo y podrás abrir este seguimiento desde donde quieras.
+              {t("pedir.seg.waNota")}
             </div>
           </div>
         )}
 
         <div style={sx("font-size:14px;line-height:1.6;color:rgba(246,241,233,.7)")}>
           {info?.entrega === "domicilio"
-            ? <>🛵 Entrega a domicilio: <strong style={sx("color:#f6f1e9")}>{info?.direccion}</strong></>
+            ? <>{t("pedir.seg.entregaDom")} <strong style={sx("color:#f6f1e9")}>{info?.direccion}</strong></>
             : <>📍 {L?.name} — {L?.address}</>}<br />
           📞 <a href={`tel:${L?.tel}`} style={{ color: `rgb(${rgb})`, textDecoration: "none", fontWeight: 700 }}>{L?.phone}</a>
           {info?.total_cents != null && (
-            pagoEstado === "reembolsado" ? <><br />↩️ Importe devuelto: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong> (1-3 días en tu banco)</>
-            : pagoEstado === "reembolso_parcial" ? <><br />💳 Pagado: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong> · ↩️ devuelto {fmtEUR(info.reembolsado_cents || 0)}</>
-            : <><br />💳 Pagado online: <strong style={sx("color:#f6f1e9")}>{fmtEUR(info.total_cents)}</strong></>
+            pagoEstado === "reembolsado" ? <><br />{t("pedir.seg.devuelto", { t: fmtP(info.total_cents) })}</>
+            : pagoEstado === "reembolso_parcial" ? <><br />{t("pedir.seg.pagadoParcial", { t: fmtP(info.total_cents), d: fmtP(info.reembolsado_cents || 0) })}</>
+            : <><br />{t("pedir.seg.pagado", { t: fmtP(info.total_cents) })}</>
           )}
         </div>
 
@@ -813,21 +832,21 @@ function Seguimiento({ pedido, onNuevo }) {
             rel="noreferrer"
             style={{ ...sx("display:inline-flex;align-items:center;gap:9px;margin-top:20px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.03em;padding:14px 26px;border-radius:100px;text-decoration:none;color:#0a0806"), background: `rgb(${rgb})` }}
           >
-            ⭐ ¿Todo rico? Déjanos 5 estrellas
+            {t("pedir.seg.resena")}
           </a>
         )}
 
-        {caido && <p style={sx("margin:18px 0 0;font-size:12.5px;color:rgba(246,241,233,.5)")}>No podemos actualizar el estado ahora mismo — tu pedido sigue en marcha. Si tienes dudas, llámanos.</p>}
+        {caido && <p style={sx("margin:18px 0 0;font-size:12.5px;color:rgba(246,241,233,.5)")}>{t("pedir.seg.caido")}</p>}
         {!FINALES.includes(status) && !caido && (
           <p style={sx("margin:18px 0 0;font-size:12px;color:rgba(246,241,233,.45)")}>
             <span style={{ ...sx("display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px"), background: `rgb(${rgb})`, animation: "ltb-pulse 1.6s infinite" }} />
-            Esta página se actualiza sola — no hace falta recargar.
+            {t("pedir.seg.auto")}
           </p>
         )}
       </div>
 
       <button onClick={onNuevo} style={sx("margin-top:26px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;padding:12px 24px;border-radius:100px;border:1px solid rgba(246,241,233,.25);background:transparent;color:#f6f1e9;cursor:pointer")}>
-        Hacer otro pedido
+        {t("pedir.seg.otro")}
       </button>
     </div>
   );
