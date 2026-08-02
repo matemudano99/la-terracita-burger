@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { sx } from "./sx";
+import { useI18n } from "./i18n";
 
 const LOCS = {
   teatinos: {
@@ -9,7 +10,7 @@ const LOCS = {
     phone: "628 053 065",
     rating: "4,8",
     reviews: "567",
-    days: "Todos los días excepto martes",
+    days: "deliv.dias.teatinos",
     schedule: "13:00–16:00 · 20:00–23:30",
     rgb: "255 197 49",
     justeat: "https://www.just-eat.es/restaurants-la-terracita-teatinos-malaga/menu?serviceType=collection&utm_source=google&utm_medium=organic&utm_campaign=foodorder",
@@ -23,7 +24,7 @@ const LOCS = {
     phone: "622 220 826",
     rating: "4,7",
     reviews: "807",
-    days: "Todos los días",
+    days: "deliv.dias.todos",
     schedule: "13:00–16:00 · 20:00–23:30",
     rgb: "255 92 40",
     justeat: "https://www.just-eat.es/restaurants-la-terracita-rincon-de-la-victoria/menu?serviceType=collection&utm_source=google&utm_medium=organic&utm_campaign=foodorder",
@@ -39,15 +40,16 @@ const PLATFORMS = [
 ];
 
 export default function Delivery() {
+  const { t } = useI18n();
   const [loc, setLoc] = useState("teatinos");
   const L = LOCS[loc];
 
   return (
     <section id="pedidos" className="ltb-cv" style={sx("position:relative;z-index:2;padding:70px 5vw 90px;max-width:1200px;margin:0 auto")}>
       <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s;text-align:center;margin-bottom:8px")}>
-        <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>04 — A domicilio</div>
-        <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>Pídela en <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>casa</span></h2>
-        <p style={sx("max-width:520px;margin:18px auto 0;font-size:15.5px;line-height:1.55;color:rgba(246,241,233,.62)")}>Pide en nuestra web para recoger sin comisiones, llámanos, o pide a domicilio por tu app favorita.</p>
+        <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>{t("deliv.kicker")}</div>
+        <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>{t("deliv.h2a")} <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>{t("deliv.h2b")}</span></h2>
+        <p style={sx("max-width:520px;margin:18px auto 0;font-size:15.5px;line-height:1.55;color:rgba(246,241,233,.62)")}>{t("deliv.claim")}</p>
       </div>
 
       {/* Location selector — big, obvious difference */}
@@ -86,14 +88,14 @@ export default function Delivery() {
         <div style={{ ...sx("position:absolute;top:-45%;right:-12%;width:64%;height:180%;pointer-events:none;filter:blur(24px)"), background: `radial-gradient(circle, rgb(${L.rgb} / .18), transparent 62%)` }} />
 
         <div style={{ ...sx("display:inline-flex;align-items:center;gap:9px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;padding:7px 14px;border-radius:100px;margin-bottom:16px;position:relative"), color: `rgb(${L.rgb})`, border: `1px solid rgb(${L.rgb} / .5)` }}>
-          <span style={{ ...sx("width:8px;height:8px;border-radius:50%;animation:ltb-pulse 1.6s infinite"), background: `rgb(${L.rgb})` }} /> Pidiendo en
+          <span style={{ ...sx("width:8px;height:8px;border-radius:50%;animation:ltb-pulse 1.6s infinite"), background: `rgb(${L.rgb})` }} /> {t("deliv.pidiendoEn")}
         </div>
 
         <h3 style={{ ...sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(34px,6vw,64px);line-height:.92;text-transform:uppercase;position:relative"), color: `rgb(${L.rgb})` }}>{L.name}</h3>
 
         <div style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px;margin:18px 0 32px;font-size:14px;color:rgba(246,241,233,.72);position:relative")}>
           <span>📍 {L.address}</span>
-          <span>🕒 {L.days} · {L.schedule}</span>
+          <span>🕒 {t(L.days)} · {L.schedule}</span>
           <span style={sx("display:inline-flex;align-items:center;gap:7px")}>
             <span style={sx("display:inline-flex;gap:1px")}>
               {[0, 1, 2, 3, 4].map((s) => (
@@ -101,7 +103,7 @@ export default function Delivery() {
               ))}
             </span>
             <strong style={sx("color:#f6f1e9")}>{L.rating}</strong>
-            <span style={sx("color:rgba(246,241,233,.64)")}>({L.reviews} reseñas · Google)</span>
+            <span style={sx("color:rgba(246,241,233,.64)")}>{t("deliv.resenas", { n: L.reviews })}</span>
           </span>
         </div>
 
@@ -117,8 +119,8 @@ export default function Delivery() {
         >
           <span style={sx("position:relative;flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:14px;font-size:26px;background:rgba(10,8,6,.14)")}>🍔</span>
           <span style={sx("display:flex;flex-direction:column;gap:2px;flex:1;min-width:min(100%,220px)")}>
-            <span style={sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase")}>Pide online y recoge</span>
-            <span style={sx("font-size:13px;color:rgba(10,8,6,.72);font-weight:600")}>Sin comisiones — pago seguro online y recoges cuando quieras</span>
+            <span style={sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase")}>{t("deliv.pedirOnlineTitulo")}</span>
+            <span style={sx("font-size:13px;color:rgba(10,8,6,.72);font-weight:600")}>{t("deliv.pedirOnlineSub")}</span>
           </span>
           <span style={sx("font-family:'Anton',sans-serif;font-size:clamp(20px,3vw,26px);letter-spacing:.04em")}>PEDIR →</span>
         </a>
@@ -134,8 +136,8 @@ export default function Delivery() {
         >
           <span className="ltb-tel-ico" style={{ ...sx("position:relative;flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:14px;font-size:26px"), background: `rgb(${L.rgb})` }}>📞</span>
           <span style={sx("display:flex;flex-direction:column;gap:2px;flex:1;min-width:min(100%,220px)")}>
-            <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase"), color: `rgb(${L.rgb})` }}>Llámanos</span>
-            <span style={sx("font-size:13px;color:rgba(246,241,233,.6)")}>Sin comisiones — pide directo al local</span>
+            <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase"), color: `rgb(${L.rgb})` }}>{t("deliv.llamanos")}</span>
+            <span style={sx("font-size:13px;color:rgba(246,241,233,.6)")}>{t("deliv.llamanosSub")}</span>
           </span>
           <span style={sx("font-family:'Anton',sans-serif;font-size:clamp(22px,3.5vw,30px);letter-spacing:.04em")}>{L.phone} →</span>
         </a>
@@ -157,7 +159,7 @@ export default function Delivery() {
               <span style={{ ...sx("flex:none;display:grid;place-items:center;width:50px;height:50px;border-radius:14px;font-family:'Anton',sans-serif;font-size:24px;line-height:1"), background: p.brand, color: "#0a0806" }}>{p.name[0]}</span>
               <span style={sx("display:flex;flex-direction:column;gap:1px")}>
                 <span style={{ ...sx("font-weight:700;font-size:17px;letter-spacing:.01em"), color: p.brand }}>{p.name}</span>
-                <span style={sx("font-size:12.5px;color:rgba(246,241,233,.55)")}>Pedir ahora →</span>
+                <span style={sx("font-size:12.5px;color:rgba(246,241,233,.55)")}>{t("deliv.pedirAhora")}</span>
                 {p.key === "ubereats" && <span className="ltb-underline" style={{ background: p.brand }} />}
               </span>
               {p.key === "glovo" && <span className="ltb-scooter">🛵</span>}

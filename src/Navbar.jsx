@@ -2,15 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { sx } from "./sx";
 import { SITE } from "./site";
 import MarqueeBackdrop from "./MarqueeStrip";
+import LangSwitcher from "./LangSwitcher";
+import { useI18n } from "./i18n";
 import LtbMark from "./LtbMark";
 
 const LINKS = [
-  { href: "/pedir", label: "Pedir online" },
-  { href: "#del-mes", label: "Del mes" },
-  { href: "#carta", label: "Carta" },
-  { href: "#historia", label: "Historia" },
-  { href: "#locales", label: "Locales" },
-  { href: "#pedidos", label: "A domicilio" },
+  { href: "/pedir", key: "nav.pedirOnline" },
+  { href: "/carta", key: "nav.carta" },
+  { href: "#del-mes", key: "nav.delMes" },
+  { href: "#historia", key: "nav.historia" },
+  { href: "#locales", key: "nav.locales" },
+  { href: "#pedidos", key: "nav.domicilio" },
 ];
 
 const IgIcon = ({ size = 22 }) => (
@@ -27,6 +29,7 @@ const FbIcon = ({ size = 22 }) => (
 );
 
 export default function Navbar() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const logoRef = useRef(null);
   const menuRef = useRef(null);
@@ -64,7 +67,7 @@ export default function Navbar() {
         <button
           ref={logoRef}
           className="ltb-logo-btn"
-          aria-label="Abrir menú"
+          aria-label={t("nav.abrirMenu")}
           aria-expanded={open}
           aria-haspopup="dialog"
           onClick={() => setOpen(true)}
@@ -73,13 +76,16 @@ export default function Navbar() {
           <LtbMark size={19} style={{ color: "#f6f1e9" }} />
         </button>
 
-        <a
-          href="/pedir"
-          className="ltb-pedir"
-          style={sx("pointer-events:auto;font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:12px 26px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .45)")}
-        >
-          PEDIR
-        </a>
+        <div style={sx("display:flex;align-items:center;gap:10px;pointer-events:auto")}>
+          <LangSwitcher size="sm" style={{ background: "rgba(10,8,6,.72)", backdropFilter: "blur(6px)" }} />
+          <a
+            href="/pedir"
+            className="ltb-pedir"
+            style={sx("font-family:'Anton',sans-serif;font-size:14px;letter-spacing:.06em;padding:12px 26px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none;box-shadow:0 0 18px rgb(var(--acc) / .45)")}
+          >
+            {t("nav.pedir")}
+          </a>
+        </div>
       </nav>
 
       {/* Full-screen menu overlay */}
@@ -89,7 +95,7 @@ export default function Navbar() {
           <MarqueeBackdrop />
           <div style={sx("position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse 72% 62% at 50% 50%, rgb(10 8 6 / .93), rgb(10 8 6 / .55) 55%, transparent 82%)")} />
 
-          <button aria-label="Cerrar menú" onClick={close} style={sx("position:absolute;top:22px;right:clamp(14px,4vw,32px);z-index:3;width:48px;height:48px;border-radius:50%;border:1px solid rgb(var(--acc) / .3);background:rgba(14,11,8,.5);color:#f6f1e9;font-size:22px;line-height:1;cursor:pointer")}>✕</button>
+          <button aria-label={t("nav.cerrarMenu")} onClick={close} style={sx("position:absolute;top:22px;right:clamp(14px,4vw,32px);z-index:3;width:48px;height:48px;border-radius:50%;border:1px solid rgb(var(--acc) / .3);background:rgba(14,11,8,.5);color:#f6f1e9;font-size:22px;line-height:1;cursor:pointer")}>✕</button>
 
           <div onClick={(e) => e.stopPropagation()} style={sx("position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;gap:2px")}>
             {LINKS.map((l, i) => (
@@ -100,7 +106,7 @@ export default function Navbar() {
                 className="ltb-menu-link"
                 style={{ ...sx("font-family:'Anton',sans-serif;font-size:clamp(34px,7.5vw,60px);letter-spacing:.01em;text-transform:uppercase;color:#f6f1e9;text-decoration:none;line-height:1.06;padding:4px 8px"), animation: "ltb-rise .5s both", animationDelay: `${0.05 + i * 0.06}s` }}
               >
-                {l.label}
+                {t(l.key)}
               </a>
             ))}
 

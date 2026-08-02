@@ -1,26 +1,28 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { sx } from "../sx";
-import { displayCats } from "../menu";
+import { cartaEn } from "../menuI18n";
+import { useI18n } from "../i18n";
+import LangSwitcher from "../LangSwitcher";
 import { iconoDe, colorDe } from "./identidad";
 import LtbMark from "../LtbMark";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /carta — carta digital COMPLETA para ver en el local (se llega por QR).
 // Solo lectura: todas las categorías y productos con precios, incluidas las
-// bebidas de barril y demás que no se piden online. La fuente de datos es
-// src/menu.js (la misma que la portada y /pedir), así que siempre está
-// sincronizada. Diseño denso y con icono por plato: en móvil se ven muchos
-// platos de un vistazo y cada uno se distingue al instante.
+// bebidas de barril y demás que no se piden online. Los datos salen de
+// src/menu.js (misma fuente que la portada y /pedir) y las traducciones al
+// inglés de src/menuI18n.js. Diseño denso: en móvil se ven muchos platos a la
+// vez, y cada sección se distingue por su color.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CATS = displayCats();
-
 export default function CartaPage() {
+  const { t, idioma } = useI18n();
+  const CATS = useMemo(() => cartaEn(idioma), [idioma]);
   const [activa, setActiva] = useState(CATS[0]?.id);
 
   useEffect(() => {
-    document.title = "Carta — La Terracita Burger";
-  }, []);
+    document.title = idioma === "en" ? "Menu — La Terracita Burger" : "Carta — La Terracita Burger";
+  }, [idioma]);
 
   // Resalta en la barra la categoría visible al hacer scroll.
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function CartaPage() {
       if (el) obs.observe(el);
     });
     return () => obs.disconnect();
-  }, []);
+  }, [CATS]);
 
   // Mantiene visible la pastilla activa dentro de la barra deslizable.
   useEffect(() => {
@@ -51,38 +53,46 @@ export default function CartaPage() {
         <div style={sx("position:absolute;bottom:-16%;right:-10%;width:52vw;height:52vw;background:radial-gradient(circle,rgb(var(--emb) / .12),transparent 62%);filter:blur(30px)")} />
       </div>
 
-      {/* Cabecera compacta */}
-      <header style={sx("position:relative;z-index:2;text-align:center;padding:28px 20px 14px")}>
-        <a href="/" aria-label="Inicio" style={sx("display:inline-flex")}>
-          <LtbMark size={28} style={{ color: "#f6f1e9" }} />
-        </a>
-        <h1 style={sx("margin:12px 0 0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(34px,9vw,60px);line-height:.92;text-transform:uppercase")}>Nuestra <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>carta</span></h1>
-        <p style={sx("margin:10px auto 0;max-width:440px;font-size:12.5px;line-height:1.5;color:rgba(246,241,233,.55)")}>Smash burgers de Angus Dry Age · pan de patata · salsas caseras. Precios con IVA.</p>
+      {/* Cabecera compacta con el selector de idioma bien visible */}
+      <header style={sx("position:relative;z-index:2;text-align:center;padding:22px 20px 14px")}>
+        <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:1100px;margin:0 auto 14px")}>
+          <a href="/" aria-label={t("com.inicio")} style={sx("display:inline-flex")}>
+            <LtbMark size={26} style={{ color: "#f6f1e9" }} />
+          </a>
+          <LangSwitcher />
+        </div>
+        <h1 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(34px,9vw,60px);line-height:.92;text-transform:uppercase")}>
+          {t("carta.titulo1")} <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>{t("carta.titulo2")}</span>
+        </h1>
+        <p style={sx("margin:10px auto 0;max-width:440px;font-size:12.5px;line-height:1.5;color:rgba(246,241,233,.55)")}>{t("carta.claim")}</p>
       </header>
 
-      {/* Barra de categorías (sticky, con color por sección) */}
+      {/* Barra de categorías (sticky) + selector siempre accesible */}
       <nav style={sx("position:sticky;top:0;z-index:5;background:rgba(10,8,6,.92);backdrop-filter:blur(10px);border-top:1px solid rgba(246,241,233,.08);border-bottom:1px solid rgba(246,241,233,.08)")}>
-        <div style={sx("display:flex;gap:7px;overflow-x:auto;padding:10px clamp(12px,4vw,28px);max-width:1100px;margin:0 auto;-webkit-overflow-scrolling:touch;scrollbar-width:none")}>
-          {CATS.map((c) => {
-            const on = c.id === activa;
-            const col = colorDe(c.id);
-            return (
-              <a
-                key={c.id}
-                id={`pill-${c.id}`}
-                href={`#cat-${c.id}`}
-                style={{
-                  ...sx("flex:none;display:inline-flex;align-items:center;gap:6px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.03em;text-transform:uppercase;padding:8px 15px;border-radius:100px;text-decoration:none;transition:all .2s"),
-                  border: `1px solid ${on ? `rgb(${col})` : "rgba(246,241,233,.16)"}`,
-                  background: on ? `rgb(${col})` : "transparent",
-                  color: on ? "#0a0806" : "#f6f1e9",
-                }}
-              >
-                <span style={sx("font-size:14px;line-height:1")}>{iconoDe(c.id)}</span>
-                {c.label}
-              </a>
-            );
-          })}
+        <div style={sx("display:flex;align-items:center;gap:8px;max-width:1100px;margin:0 auto;padding:8px clamp(10px,3vw,28px)")}>
+          <div style={sx("display:flex;gap:7px;overflow-x:auto;flex:1;min-width:0;padding:2px 0;-webkit-overflow-scrolling:touch;scrollbar-width:none")}>
+            {CATS.map((c) => {
+              const on = c.id === activa;
+              const col = colorDe(c.id);
+              return (
+                <a
+                  key={c.id}
+                  id={`pill-${c.id}`}
+                  href={`#cat-${c.id}`}
+                  style={{
+                    ...sx("flex:none;display:inline-flex;align-items:center;gap:6px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.03em;text-transform:uppercase;padding:8px 15px;border-radius:100px;text-decoration:none;transition:all .2s"),
+                    border: `1px solid ${on ? `rgb(${col})` : "rgba(246,241,233,.16)"}`,
+                    background: on ? `rgb(${col})` : "transparent",
+                    color: on ? "#0a0806" : "#f6f1e9",
+                  }}
+                >
+                  <span style={sx("font-size:14px;line-height:1")}>{iconoDe(c.id)}</span>
+                  {c.label}
+                </a>
+              );
+            })}
+          </div>
+          <LangSwitcher size="sm" style={{ flex: "none" }} />
         </div>
       </nav>
 
@@ -100,7 +110,7 @@ export default function CartaPage() {
               </div>
               {cat.nota && <p style={sx("margin:0 0 4px;font-size:12px;line-height:1.45;color:rgba(246,241,233,.5)")}>{cat.nota}</p>}
 
-              {/* Filas compactas: icono · nombre+desc · precios */}
+              {/* Filas compactas: nombre + descripción · precios */}
               <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:8px;margin-top:12px")}>
                 {cat.items.map((item, i) => (
                   <div
@@ -111,7 +121,6 @@ export default function CartaPage() {
                       borderLeft: `3px solid rgb(${col} / .8)`, // franja de color = categoría
                     }}
                   >
-                    {/* Nombre + descripción */}
                     <div style={sx("flex:1;min-width:0")}>
                       <div style={sx("display:flex;align-items:baseline;gap:7px;flex-wrap:wrap")}>
                         <h3 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:17px;letter-spacing:.01em;text-transform:uppercase;line-height:1.15")}>{item.name}</h3>
@@ -124,7 +133,6 @@ export default function CartaPage() {
                       )}
                     </div>
 
-                    {/* Precios */}
                     <div style={sx("flex:none;text-align:right;display:flex;flex-direction:column;gap:2px;padding-left:4px")}>
                       {item.rows.map((row, ri) => (
                         <div key={ri} style={sx("display:flex;align-items:baseline;justify-content:flex-end;gap:5px;white-space:nowrap")}>
@@ -141,19 +149,19 @@ export default function CartaPage() {
         })}
 
         <p style={sx("margin:28px 0 0;font-size:12px;line-height:1.6;color:rgba(246,241,233,.55);text-align:center")}>
-          Toda modificación en hamburguesas y camperos se cobra como extra. Convierte tus patatas en boniatos por 1,90 € o en patatas con cheddar y bacon por 2,90 €.
-          <br />¿Alergias o intolerancias? Pregunta a nuestro equipo.
+          {t("carta.nota")}
+          <br />{t("carta.alergias")}
         </p>
 
         <div style={sx("margin:24px 0 0;text-align:center")}>
           <a href="/pedir" style={sx("display:inline-flex;align-items:center;gap:8px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:14px 30px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none")}>
-            🍔 Pedir online para recoger
+            🍔 {t("com.pedirOnline")}
           </a>
         </div>
       </main>
 
       <footer style={sx("position:relative;z-index:2;text-align:center;padding:24px 20px 36px;font-size:11.5px;color:rgba(246,241,233,.42)")}>
-        © 2026 La Terracita Burguer España SL · Teatinos · Rincón de la Victoria
+        {t("carta.footer")}
       </footer>
     </div>
   );
