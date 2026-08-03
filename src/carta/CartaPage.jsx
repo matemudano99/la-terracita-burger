@@ -67,32 +67,29 @@ export default function CartaPage() {
         <p style={sx("margin:10px auto 0;max-width:440px;font-size:12.5px;line-height:1.5;color:rgba(246,241,233,.55)")}>{t("carta.claim")}</p>
       </header>
 
-      {/* Barra de categorías (sticky) + selector siempre accesible */}
+      {/* Barra de categorías (sticky) */}
       <nav style={sx("position:sticky;top:0;z-index:5;background:rgba(10,8,6,.92);backdrop-filter:blur(10px);border-top:1px solid rgba(246,241,233,.08);border-bottom:1px solid rgba(246,241,233,.08)")}>
-        <div style={sx("display:flex;align-items:center;gap:8px;max-width:1100px;margin:0 auto;padding:8px clamp(10px,3vw,28px)")}>
-          <div style={sx("display:flex;gap:7px;overflow-x:auto;flex:1;min-width:0;padding:2px 0;-webkit-overflow-scrolling:touch;scrollbar-width:none")}>
-            {CATS.map((c) => {
-              const on = c.id === activa;
-              const col = colorDe(c.id);
-              return (
-                <a
-                  key={c.id}
-                  id={`pill-${c.id}`}
-                  href={`#cat-${c.id}`}
-                  style={{
-                    ...sx("flex:none;display:inline-flex;align-items:center;gap:6px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.03em;text-transform:uppercase;padding:8px 15px;border-radius:100px;text-decoration:none;transition:all .2s"),
-                    border: `1px solid ${on ? `rgb(${col})` : "rgba(246,241,233,.16)"}`,
-                    background: on ? `rgb(${col})` : "transparent",
-                    color: on ? "#0a0806" : "#f6f1e9",
-                  }}
-                >
-                  <span style={sx("font-size:14px;line-height:1")}>{iconoDe(c.id)}</span>
-                  {c.label}
-                </a>
-              );
-            })}
-          </div>
-          <LangSwitcher size="sm" style={{ flex: "none" }} />
+        <div style={sx("display:flex;gap:7px;overflow-x:auto;max-width:1100px;margin:0 auto;padding:10px clamp(10px,3vw,28px);-webkit-overflow-scrolling:touch;scrollbar-width:none")}>
+          {CATS.map((c) => {
+            const on = c.id === activa;
+            const col = colorDe(c.id);
+            return (
+              <a
+                key={c.id}
+                id={`pill-${c.id}`}
+                href={`#cat-${c.id}`}
+                style={{
+                  ...sx("flex:none;display:inline-flex;align-items:center;gap:6px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.03em;text-transform:uppercase;padding:8px 15px;border-radius:100px;text-decoration:none;transition:all .2s"),
+                  border: `1px solid ${on ? `rgb(${col})` : "rgba(246,241,233,.16)"}`,
+                  background: on ? `rgb(${col})` : "transparent",
+                  color: on ? "#0a0806" : "#f6f1e9",
+                }}
+              >
+                <span style={sx("font-size:14px;line-height:1")}>{iconoDe(c.id)}</span>
+                {c.label}
+              </a>
+            );
+          })}
         </div>
       </nav>
 
