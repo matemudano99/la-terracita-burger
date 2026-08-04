@@ -47,11 +47,28 @@ export default function CocinaPage() {
   const [vista, setVista] = useState("pedidos"); // "pedidos" | "carta"
   const [refundParcial, setRefundParcial] = useState(false); // ¿existe la columna acumuladora?
   const [pantallaOn, setPantallaOn] = useState(false); // ¿wake lock activo?
+  const [pausa, setPausa] = useState(null); // { pausado, motivo, desde } de este local
+  const [cerrando, setCerrando] = useState(false); // ¿modal de cierre abierto?
+  const [guardandoPausa, setGuardandoPausa] = useState(false);
   const audioCtx = useRef(null);
 
+  // Ajustes: si el local está cerrado a mano y si hay devolución parcial.
+  // Se refresca cada 20 s para reflejar los cambios hechos desde /admin.
+  // Sin caché: la respuesta pública lleva stale-while-revalidate y el panel no
+  // puede enseñar "abierto" cuando el local está cerrado.
+  const cargarAjustes = useCallback(async () => {
+    try {
+      const d = await fetch("/api/ajustes", { cache: "no-store" }).then((r) => r.json());
+      setRefundParcial(!!d.refundParcial);
+      if (local) setPausa(d.ajustes?.[local] || { pausado: false, motivo: "" });
+    } catch { /* sin conexión: se reintenta en el siguiente ciclo */ }
+  }, [local]);
+
   useEffect(() => {
-    fetch("/api/ajustes").then((r) => r.json()).then((d) => setRefundParcial(!!d.refundParcial)).catch(() => {});
-  }, []);
+    cargarAjustes();
+    const iv = setInterval(cargarAjustes, 20000);
+    return () => clearInterval(iv);
+  }, [cargarAjustes]);
 
   const L = LOCALES[local];
   const salir = useCallback(() => { logout(); setSesion(null); setOrders([]); }, []);
@@ -189,6 +206,30 @@ export default function CocinaPage() {
     return data.order;
   };
 
+  // Cerrar / reabrir el local a mano (freidora rota, saturación, imprevistos).
+  // Mientras está cerrado, la web no acepta ningún pedido de este local —ni
+  // programado— y el cliente ve el motivo junto al teléfono.
+  const cambiarPausa = async (pausado, motivo = "") => {
+    setGuardandoPausa(true);
+    try {
+      const res = await authFetch("/api/ajustes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ local, pausado, motivo }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      setPausa(data.ajustes?.[local] || { pausado, motivo, desde: new Date().toISOString() });
+      setCerrando(false);
+      setError(null);
+    } catch (e) {
+      setError(e.message);
+      if (/sesión/i.test(e.message)) salir();
+    } finally {
+      setGuardandoPausa(false);
+    }
+  };
+
   // ── Puerta de entrada: inicio de sesión y elección de local ────────────────
   if (!sesion) {
     return (
@@ -226,6 +267,7 @@ export default function CocinaPage() {
   }
 
   // ── Panel ──────────────────────────────────────────────────────────────────
+  const cerradoManual = !!pausa?.pausado;
   const programados = orders
     .filter((o) => o.status === "nuevo" && esProgramadoLejano(o))
     .sort((a, b) => (a.programado_para < b.programado_para ? -1 : 1));
@@ -236,7 +278,7 @@ export default function CocinaPage() {
 
   return (
     <div style={sx("min-height:100vh;padding:0 0 60px")}>
-      <header style={{ ...sx("position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px clamp(14px,3vw,28px);background:rgba(10,8,6,.94);border-bottom:1px solid rgba(246,241,233,.1)"), boxShadow: hayNuevos ? `0 4px 30px rgb(${L.rgb} / .35)` : "none" }}>
+      <header style={{ ...sx("position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 12px;padding:12px clamp(14px,3vw,28px);background:rgba(10,8,6,.94);border-bottom:1px solid rgba(246,241,233,.1)"), boxShadow: hayNuevos ? `0 4px 30px rgb(${L.rgb} / .35)` : "none" }}>
         <div style={sx("display:flex;align-items:center;gap:12px")}>
           <LtbMark size={22} style={{ color: "#f6f1e9" }} />
           <div>
@@ -244,26 +286,58 @@ export default function CocinaPage() {
             <div style={sx("font-size:11px;color:rgba(246,241,233,.5)")}>{error ? `⚠️ ${error}` : `${sesion.user?.nombre} · actualiza cada ${POLL_MS / 1000}s${pantallaOn ? " · 🔆 pantalla activa" : ""}`}</div>
           </div>
         </div>
-        <div style={sx("display:flex;align-items:center;gap:10px")}>
+        <div style={sx("display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:8px")}>
+          {/* Cerrar / reabrir el local a mano */}
           <button
+            onClick={() => (cerradoManual ? cambiarPausa(false) : setCerrando(true))}
+            disabled={guardandoPausa || pausa === null}
+            title={cerradoManual ? "Volver a aceptar pedidos online" : "Dejar de aceptar pedidos online"}
+            style={sx(`display:inline-flex;align-items:center;gap:7px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:12px 16px;border-radius:12px;cursor:pointer;border:1px solid ${cerradoManual ? "rgb(255 100 80)" : "rgb(120 220 130 / .55)"};background:${cerradoManual ? "rgb(255 100 80)" : "transparent"};color:${cerradoManual ? "#0a0806" : "rgb(120,220,130)"}`)}
+          >
+            {cerradoManual ? "⏸ Cerrado" : "● Abierto"}
+          </button>
+          <button
+            className="ltb-solo-icono"
             onClick={() => setVista((v) => (v === "pedidos" ? "carta" : "pedidos"))}
+            title={vista === "carta" ? "Volver a pedidos" : "Marcar agotados en la carta"}
             style={sx(`font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:12px 18px;border-radius:12px;cursor:pointer;border:1px solid ${vista === "carta" ? `rgb(${L.rgb})` : "rgba(246,241,233,.2)"};background:${vista === "carta" ? `rgb(${L.rgb})` : "transparent"};color:${vista === "carta" ? "#0a0806" : "#f6f1e9"}`)}
           >
-            {vista === "carta" ? "📦 Volver a pedidos" : "🍔 Carta"}
+            {vista === "carta" ? <>📦 <span className="rotulo">Volver a pedidos</span></> : <>🍔 <span className="rotulo">Carta</span></>}
           </button>
-          {sesion.user?.rol === "admin" && (
-            <a href="/admin" style={sx("font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:12px 16px;border-radius:12px;border:1px solid rgba(246,241,233,.2);color:rgba(246,241,233,.7);text-decoration:none")}>
-              Admin
-            </a>
-          )}
+          <a href="/admin" className="ltb-solo-icono" title="Panel de administración" style={sx("display:inline-flex;align-items:center;gap:7px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:12px 16px;border-radius:12px;border:1px solid rgba(246,241,233,.2);color:#f6f1e9;text-decoration:none")}>
+            🛠 <span className="rotulo">Admin</span>
+          </a>
           <button onClick={() => { setMuted((m) => !m); beep(); }} aria-label="Silenciar alarma" style={sx("font-size:19px;width:44px;height:44px;border-radius:12px;border:1px solid rgba(246,241,233,.2);background:transparent;cursor:pointer")}>
             {muted ? "🔕" : "🔔"}
           </button>
-          <button onClick={salir} style={sx("font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:12px 16px;border-radius:12px;border:1px solid rgba(246,241,233,.2);background:transparent;color:rgba(246,241,233,.7);cursor:pointer")}>
-            Salir
+          <button onClick={salir} className="ltb-solo-icono" title="Cerrar sesión" style={sx("font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:12px 16px;border-radius:12px;border:1px solid rgba(246,241,233,.2);background:transparent;color:rgba(246,241,233,.7);cursor:pointer")}>
+            🚪 <span className="rotulo">Salir</span>
           </button>
         </div>
       </header>
+
+      {/* Mientras está cerrado, que no se olvide de reabrir */}
+      {cerradoManual && (
+        <div style={sx("max-width:1380px;margin:0 auto;padding:16px clamp(14px,3vw,28px) 0")}>
+          <div style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 18px;border-radius:14px;background:rgb(255 100 80 / .12);border:1px solid rgb(255 100 80 / .5)")}>
+            <span style={sx("font-size:20px;line-height:1")}>⏸</span>
+            <div style={sx("flex:1;min-width:200px")}>
+              <div style={sx("font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.04em;text-transform:uppercase;color:rgb(255,140,115)")}>
+                Pedidos online cerrados
+              </div>
+              <div style={sx("font-size:12.5px;color:rgba(246,241,233,.7);margin-top:2px")}>
+                {pausa?.motivo ? `${pausa.motivo} · ` : ""}
+                {pausa?.desde ? `desde las ${horaMadrid(pausa.desde)}` : "la web no acepta pedidos de este local"}
+              </div>
+            </div>
+            <button onClick={() => cambiarPausa(false)} disabled={guardandoPausa} style={btn("rgb(120 220 130)")}>
+              {guardandoPausa ? "…" : "▶ Reabrir"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {cerrando && <ModalCierre onCerrar={(motivo) => cambiarPausa(true, motivo)} onCancelar={() => setCerrando(false)} guardando={guardandoPausa} />}
 
       {vista === "carta" ? (
         <GestionCarta local={local} rgb={L.rgb} />
@@ -558,6 +632,49 @@ function GestionCarta({ local, rgb }) {
 }
 
 // ── Modal de devolución (total o por productos) ──────────────────────────────
+// Cerrar el local a mano. El motivo lo lee el cliente en /pedir, así que se
+// ofrecen los cuatro de siempre para no tener que escribir con las manos
+// llenas — y un campo libre para lo demás.
+const MOTIVOS = ["Vamos saturados", "Problema técnico", "Nos hemos quedado sin producto", "Cerramos por hoy"];
+
+function ModalCierre({ onCerrar, onCancelar, guardando }) {
+  const [motivo, setMotivo] = useState("");
+
+  return (
+    <div role="dialog" aria-modal="true" aria-label="Cerrar pedidos online" onClick={onCancelar} style={sx("position:fixed;inset:0;z-index:70;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(5,4,3,.75);backdrop-filter:blur(4px)")}>
+      <div onClick={(e) => e.stopPropagation()} style={sx("width:min(440px,100%);max-height:88vh;overflow:auto;background:#120e0a;border:1px solid rgba(246,241,233,.14);border-radius:20px;padding:24px;display:flex;flex-direction:column;gap:14px;animation:ltb-rise .3s both")}>
+        <div>
+          <h3 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:22px;text-transform:uppercase")}>Cerrar pedidos online</h3>
+          <p style={sx("margin:5px 0 0;font-size:13px;line-height:1.5;color:rgba(246,241,233,.6)")}>
+            La web dejará de aceptar pedidos de este local al instante. Los que ya tienes en marcha no se tocan.
+          </p>
+        </div>
+
+        <div>
+          <span style={labelStyle}>¿Por qué? (lo verá el cliente)</span>
+          <div style={sx("display:flex;flex-wrap:wrap;gap:7px;margin-bottom:9px")}>
+            {MOTIVOS.map((m) => (
+              <button key={m} onClick={() => setMotivo(m)} style={sx(`font-size:12.5px;font-weight:600;padding:9px 14px;border-radius:100px;cursor:pointer;border:1px solid ${motivo === m ? "rgb(255 100 80)" : "rgba(246,241,233,.2)"};background:${motivo === m ? "rgb(255 100 80 / .16)" : "transparent"};color:${motivo === m ? "rgb(255,140,115)" : "rgba(246,241,233,.8)"}`)}>
+                {m}
+              </button>
+            ))}
+          </div>
+          <input value={motivo} onChange={(e) => setMotivo(e.target.value.slice(0, 140))} placeholder="O escríbelo tú (opcional)" style={inputStyle} />
+        </div>
+
+        <div style={sx("display:flex;gap:10px")}>
+          <button onClick={onCancelar} style={sx("flex:1;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:14px;border-radius:100px;border:1px solid rgba(246,241,233,.25);background:transparent;color:#f6f1e9;cursor:pointer")}>
+            Cancelar
+          </button>
+          <button onClick={() => onCerrar(motivo.trim())} disabled={guardando} style={{ ...sx("flex:1;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.04em;padding:14px;border-radius:100px;border:0;cursor:pointer;background:rgb(255 100 80);color:#0a0806"), opacity: guardando ? 0.5 : 1 }}>
+            {guardando ? "CERRANDO…" : "⏸ CERRAR"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DevolucionModal({ o, rgb, onClose, onConfirm }) {
   const [sel, setSel] = useState(() => new Set());
   const [custom, setCustom] = useState("");

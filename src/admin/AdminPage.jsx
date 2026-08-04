@@ -63,8 +63,11 @@ export default function AdminPage() {
       <div style={sx("min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center")}>
         <div>
           <p style={sx("font-size:15px;color:rgba(246,241,233,.75);margin:0 0 8px")}>Esta zona es solo para administración.</p>
-          <p style={sx("font-size:13.5px;color:rgba(246,241,233,.5);margin:0 0 20px")}>Tu cuenta ({sesion.user?.email}) es de empleado — puedes usar el <a href="/cocina" style={sx("color:rgb(var(--acc))")}>panel de cocina</a>.</p>
-          <button onClick={salir} style={btnGhost}>Cerrar sesión</button>
+          <p style={sx("font-size:13.5px;color:rgba(246,241,233,.5);margin:0 0 20px")}>Tu cuenta ({sesion.user?.email}) es de empleado. Vuelve al panel de cocina, o entra con la cuenta de administración.</p>
+          <div style={sx("display:flex;gap:10px;justify-content:center;flex-wrap:wrap")}>
+            <a href="/cocina" style={{ ...btnGhost, display: "inline-flex", alignItems: "center", textDecoration: "none" }}>← Volver a cocina</a>
+            <button onClick={salir} style={btnGhost}>Entrar con otra cuenta</button>
+          </div>
         </div>
       </div>
     );
@@ -478,8 +481,10 @@ function Ajustes() {
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(null);
 
+  // Sin caché: la respuesta pública lleva stale-while-revalidate y aquí hay que
+  // ver el estado real (la cocina también abre y cierra desde su panel).
   useEffect(() => {
-    fetch("/api/ajustes")
+    fetch("/api/ajustes", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setAjustes(d.ajustes || {}))
       .catch(() => setAjustes({}));
@@ -511,8 +516,9 @@ function Ajustes() {
         ))}
       </div>
       <p style={sx("margin:0;font-size:12.5px;line-height:1.6;color:rgba(246,241,233,.5)")}>
-        Al pausar un local, la web deja de aceptar pedidos online al instante (el cliente ve el motivo y el teléfono).
-        Úsalo si la cocina se satura, falta personal o se acaba un ingrediente clave. Los horarios normales se editan en <code>src/locales.js</code>.
+        Al pausar un local, la web deja de aceptar pedidos online al instante —tampoco programados— y el cliente ve el motivo y el teléfono.
+        La cocina también puede cerrar y reabrir su propio local desde <a href="/cocina" style={sx("color:rgb(var(--acc))")}>su panel</a>, sin pasar por aquí.
+        Los horarios normales se editan en <code>src/locales.js</code>.
       </p>
     </div>
   );
@@ -531,6 +537,10 @@ function AjusteLocal({ loc, ajuste, guardando, onSave }) {
           {ajuste.pausado ? "⏸ Pausado" : "● Aceptando pedidos"}
         </span>
       </div>
+
+      {ajuste.pausado && ajuste.desde && (
+        <p style={sx("margin:-6px 0 12px;font-size:12.5px;color:rgba(246,241,233,.55)")}>Cerrado desde las {horaDe(ajuste.desde)}.</p>
+      )}
 
       <label style={sx("display:flex;align-items:center;gap:10px;font-size:14.5px;cursor:pointer;margin-bottom:12px")}>
         <input type="checkbox" checked={pausado} onChange={(e) => setPausado(e.target.checked)} style={sx("width:18px;height:18px;accent-color:rgb(255,100,80)")} />

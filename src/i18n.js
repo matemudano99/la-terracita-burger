@@ -245,6 +245,7 @@ const DICT = {
   "pedir.puedesProgramar": { es: "Puedes dejar tu pedido programado ⏰.", en: "You can schedule your order ⏰." },
   "pedir.pausa": { es: "Pedidos pausados un momento", en: "Orders paused for a moment" },
   "pedir.pausaSub": { es: "La cocina está a tope — llámanos y te atendemos.", en: "The kitchen is at full capacity — give us a call and we'll help." },
+  "pedir.pausaTelefono": { es: "Volvemos enseguida; mientras, llámanos al {phone}.", en: "We'll be back shortly; in the meantime, call us at {phone}." },
   "pedir.seg.pagadoParcial": { es: "💳 Pagado: {t} · ↩️ devuelto {d}", en: "💳 Paid: {t} · ↩️ refunded {d}" },
   "pedir.enviar": { es: "PAGAR Y ENVIAR · {total}", en: "PAY & PLACE ORDER · {total}" },
   "pedir.enviando": { es: "ENVIANDO…", en: "SENDING…" },

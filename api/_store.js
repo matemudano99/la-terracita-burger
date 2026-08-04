@@ -174,22 +174,25 @@ const memAjustes = new Map();
 
 export async function getAjustes() {
   if (usingSupabase) {
-    const rows = await supa("ajustes?select=local,pausado,motivo");
-    return Object.fromEntries(rows.map((r) => [r.local, { pausado: !!r.pausado, motivo: r.motivo || "" }]));
+    // `desde` = cuándo se hizo el último cambio; el panel lo usa para decir
+    // "cerrado desde las 21:14".
+    const rows = await supa("ajustes?select=local,pausado,motivo,updated_at");
+    return Object.fromEntries(rows.map((r) => [r.local, { pausado: !!r.pausado, motivo: r.motivo || "", desde: r.updated_at || null }]));
   }
   return Object.fromEntries(memAjustes);
 }
 
 export async function setAjuste(local, { pausado, motivo }) {
+  const desde = new Date().toISOString();
   if (usingSupabase) {
     await supa("ajustes", {
       method: "POST",
-      body: { local, pausado, motivo, updated_at: new Date().toISOString() },
+      body: { local, pausado, motivo, updated_at: desde },
       headers: { Prefer: "resolution=merge-duplicates" },
     });
     return;
   }
-  memAjustes.set(local, { pausado, motivo });
+  memAjustes.set(local, { pausado, motivo, desde });
 }
 
 export async function updateOrder(id, patch) {

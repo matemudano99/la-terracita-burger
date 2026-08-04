@@ -170,6 +170,13 @@ body {
   .ltb-2col { grid-template-columns: 1fr !important; }
   .ltb-stats { flex-wrap: wrap; gap: 28px !important; }
 }
+/* Cocina en móvil: los botones secundarios se quedan solo con el icono para
+   que la barra no se coma media pantalla (el estado abierto/cerrado sí
+   conserva su texto: es lo que hay que ver de un vistazo). */
+@media (max-width: 560px) {
+  .ltb-solo-icono { padding-left: 13px !important; padding-right: 13px !important; }
+  .ltb-solo-icono .rotulo { display: none; }
+}
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: .001ms !important; animation-iteration-count: 1 !important; }
   html { scroll-behavior: auto; }

@@ -9,7 +9,10 @@ La web tiene un sistema de pedidos propio, sin comisiones:
   pedido, se acepta con un tiempo de preparación, se marca lista/entregada y se
   imprime el ticket. Sección **⏰ Programados** para los pedidos con hora futura
   (pasan solos a Nuevos con alarma cuando faltan ≤30 min). El cliente ve el
-  estado en su móvil en tiempo real.
+  estado en su móvil en tiempo real. El botón **● Abierto / ⏸ Cerrado** de la
+  barra superior cierra y reabre el local al instante si hay cualquier problema
+  (mientras está cerrado no entra ningún pedido, tampoco programado, y el
+  cliente ve el motivo y el teléfono). Desde ahí también se salta a **🛠 Admin**.
 - **`/admin`** — panel de administración (solo admin): resumen de ventas
   (ingresos, ticket medio, horas punta, top productos), historial con búsqueda
   y export a CSV, gestión de cuentas de empleados y pausa de pedidos por local.

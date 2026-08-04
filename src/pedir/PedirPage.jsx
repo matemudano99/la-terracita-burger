@@ -109,10 +109,12 @@ export default function PedirPage() {
   const carta = loc ? cartaEstado[loc] || {} : {};
 
   const pausa = loc ? ajustes[loc] : null;
+  // Un cierre manual (desde cocina o /admin) manda sobre el horario: mientras
+  // dure no se acepta nada, tampoco programado — el servidor lo rechazaría.
   const estado = useMemo(() => {
     if (!estadoHorario) return null;
-    if (estadoHorario.abierto && pausa?.pausado) {
-      return { abierto: false, mensaje: t("pedir.pausa"), detalle: pausa.motivo || t("pedir.pausaSub") };
+    if (pausa?.pausado) {
+      return { abierto: false, pausado: true, mensaje: t("pedir.pausa"), detalle: pausa.motivo || t("pedir.pausaSub") };
     }
     return estadoHorario;
   }, [estadoHorario, pausa, t]);
@@ -447,8 +449,9 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
   const franjas = useMemo(() => (programar ? franjasProgramables(loc, ahora, idioma) : []), [programar, loc, ahora, idioma]);
   const hayFranjas = franjas.some((d) => d.horas.length > 0);
   const cerrado = !estado?.abierto;
-  const debeProgramar = cerrado && programar && hayFranjas;
-  const modo = debeProgramar ? "programado" : cuando;
+  const pausado = !!estado?.pausado; // cierre manual: ni siquiera se programa
+  const debeProgramar = cerrado && !pausado && programar && hayFranjas;
+  const modo = pausado ? "asap" : debeProgramar ? "programado" : cuando;
   const programado = modo === "programado";
 
   // Mantiene una franja válida seleccionada: si no hay ninguna elegida (o la
@@ -463,7 +466,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
   const diaSel = franjas.find((d) => d.horas.some((h) => h.iso === slotIso)) || franjas.find((d) => d.horas.length > 0);
 
   // ¿Se puede enviar? Pago disponible y: abierto (asap) o franja válida elegida.
-  const puedeEnviar = pagos && (programado ? !!slotIso : !cerrado);
+  const puedeEnviar = pagos && !pausado && (programado ? !!slotIso : !cerrado);
 
   const enviar = async () => {
     setError(null);
@@ -547,8 +550,9 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
           </div>
         )}
 
-        {/* ¿Cuándo? Lo antes posible o programado (pestañas de día + chips de hora). */}
-        {programar && hayFranjas && (
+        {/* ¿Cuándo? Lo antes posible o programado (pestañas de día + chips de hora).
+            Con el local cerrado a mano no se ofrece: no se acepta nada. */}
+        {programar && hayFranjas && !pausado && (
           <div style={sx("border:1px solid rgba(246,241,233,.14);border-radius:16px;padding:16px;background:#0d0a07")}>
             <span style={labelStyle}>{t("pedir.cuando")}</span>
             {!debeProgramar ? (
@@ -679,7 +683,12 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
         )}
         {pagos && cerrado && !programado && (
           <div style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.4);background:rgba(255,92,40,.08);color:#f6f1e9;font-size:14px")}>
-            {estado?.mensaje} — {estado?.detalle}. {programar && hayFranjas ? t("pedir.puedesProgramar") : t("pedir.cerradoAviso", { horario: horarioTexto() })}
+            {estado?.mensaje} — {estado?.detalle}.{" "}
+            {pausado
+              ? t("pedir.pausaTelefono", { phone: L.phone })
+              : programar && hayFranjas
+                ? t("pedir.puedesProgramar")
+                : t("pedir.cerradoAviso", { horario: horarioTexto() })}
           </div>
         )}
         {error && (

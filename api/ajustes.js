@@ -1,9 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/ajustes — pausar/reanudar pedidos online por local (el "cerrar tienda"
 // de las plataformas de delivery).
-//   GET          → público: { teatinos: {pausado, motivo}, rincon: {...} }
-//                  (lo usa /pedir para avisar al cliente)
-//   PUT (admin)  → { local, pausado, motivo? }
+//   GET   → público: { teatinos: {pausado, motivo, desde}, rincon: {...} }
+//           (lo usa /pedir para avisar al cliente)
+//   PUT   → { local, pausado, motivo? }. Lo puede hacer el admin (cualquier
+//           local) y también la cocina desde su panel: si se rompe la freidora
+//           o van saturados, cierran ellos mismos sin esperar a nadie.
 // ─────────────────────────────────────────────────────────────────────────────
 import { requireUser } from "./_auth.js";
 import { getAjustes, setAjuste, getCartaTodos, pagosListos, tieneColumna, storeReady } from "./_store.js";
@@ -29,11 +31,15 @@ export default async function handler(req, res) {
     }
 
     if (req.method === "PUT") {
-      const user = await requireUser(req, res, ["admin"]);
+      const user = await requireUser(req, res, ["admin", "empleado"]);
       if (!user) return;
       if (!storeReady) return res.status(503).json({ error: "Falta configurar Supabase." });
       const b = req.body || {};
       if (!LOCALES[b.local]) return res.status(400).json({ error: "Local no válido." });
+      // Un empleado con local asignado solo puede cerrar el suyo.
+      if (user.rol === "empleado" && user.local && user.local !== b.local) {
+        return res.status(403).json({ error: "Solo puedes abrir o cerrar el local en el que trabajas." });
+      }
       await setAjuste(b.local, {
         pausado: !!b.pausado,
         motivo: String(b.motivo || "").trim().slice(0, 140),
