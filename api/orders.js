@@ -14,7 +14,7 @@ import { LOCALES, estadoLocal, validarProgramado, distanciaKm } from "../src/loc
 import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
 import { pagosDisponibles, crearPago, reembolsar } from "./_monei.js";
-import { geocodificar } from "./_geo.js";
+import { geocodificar, GeoNoDisponible } from "./_geo.js";
 
 const ESTADOS = ["nuevo", "aceptado", "lista", "entregado", "rechazado", "no_recogido"];
 
@@ -147,7 +147,18 @@ async function crear(req, res) {
 
     // Control de zona: geocodifica la dirección y comprueba la distancia al local.
     if (loc.delivery.radioKm && loc.lat != null) {
-      const punto = await geocodificar(`${calle}, ${loc.name}, Málaga, España`);
+      let punto;
+      try {
+        punto = await geocodificar(`${calle}, ${loc.name}, Málaga, España`);
+      } catch (err) {
+        // El geocodificador está caído: no podemos garantizar la zona, así que
+        // no aceptamos el reparto a ciegas — pero se dice lo que pasa.
+        if (err instanceof GeoNoDisponible) {
+          console.error("[geo]", err.message);
+          return res.status(503).json({ error: `No hemos podido comprobar tu dirección ahora mismo. Elige recogida en el local o llámanos y te lo llevamos: ${loc.phone}.` });
+        }
+        throw err;
+      }
       if (!punto) {
         return res.status(400).json({ error: "No hemos encontrado esa dirección. Revisa la calle y el número, o llámanos y te ayudamos." });
       }

@@ -167,11 +167,21 @@ const DICT = {
 
   // ── /pedir ───────────────────────────────────────────────────────────────
   "pedir.kicker": { es: "Pedidos online — recogida en local", en: "Online orders — pickup at the restaurant" },
+  "pedir.kickerDom": { es: "Pedidos online — recogida o a domicilio", en: "Online orders — pickup or delivery" },
+  "pedir.repartoTitulo": { es: "Reparto a domicilio", en: "Home delivery" },
+  "pedir.repartoDetalle": {
+    es: "{zona} · envío {envio} · pedido mínimo {min}",
+    en: "{zona} · {envio} delivery fee · {min} minimum order",
+  },
   "pedir.h1a": { es: "Pide y", en: "Order &" },
   "pedir.h1b": { es: "recoge", en: "collect" },
   "pedir.claim": {
     es: "Sin comisiones, directo a nuestra cocina. Pago seguro online — recoge cuando quieras.",
     en: "No commissions, straight to our kitchen. Secure online payment — pick it up whenever you like.",
+  },
+  "pedir.claimDom": {
+    es: "Sin comisiones, directo a nuestra cocina. Recógelo o te lo llevamos a casa — pago seguro online.",
+    en: "No commissions, straight to our kitchen. Pick it up or we'll bring it to you — secure online payment.",
   },
   "pedir.eligeLocal": {
     es: "👆 Elige primero el local donde quieres recoger tu pedido.",
@@ -212,7 +222,9 @@ const DICT = {
   "pedir.recogidaEn": { es: "📍 Recogida en", en: "📍 Pick up at" },
   "pedir.pagoSeguroLinea": { es: "💳 Pago seguro online por adelantado", en: "💳 Secure online payment in advance" },
   "pedir.entregaZona": { es: "🛵 Entrega a domicilio — zona:", en: "🛵 Home delivery — area:" },
+  "pedir.zonaRadio": { es: "hasta {km} km del local", en: "within {km} km of the restaurant" },
   "pedir.gastosEnvio": { es: "🚚 Gastos de envío:", en: "🚚 Delivery fee:" },
+  "pedir.minimoDom": { es: "mínimo {min}", en: "{min} minimum" },
   "pedir.calle": { es: "Calle y número *", en: "Street and number *" },
   "pedir.piso": { es: "Piso / puerta (opcional)", en: "Floor / door (optional)" },
   "pedir.cuando": { es: "¿Para cuándo?", en: "When for?" },
@@ -313,12 +325,21 @@ const DICT = {
     es: "Pide en nuestra web para recoger sin comisiones, llámanos, o pide a domicilio por tu app favorita.",
     en: "Order on our site for pickup with no commissions, call us, or get delivery through your favourite app.",
   },
+  "deliv.claimReparto": {
+    es: "Pide en nuestra web sin comisiones —recogida en los dos locales y reparto propio en Rincón—, llámanos, o pide por tu app favorita.",
+    en: "Order on our site with no commissions — pickup at both restaurants and our own delivery in Rincón — call us, or use your favourite app.",
+  },
   "deliv.pidiendoEn": { es: "Pidiendo en", en: "Ordering from" },
   "deliv.resenas": { es: "({n} reseñas · Google)", en: "({n} reviews · Google)" },
   "deliv.pedirOnlineTitulo": { es: "Pide online y recoge", en: "Order online & pick up" },
   "deliv.pedirOnlineSub": {
     es: "Sin comisiones — pago seguro online y recoges cuando quieras",
     en: "No commissions — secure online payment, pick up whenever you like",
+  },
+  "deliv.pedirOnlineTituloDom": { es: "Pide online: recoge o a domicilio", en: "Order online: pickup or delivery" },
+  "deliv.pedirOnlineSubDom": {
+    es: "Sin comisiones — reparto propio hasta {km} km por {envio}",
+    en: "No commissions — our own delivery within {km} km for {envio}",
   },
   "deliv.llamanos": { es: "Llámanos", en: "Call us" },
   "deliv.llamanosSub": { es: "Sin comisiones — pide directo al local", en: "No commissions — order straight from the restaurant" },

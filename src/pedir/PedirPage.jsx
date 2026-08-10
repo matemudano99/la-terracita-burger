@@ -119,6 +119,9 @@ export default function PedirPage() {
     return estadoHorario;
   }, [estadoHorario, pausa, t]);
 
+  // Reparto propio del local elegido (Teatinos no tiene: solo plataformas).
+  const reparto = L?.delivery?.activo ? L.delivery : null;
+
   const totalCents = cart.reduce((s, l) => s + (pricedOf(l, carta)?.lineCents || 0), 0);
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
 
@@ -180,9 +183,9 @@ export default function PedirPage() {
       </nav>
 
       <main style={sx("max-width:1100px;margin:0 auto;padding:110px 5vw 0")}>
-        <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:10px;animation:ltb-rise .55s both")}>{t("pedir.kicker")}</div>
+        <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:10px;animation:ltb-rise .55s both")}>{t(reparto ? "pedir.kickerDom" : "pedir.kicker")}</div>
         <h1 style={sx("margin:0 0 6px;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(38px,7vw,80px);line-height:.9;text-transform:uppercase;animation:ltb-rise .6s .08s both")}>{t("pedir.h1a")} <span style={{ ...sx("text-shadow:0 0 30px rgb(var(--acc) / .5)"), color: `rgb(${rgb})` }}>{t("pedir.h1b")}</span></h1>
-        <p style={sx("margin:0 0 26px;font-size:15px;line-height:1.55;color:rgba(246,241,233,.62);max-width:560px;animation:ltb-rise .6s .16s both")}>{t("pedir.claim")}</p>
+        <p style={sx("margin:0 0 26px;font-size:15px;line-height:1.55;color:rgba(246,241,233,.62);max-width:560px;animation:ltb-rise .6s .16s both")}>{t(reparto ? "pedir.claimDom" : "pedir.claim")}</p>
 
         {/* Selector de local */}
         <div style={sx("display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;animation:ltb-rise .6s .24s both")}>
@@ -213,6 +216,17 @@ export default function PedirPage() {
                 {t("pedir.horario")} <strong style={sx("color:rgba(246,241,233,.85)")}>{horarioTexto()}</strong>
                 <br />📅 {t(L.diasKey)}
               </div>
+              {reparto && (
+                <div style={sx("font-size:12.5px;line-height:1.6;color:rgba(246,241,233,.55);border-left:1px solid rgba(246,241,233,.14);padding-left:22px")}>
+                  🛵 <strong style={{ color: `rgb(${rgb})` }}>{t("pedir.repartoTitulo")}</strong>
+                  <br />
+                  {t("pedir.repartoDetalle", {
+                    zona: t("pedir.zonaRadio", { km: reparto.radioKm }),
+                    envio: fmtP(reparto.gastosCents),
+                    min: fmtP(reparto.minimoCents),
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Categorías */}
@@ -531,7 +545,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
 
         <div style={sx("font-size:13px;color:rgba(246,241,233,.65)")}>
           {esDomicilio ? (
-            <>{t("pedir.entregaZona")} <strong style={{ color: `rgb(${rgb})` }}>{deliveryConf.zona}</strong><br />{t("pedir.gastosEnvio")} {fmtP(deliveryConf.gastosCents)}</>
+            <>{t("pedir.entregaZona")} <strong style={{ color: `rgb(${rgb})` }}>{t("pedir.zonaRadio", { km: deliveryConf.radioKm })}</strong><br />{t("pedir.gastosEnvio")} {fmtP(deliveryConf.gastosCents)} · {t("pedir.minimoDom", { min: fmtP(deliveryConf.minimoCents) })}</>
           ) : (
             <>{t("pedir.recogidaEn")} <strong style={{ color: `rgb(${rgb})` }}>{L.name}</strong> — {L.address}<br />{t("pedir.pagoSeguroLinea")}</>
           )}

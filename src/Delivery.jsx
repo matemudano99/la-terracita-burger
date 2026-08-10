@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { sx } from "./sx";
 import { useI18n } from "./i18n";
+import { LOCALES } from "./locales";
+import { fmtEUR } from "./menu";
 
 const LOCS = {
   teatinos: {
@@ -33,6 +35,9 @@ const LOCS = {
   },
 };
 
+// ¿Algún local reparte por su cuenta? Cambia el claim de la sección.
+const HAY_REPARTO = Object.values(LOCALES).some((l) => l.delivery?.activo);
+
 const PLATFORMS = [
   { key: "justeat", name: "Just Eat", brand: "#ff8000", cls: "ltb-deliv--je" },
   { key: "glovo", name: "Glovo", brand: "#ffc244", cls: "ltb-deliv--gl" },
@@ -43,13 +48,15 @@ export default function Delivery() {
   const { t } = useI18n();
   const [loc, setLoc] = useState("teatinos");
   const L = LOCS[loc];
+  // Reparto propio del local (solo Rincón por ahora) — la config vive en locales.js.
+  const reparto = LOCALES[loc]?.delivery?.activo ? LOCALES[loc].delivery : null;
 
   return (
     <section id="pedidos" className="ltb-cv" style={sx("position:relative;z-index:2;padding:70px 5vw 90px;max-width:1200px;margin:0 auto")}>
       <div data-reveal="" style={sx("opacity:0;transform:translateY(46px);transition:opacity .7s,transform .7s;text-align:center;margin-bottom:8px")}>
         <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:12px")}>{t("deliv.kicker")}</div>
         <h2 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(40px,7vw,92px);line-height:.9;text-transform:uppercase")}>{t("deliv.h2a")} <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>{t("deliv.h2b")}</span></h2>
-        <p style={sx("max-width:520px;margin:18px auto 0;font-size:15.5px;line-height:1.55;color:rgba(246,241,233,.62)")}>{t("deliv.claim")}</p>
+        <p style={sx("max-width:520px;margin:18px auto 0;font-size:15.5px;line-height:1.55;color:rgba(246,241,233,.62)")}>{t(HAY_REPARTO ? "deliv.claimReparto" : "deliv.claim")}</p>
       </div>
 
       {/* Location selector — big, obvious difference */}
@@ -117,10 +124,16 @@ export default function Delivery() {
             ["--brand"]: `rgb(${L.rgb})`,
           }}
         >
-          <span style={sx("position:relative;flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:14px;font-size:26px;background:rgba(10,8,6,.14)")}>🍔</span>
+          <span style={sx("position:relative;flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:14px;font-size:26px;background:rgba(10,8,6,.14)")}>{reparto ? "🛵" : "🍔"}</span>
           <span style={sx("display:flex;flex-direction:column;gap:2px;flex:1;min-width:min(100%,220px)")}>
-            <span style={sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase")}>{t("deliv.pedirOnlineTitulo")}</span>
-            <span style={sx("font-size:13px;color:rgba(10,8,6,.72);font-weight:600")}>{t("deliv.pedirOnlineSub")}</span>
+            <span style={sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase")}>
+              {t(reparto ? "deliv.pedirOnlineTituloDom" : "deliv.pedirOnlineTitulo")}
+            </span>
+            <span style={sx("font-size:13px;color:rgba(10,8,6,.72);font-weight:600")}>
+              {reparto
+                ? t("deliv.pedirOnlineSubDom", { km: reparto.radioKm, envio: fmtEUR(reparto.gastosCents) })
+                : t("deliv.pedirOnlineSub")}
+            </span>
           </span>
           <span style={sx("font-family:'Anton',sans-serif;font-size:clamp(20px,3vw,26px);letter-spacing:.04em")}>PEDIR →</span>
         </a>

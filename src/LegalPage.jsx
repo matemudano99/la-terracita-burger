@@ -1,7 +1,13 @@
 import { useEffect } from "react";
 import { sx } from "./sx";
 import { SITE } from "./site";
+import { LOCALES } from "./locales";
+import { fmtEUR, PEDIDO_MINIMO_CENTS } from "./menu";
 import LtbMark from "./LtbMark";
+
+// Las condiciones citan cifras del reparto: se leen de locales.js para que el
+// texto vinculante no se quede desfasado si cambian el envío o el radio.
+const REPARTO = LOCALES.rincon.delivery?.activo ? LOCALES.rincon.delivery : null;
 
 const h2 = sx("margin:44px 0 12px;font-family:'Anton',sans-serif;font-weight:400;font-size:22px;letter-spacing:.02em;text-transform:uppercase;color:#f6f1e9");
 const p = sx("margin:0 0 14px;font-size:15.5px;line-height:1.65;color:rgba(246,241,233,.78)");
@@ -27,10 +33,11 @@ const AvisoLegal = () => (
     <h2 style={h2}>2. Objeto</h2>
     <p style={p}>
       Este sitio web da a conocer la carta, los locales y los canales de pedido y contacto de La Terracita
-      Burger, y permite realizar <strong>pedidos online para recoger en el local</strong>, con pago en el
-      momento de la recogida o, cuando esté disponible, pago online seguro a través de la pasarela MONEI
-      (ver <a style={ext} href="/condiciones">condiciones de compra</a>). Los pedidos a domicilio se realizan a
-      través de plataformas de terceros (Just Eat, Glovo y Uber Eats) y las reservas por teléfono.
+      Burger, y permite realizar <strong>pedidos online para recoger en el local
+      {REPARTO && <> o, en Rincón de la Victoria, para entrega a domicilio</>}</strong>, con pago online seguro y
+      por adelantado a través de la pasarela MONEI
+      (ver <a style={ext} href="/condiciones">condiciones de compra</a>). También se puede pedir a domicilio a
+      través de plataformas de terceros (Just Eat, Glovo y Uber Eats), y reservar por teléfono.
     </p>
 
     <h2 style={h2}>3. Condiciones de uso</h2>
@@ -79,9 +86,11 @@ const Privacidad = () => (
     </p>
     <p style={p}>
       Si haces un <strong>pedido online</strong> en la sección «Pedir», tratamos los datos que nos facilitas
-      (nombre, teléfono y contenido del pedido) con la única finalidad de preparar y entregarte el pedido y
-      contactarte si surge alguna duda con él. La base jurídica es la ejecución de la relación contractual que
-      solicitas (art. 6.1.b RGPD). También registramos la dirección IP desde la que se envía el pedido y si un
+      (nombre, teléfono y contenido del pedido y, si eliges entrega a domicilio, la dirección de entrega) con la
+      única finalidad de preparar y entregarte el pedido y contactarte si surge alguna duda con él. La base
+      jurídica es la ejecución de la relación contractual que solicitas (art. 6.1.b RGPD). Para comprobar que la
+      dirección está dentro de la zona de reparto la consultamos en <strong>Nominatim (OpenStreetMap)</strong>,
+      que la recibe sin ningún otro dato tuyo y no la conserva asociada a tu persona. También registramos la dirección IP desde la que se envía el pedido y si un
       pedido queda sin recoger, con la única finalidad de prevenir abusos y pedidos fraudulentos (interés
       legítimo, art. 6.1.f RGPD): los teléfonos con pedidos reiterados sin recoger pueden quedar excluidos del
       pedido online (siempre pueden pedir por teléfono). Estos
@@ -111,9 +120,8 @@ const Privacidad = () => (
 
     <h2 style={h2}>3. Pedidos a través de plataformas</h2>
     <p style={p}>
-      Los pedidos a domicilio se realizan en las plataformas Just Eat, Glovo y Uber Eats. Al usarlas, el
-      tratamiento de tus datos se rige por las políticas de privacidad de cada plataforma, de las que son
-      responsables dichas empresas.
+      Si pides por Just Eat, Glovo o Uber Eats, el tratamiento de tus datos se rige por las políticas de
+      privacidad de cada plataforma, de las que son responsables dichas empresas.
     </p>
 
     <h2 style={h2}>4. Tus derechos</h2>
@@ -140,15 +148,21 @@ const Condiciones = () => (
     <h2 style={h2}>2. Objeto y ámbito</h2>
     <p style={p}>
       Estas condiciones regulan los pedidos de comida preparada realizados en la sección «Pedir» de este sitio
-      web para su <strong>recogida en el local elegido</strong> (Teatinos o Rincón de la Victoria). Al enviar
-      un pedido aceptas estas condiciones.
+      web para su <strong>recogida en el local elegido</strong> (Teatinos o Rincón de la Victoria)
+      {REPARTO && <> y, en <strong>Rincón de la Victoria</strong>, para su <strong>entrega a domicilio</strong> dentro
+      de la zona de reparto indicada en el apartado 5</>}. Al enviar un pedido aceptas estas condiciones.
     </p>
 
     <h2 style={h2}>3. Precios y formas de pago</h2>
     <p style={p}>
-      Todos los precios se muestran en <strong>euros (€) con IVA incluido</strong>. No hay gastos de envío ni
-      recargos: el precio final es la suma de los productos del carrito, visible antes de confirmar. El pedido
-      mínimo online es de <strong>9,00 €</strong>.
+      Todos los precios se muestran en <strong>euros (€) con IVA incluido</strong>. El precio final es la suma
+      de los productos del carrito, visible antes de confirmar. El pedido mínimo online es de{" "}
+      <strong>{fmtEUR(PEDIDO_MINIMO_CENTS)}</strong>.
+      {REPARTO && (
+        <> En los pedidos a domicilio se añaden <strong>{fmtEUR(REPARTO.gastosCents)} de gastos de envío</strong> y el
+        pedido mínimo es de <strong>{fmtEUR(REPARTO.minimoCents)}</strong> (sin contar el envío); ambos importes se
+        muestran en el carrito antes de pagar. En la recogida en local no hay gastos de envío ni recargos.</>
+      )}
     </p>
     <p style={p}>
       El pago se realiza <strong>online y por adelantado</strong> con tarjeta Visa o Mastercard, Bizum, Apple Pay
@@ -166,13 +180,27 @@ const Condiciones = () => (
       lo rechazará y te lo indicará en la misma pantalla, con reembolso automático del importe.
     </p>
 
-    <h2 style={h2}>5. Entrega: recogida en el local (sin envíos)</h2>
+    <h2 style={h2}>5. Entrega</h2>
     <p style={p}>
-      Los pedidos de esta web son exclusivamente <strong>para recoger en el local elegido</strong>, por lo que
-      <strong> no se realizan envíos a domicilio ni interviene ninguna empresa de transporte, y no existen
-      gastos de envío</strong>. El plazo habitual de preparación es de <strong>15 a 40 minutos</strong>: al
-      aceptar tu pedido, el local fija la hora estimada de recogida y la ves en la pantalla de seguimiento.
-      Si prefieres entrega a domicilio, está disponible a través de plataformas de terceros (Just Eat, Glovo,
+      <strong>Recogida en el local</strong> (Teatinos y Rincón de la Victoria): sin gastos de envío. El plazo
+      habitual de preparación es de <strong>15 a 40 minutos</strong>; al aceptar tu pedido, el local fija la hora
+      estimada de recogida y la ves en la pantalla de seguimiento.
+    </p>
+    {REPARTO && (
+      <p style={p}>
+        <strong>Entrega a domicilio</strong>: disponible únicamente desde el local de <strong>Rincón de la
+        Victoria</strong> ({LOCALES.rincon.address}), con reparto realizado por el propio establecimiento —no
+        interviene ninguna empresa de transporte— en un radio máximo de <strong>{REPARTO.radioKm} km</strong>{" "}
+        desde el local. Al escribir tu dirección comprobamos la distancia: si queda fuera de la zona te lo
+        indicamos <strong>antes de pagar</strong>. Los gastos de envío son de{" "}
+        <strong>{fmtEUR(REPARTO.gastosCents)}</strong> y el plazo habitual, de <strong>30 a 60 minutos</strong> según
+        la carga de la cocina y la distancia. Facilita una dirección completa y un teléfono operativo: si al
+        llegar no es posible entregarte el pedido en la dirección indicada y no logramos contactar contigo, se
+        aplica lo previsto en el apartado 6 para los pedidos no recogidos.
+      </p>
+    )}
+    <p style={p}>
+      La entrega a domicilio también está disponible a través de plataformas de terceros (Just Eat, Glovo,
       Uber Eats), que aplican sus propias condiciones, plazos y gastos.
     </p>
 
@@ -197,9 +225,10 @@ const Condiciones = () => (
         reponiendo el producto o reembolsando su importe.
       </li>
       <li>
-        <strong>Pedidos no recogidos</strong>: al estar pagados por adelantado, un pedido preparado que no se
-        recoja no da derecho a reembolso automático, al tratarse de comida elaborada expresamente; valoraremos
-        cada caso si nos llamas.
+        <strong>Pedidos no recogidos o no entregados</strong>: al estar pagados por adelantado, un pedido
+        preparado que no se recoja —o que no podamos entregar en la dirección facilitada por no encontrarte ni
+        poder contactarte— no da derecho a reembolso automático, al tratarse de comida elaborada expresamente;
+        valoraremos cada caso si nos llamas.
       </li>
     </ul>
 

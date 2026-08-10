@@ -36,11 +36,10 @@ export const LOCALES = {
     diasTexto: "Todos los días",
     diasKey: "deliv.dias.todos",
     cerradoDias: [],
-    // Reparto propio — OCULTO hasta poner activo: true. Antes de activarlo:
-    // ejecutar el SQL de columnas de entrega (supabase/schema.sql) y
-    // actualizar la sección de entrega de /condiciones.
-    // radioKm: distancia máxima de reparto desde el local (control por dirección).
-    delivery: { activo: false, gastosCents: 150, minimoCents: 1500, radioKm: 4, zona: "hasta 4 km del local" },
+    // Reparto propio. radioKm: distancia máxima desde el local — el servidor
+    // geocodifica la dirección y rechaza lo que quede fuera (api/orders.js).
+    // Poner activo: false lo oculta de la web al instante.
+    delivery: { activo: true, gastosCents: 150, minimoCents: 1500, radioKm: 4 },
     reviewUrl: "https://www.google.com/maps/search/?api=1&query=La+Terracita+Burger+Rinc%C3%B3n+de+la+Victoria",
   },
 };

@@ -41,6 +41,10 @@ function ticketHTML(o, localName) {
       ? `<div class="band">PAGADO ONLINE - NO COBRAR${devuelto > 0 ? " (devuelto " + esc(fmtEUR(devuelto)) + ")" : ""}</div>`
       : `<div class="band">PENDIENTE DE PAGO</div>`;
   const ordernote = o.nota ? `<div class="ordernote">&gt;&gt; NOTA: ${esc(o.nota)}</div>` : "";
+  // Sin esta línea los productos no suman el total en los pedidos a domicilio.
+  const envio = o.envio_cents > 0
+    ? `<div class="linea"><span>Envio</span><span>${esc(fmtEUR(o.envio_cents))}</span></div>`
+    : "";
 
   return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Ticket ${esc(o.code)}</title><style>
     @page { size: 58mm auto; margin: 0; }
@@ -60,6 +64,7 @@ function ticketHTML(o, localName) {
     .sub { padding-left: 10px; font-size: 12px; }
     .note { padding-left: 10px; font-size: 13px; font-weight: 800; }
     .ordernote { border: 2px solid #000; padding: 3px 5px; margin: 5px 0; font-size: 13px; font-weight: 800; }
+    .linea { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 700; }
     .total { display: flex; justify-content: space-between; gap: 8px; font-size: 18px; font-weight: 800; margin-top: 4px; }
     .foot { text-align: center; font-size: 11px; margin-top: 5px; }
   </style></head><body>
@@ -76,6 +81,7 @@ function ticketHTML(o, localName) {
     ${items}
     ${ordernote}
     <div class="sep"></div>
+    ${envio}
     <div class="total"><span>TOTAL</span><span>${esc(fmtEUR(o.total_cents))}</span></div>
     ${pagoBand}
     <div class="foot">Gracias!</div>
