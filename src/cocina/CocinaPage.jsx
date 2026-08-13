@@ -28,7 +28,7 @@ function haceCuanto(iso) {
 
 // Minutos que se ofrecen al aceptar. A domicilio la hora que ve el cliente es
 // la de llegada, no la de "listo": incluye el viaje.
-const minutosDe = (o) => (o.entrega === "domicilio" ? [30, 45, 60] : [15, 25, 40]);
+const minutosDe = (o) => (o.entrega === "domicilio" ? [30, 60, 90] : [15, 25, 40]);
 
 const btn = (bg, color = "#0a0806") =>
   sx(`font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.04em;padding:12px 18px;border-radius:12px;border:0;cursor:pointer;background:${bg};color:${color}`);
