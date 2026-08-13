@@ -19,6 +19,11 @@ export const LOCALES = {
     cerradoDias: [2], // 0=domingo … 2=martes
     // Teatinos NO tiene reparto propio (solo plataformas: Just Eat/Glovo/Uber).
     delivery: null,
+    apps: {
+      justeat: "https://www.just-eat.es/restaurants-la-terracita-teatinos-malaga/menu?serviceType=collection&utm_source=google&utm_medium=organic&utm_campaign=foodorder",
+      glovo: "https://glovoapp.com/es/es/malaga/stores/beher-teatinos-malaga?utm_medium=organic&utm_campaign=google_reserve_place_order_action&utm_source=google",
+      ubereats: "https://www.ubereats.com/es/store/la-terracita-burger/KTBmYDR0XIefR_aNDkvgqg?diningMode=PICKUP&utm_campaign=CM2508147-search-free-nonbrand-google-pas_e_all_acq_Global&utm_medium=search-free-nonbrand&utm_source=google-pas",
+    },
     // Enlace para dejar reseña en Google. TODO Mateo: sustituir por el enlace
     // exacto "escribir reseña" del local (Google Maps → tu ficha → Reseñas →
     // Escribir reseña → copiar enlace). El de abajo abre la ficha para valorar.
@@ -36,10 +41,24 @@ export const LOCALES = {
     diasTexto: "Todos los días",
     diasKey: "deliv.dias.todos",
     cerradoDias: [],
-    // Reparto propio. radioKm: distancia máxima desde el local — el servidor
-    // geocodifica la dirección y rechaza lo que quede fuera (api/orders.js).
-    // Poner activo: false lo oculta de la web al instante.
-    delivery: { activo: true, gastosCents: 150, minimoCents: 1500, radioKm: 4 },
+    // Reparto propio. El servidor geocodifica la dirección y exige que esté en
+    // el municipio Y dentro del radio (api/orders.js): el radio en línea recta
+    // no basta —Chilches queda a 3,9 km y es otro pueblo—.
+    // diasCompletos: días (0=domingo) con reparto también al mediodía; el resto,
+    // solo el turno de noche. Poner activo: false lo oculta de la web al instante.
+    delivery: {
+      activo: true,
+      gastosCents: 150,
+      minimoCents: 1500,
+      radioKm: 4,
+      municipio: "Rincón de la Victoria",
+      diasCompletos: [5, 6, 0], // viernes, sábado y domingo
+    },
+    apps: {
+      justeat: "https://www.just-eat.es/restaurants-la-terracita-rincon-de-la-victoria/menu?serviceType=collection&utm_source=google&utm_medium=organic&utm_campaign=foodorder",
+      glovo: "https://glovoapp.com/es/es/rincon-de-la-victoria/stores/la-terracita-rincon-de-la-victoria?utm_medium=organic&utm_campaign=google_reserve_place_order_action&utm_source=google",
+      ubereats: "https://www.ubereats.com/es/store/la-terracita-burger/Scz720n_WMedBmpzqbI-4A?diningMode=PICKUP&utm_campaign=CM2508147-search-free-nonbrand-google-pas_e_all_acq_Global&utm_medium=search-free-nonbrand&utm_source=google-pas",
+    },
     reviewUrl: "https://www.google.com/maps/search/?api=1&query=La+Terracita+Burger+Rinc%C3%B3n+de+la+Victoria",
   },
 };
@@ -86,6 +105,10 @@ const TXT = {
     dias: ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"],
     hoyLabel: "Hoy", mananaLabel: "Mañana",
     programado: (cuando, h) => `${cuando} a las ${h}`,
+    repartoNo: "Ahora no repartimos a domicilio",
+    repartoDesde: (cuando, h) => `Repartimos ${cuando} a partir de las ${h}`,
+    repartoSinHoy: "Hoy ya no hay reparto",
+    repartoResumen: (noche) => `Reparto por la noche (${noche}); viernes, sábados y domingos, también al mediodía`,
   },
   en: {
     noValido: "Invalid location", abierto: "Open now", hasta: (h) => `We take orders until ${h}`,
@@ -97,6 +120,10 @@ const TXT = {
     dias: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
     hoyLabel: "Today", mananaLabel: "Tomorrow",
     programado: (cuando, h) => `${cuando} at ${h}`,
+    repartoNo: "We're not delivering right now",
+    repartoDesde: (cuando, h) => `We deliver ${cuando} from ${h}`,
+    repartoSinHoy: "No more deliveries today",
+    repartoResumen: (noche) => `Delivery in the evening (${noche}); Fridays, Saturdays and Sundays also at lunchtime`,
   },
 };
 const txt = (idioma) => TXT[idioma] || TXT.es;
@@ -145,8 +172,48 @@ function proximaApertura(loc, dia, minutos, T) {
 }
 
 // Turnos de hoy formateados, p. ej. "13:00–16:00 y 20:00–23:30".
-export const horarioTexto = () =>
-  TURNOS.map(([i, f]) => `${fmtHM(i)}–${fmtHM(f)}`).join(" y ");
+export const horarioTexto = (idioma = "es") =>
+  TURNOS.map(([i, f]) => `${fmtHM(i)}–${fmtHM(f)}`).join(idioma === "en" ? " & " : " y ");
+
+// ── Horario del reparto a domicilio ──────────────────────────────────────────
+// El reparto tiene su propio horario, más corto que el del local: solo el
+// último turno (noche), salvo los días de `delivery.diasCompletos`, en los que
+// se reparte en el mismo horario que la recogida.
+export function turnosReparto(localId, dia) {
+  const d = LOCALES[localId]?.delivery;
+  if (!d?.activo || LOCALES[localId].cerradoDias.includes(dia)) return [];
+  return d.diasCompletos?.includes(dia) ? TURNOS : TURNOS.slice(-1);
+}
+
+// Resumen legible del horario de reparto, p. ej. "Reparto por la noche
+// (20:00–23:30); viernes, sábados y domingos, también al mediodía".
+export const repartoResumen = (idioma = "es") =>
+  txt(idioma).repartoResumen(`${fmtHM(TURNOS.at(-1)[0])}–${fmtHM(TURNOS.at(-1)[1])}`);
+
+// ¿Se puede pedir a domicilio ahora mismo? Devuelve {disponible, mensaje, detalle}.
+export function estadoReparto(localId, date = new Date(), idioma = "es") {
+  const T = txt(idioma);
+  const loc = LOCALES[localId];
+  if (!loc?.delivery?.activo) return { disponible: false, mensaje: "", detalle: "" };
+  const { dia, minutos } = ahoraMadrid(date);
+  const dentro = turnosReparto(localId, dia)
+    .some(([ini, fin]) => minutos >= ini && minutos <= fin - CIERRE_PEDIDOS_MIN);
+  if (dentro) return { disponible: true, mensaje: "", detalle: "" };
+  return { disponible: false, mensaje: T.repartoNo, detalle: proximoReparto(loc, dia, minutos, T) };
+}
+
+// "Repartimos hoy a partir de las 20:00" / "mañana a partir de las 13:00".
+function proximoReparto(loc, dia, minutos, T) {
+  for (let off = 0; off < 8; off++) {
+    const d = (dia + off) % 7;
+    for (const [ini] of turnosReparto(loc.id, d)) {
+      if (off === 0 && minutos >= ini) continue;
+      const cuando = off === 0 ? T.hoy : off === 1 ? T.manana : T.elDia(T.dias[d]);
+      return T.repartoDesde(cuando, fmtHM(ini));
+    }
+  }
+  return T.repartoSinHoy;
+}
 
 // ── Pedidos programados ──────────────────────────────────────────────────────
 export const PROGRAMAR_ANTELACION_MIN = 45; // antelación mínima que se ofrece
@@ -170,7 +237,7 @@ function instanteDe(ahora, off, m) {
 
 // Franjas de 15 min disponibles para programar (hoy y mañana), respetando
 // turnos, días cerrados y la antelación mínima. Devuelve [{off,label,horas:[{hm,iso}]}].
-export function franjasProgramables(localId, ahora = new Date(), idioma = "es") {
+export function franjasProgramables(localId, ahora = new Date(), idioma = "es", domicilio = false) {
   const T = txt(idioma);
   const loc = LOCALES[localId];
   if (!loc) return [];
@@ -181,7 +248,8 @@ export function franjasProgramables(localId, ahora = new Date(), idioma = "es") 
     const d = (dia + off) % 7;
     if (loc.cerradoDias.includes(d)) continue;
     const horas = [];
-    for (const [ini, fin] of TURNOS) {
+    // A domicilio solo se puede programar dentro del horario de reparto.
+    for (const [ini, fin] of domicilio ? turnosReparto(localId, d) : TURNOS) {
       const primer = Math.ceil(ini / SLOT_MIN) * SLOT_MIN;
       for (let m = primer; m <= fin - SLOT_MIN; m += SLOT_MIN) {
         if (off === 0 && m < minDesde) continue;
@@ -194,7 +262,7 @@ export function franjasProgramables(localId, ahora = new Date(), idioma = "es") 
 }
 
 // Valida en el servidor un instante programado (ISO). Devuelve {ok, error?, iso?}.
-export function validarProgramado(localId, iso, ahora = new Date()) {
+export function validarProgramado(localId, iso, ahora = new Date(), domicilio = false) {
   const loc = LOCALES[localId];
   if (!loc) return { ok: false, error: "Local no válido." };
   const cuando = new Date(iso);
@@ -207,8 +275,16 @@ export function validarProgramado(localId, iso, ahora = new Date()) {
   }
   const { dia, minutos } = ahoraMadrid(cuando);
   if (loc.cerradoDias.includes(dia)) return { ok: false, error: "Ese día el local está cerrado." };
-  const dentro = TURNOS.some(([ini, fin]) => minutos >= ini && minutos <= fin);
-  if (!dentro) return { ok: false, error: "Esa hora está fuera de nuestro horario." };
+  const turnos = domicilio ? turnosReparto(localId, dia) : TURNOS;
+  const dentro = turnos.some(([ini, fin]) => minutos >= ini && minutos <= fin);
+  if (!dentro) {
+    return {
+      ok: false,
+      error: domicilio
+        ? "Esa hora está fuera del horario de reparto: repartimos por la noche y, viernes, sábados y domingos, también al mediodía."
+        : "Esa hora está fuera de nuestro horario.",
+    };
+  }
   return { ok: true, iso: cuando.toISOString() };
 }
 

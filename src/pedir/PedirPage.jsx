@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
 import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
-import { LOCALES, estadoLocal, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
+import { LOCALES, estadoLocal, estadoReparto, repartoResumen, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
 import { useI18n } from "../i18n";
 import { menuPedir, tEtiqueta, precioEn, nombreItem } from "../menuI18n";
 import LangSwitcher from "../LangSwitcher";
@@ -213,7 +213,7 @@ export default function PedirPage() {
                 </div>
               </div>
               <div style={sx("font-size:12.5px;line-height:1.6;color:rgba(246,241,233,.55);border-left:1px solid rgba(246,241,233,.14);padding-left:22px")}>
-                {t("pedir.horario")} <strong style={sx("color:rgba(246,241,233,.85)")}>{horarioTexto()}</strong>
+                {t("pedir.horario")} <strong style={sx("color:rgba(246,241,233,.85)")}>{horarioTexto(idioma)}</strong>
                 <br />📅 {t(L.diasKey)}
               </div>
               {reparto && (
@@ -225,6 +225,7 @@ export default function PedirPage() {
                     envio: fmtP(reparto.gastosCents),
                     min: fmtP(reparto.minimoCents),
                   })}
+                  <br />🕒 {repartoResumen(idioma)}
                 </div>
               )}
             </div>
@@ -458,11 +459,20 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
   const totalFinal = totalCents + envioCents;
   const faltaMinimo = cart.length > 0 && totalCents < minimoCents;
 
-  // Programación: franjas disponibles (hoy y mañana). Si el local está cerrado
-  // y se puede programar, se fuerza esta opción.
-  const franjas = useMemo(() => (programar ? franjasProgramables(loc, ahora, idioma) : []), [programar, loc, ahora, idioma]);
+  // El reparto tiene su propio horario (noches; V-S-D también al mediodía), así
+  // que "cerrado" no significa lo mismo según cómo quieras recibir el pedido.
+  const reparto = useMemo(() => estadoReparto(loc, ahora, idioma), [loc, ahora, idioma]);
+  const sinRepartoAhora = esDomicilio && !reparto.disponible;
+
+  // Programación: franjas disponibles (hoy y mañana), limitadas al horario de
+  // reparto si el pedido es a domicilio. Si está cerrado y se puede programar,
+  // se fuerza esta opción.
+  const franjas = useMemo(
+    () => (programar ? franjasProgramables(loc, ahora, idioma, !!esDomicilio) : []),
+    [programar, loc, ahora, idioma, esDomicilio]
+  );
   const hayFranjas = franjas.some((d) => d.horas.length > 0);
-  const cerrado = !estado?.abierto;
+  const cerrado = !estado?.abierto || sinRepartoAhora;
   const pausado = !!estado?.pausado; // cierre manual: ni siquiera se programa
   const debeProgramar = cerrado && !pausado && programar && hayFranjas;
   const modo = pausado ? "asap" : debeProgramar ? "programado" : cuando;
@@ -545,7 +555,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
 
         <div style={sx("font-size:13px;color:rgba(246,241,233,.65)")}>
           {esDomicilio ? (
-            <>{t("pedir.entregaZona")} <strong style={{ color: `rgb(${rgb})` }}>{t("pedir.zonaRadio", { km: deliveryConf.radioKm })}</strong><br />{t("pedir.gastosEnvio")} {fmtP(deliveryConf.gastosCents)} · {t("pedir.minimoDom", { min: fmtP(deliveryConf.minimoCents) })}</>
+            <>{t("pedir.entregaZona")} <strong style={{ color: `rgb(${rgb})` }}>{t("pedir.zonaRadio", { km: deliveryConf.radioKm })}</strong><br />{t("pedir.gastosEnvio")} {fmtP(deliveryConf.gastosCents)} · {t("pedir.minimoDom", { min: fmtP(deliveryConf.minimoCents) })}<br />🕒 {repartoResumen(idioma)}</>
           ) : (
             <>{t("pedir.recogidaEn")} <strong style={{ color: `rgb(${rgb})` }}>{L.name}</strong> — {L.address}<br />{t("pedir.pagoSeguroLinea")}</>
           )}
@@ -695,14 +705,32 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
             {t("pedir.noDisponible", { phone: L.phone })}
           </div>
         )}
-        {pagos && cerrado && !programado && (
+        {/* Fuera del horario de reparto: se puede programar para la noche, pero
+            si lo quiere ya, se le manda a las plataformas en vez de dejarlo
+            colgado. Se muestra aunque esté programando. */}
+        {pagos && sinRepartoAhora && !pausado && (
+          <div style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.4);background:rgba(255,92,40,.08);color:#f6f1e9;font-size:14px")}>
+            🛵 {reparto.mensaje} — {reparto.detalle}.{" "}
+            {hayFranjas ? t("pedir.puedesProgramar") : t("pedir.oRecoge")}
+            <div style={sx("margin-top:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px")}>
+              <span style={sx("font-size:13px;color:rgba(246,241,233,.7)")}>{t("pedir.oPideApps")}</span>
+              {[["glovo", "Glovo", "#ffc244"], ["ubereats", "Uber Eats", "#06c167"]].map(([k, nombre, color]) => (
+                <a key={k} href={L.apps?.[k]} target="_blank" rel="noreferrer"
+                  style={{ ...sx("font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:100px;text-decoration:none"), border: `1px solid ${color}`, color }}>
+                  🛵 {nombre} →
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+        {pagos && cerrado && !programado && !sinRepartoAhora && (
           <div style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.4);background:rgba(255,92,40,.08);color:#f6f1e9;font-size:14px")}>
             {estado?.mensaje} — {estado?.detalle}.{" "}
             {pausado
               ? t("pedir.pausaTelefono", { phone: L.phone })
               : programar && hayFranjas
                 ? t("pedir.puedesProgramar")
-                : t("pedir.cerradoAviso", { horario: horarioTexto() })}
+                : t("pedir.cerradoAviso", { horario: horarioTexto(idioma) })}
           </div>
         )}
         {error && (

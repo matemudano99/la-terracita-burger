@@ -3,19 +3,26 @@
 // Usa Nominatim (OpenStreetMap), gratis. Requiere cabecera User-Agent y un uso
 // moderado (1 req/s) — sobra para el volumen de pedidos de un restaurante.
 //
-// Devuelve { lat, lon }, o null si la dirección no existe. Si el servicio no
-// responde LANZA GeoNoDisponible: no es lo mismo «esa calle no existe» que «no
-// he podido comprobarlo», y al cliente hay que decirle una cosa u otra.
+// Devuelve { lat, lon, municipio }, o null si la dirección no existe. Si el
+// servicio no responde LANZA GeoNoDisponible: no es lo mismo «esa calle no
+// existe» que «no he podido comprobarlo», y al cliente hay que decirle una cosa
+// u otra.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class GeoNoDisponible extends Error {}
 
 const TIMEOUT_MS = 6000;
 
+// "Rincón de la Victoria" === "rincon de la victoria": el municipio llega de
+// OpenStreetMap y no siempre con los mismos acentos o mayúsculas.
+export const mismoMunicipio = (a, b) => normalizar(a) === normalizar(b);
+const normalizar = (s) =>
+  String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
+
 export async function geocodificar(direccion) {
   const q = String(direccion || "").trim();
   if (q.length < 5) return null;
-  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=es&q=${encodeURIComponent(q)}`;
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=1&countrycodes=es&q=${encodeURIComponent(q)}`;
 
   let res;
   try {
@@ -42,5 +49,9 @@ export async function geocodificar(direccion) {
   const lat = Number(arr[0].lat);
   const lon = Number(arr[0].lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
-  return { lat, lon };
+  // El municipio llega en town/city/municipality según el tipo de núcleo; la
+  // pedanía (village) va aparte, así que "La Cala del Moral" sigue siendo
+  // Rincón de la Victoria.
+  const a = arr[0].address || {};
+  return { lat, lon, municipio: a.town || a.city || a.municipality || a.village || "" };
 }

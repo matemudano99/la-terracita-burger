@@ -190,11 +190,14 @@ const Condiciones = () => (
       <p style={p}>
         <strong>Entrega a domicilio</strong>: disponible únicamente desde el local de <strong>Rincón de la
         Victoria</strong> ({LOCALES.rincon.address}), con reparto realizado por el propio establecimiento —no
-        interviene ninguna empresa de transporte— en un radio máximo de <strong>{REPARTO.radioKm} km</strong>{" "}
-        desde el local. Al escribir tu dirección comprobamos la distancia: si queda fuera de la zona te lo
-        indicamos <strong>antes de pagar</strong>. Los gastos de envío son de{" "}
-        <strong>{fmtEUR(REPARTO.gastosCents)}</strong> y el plazo habitual, de <strong>30 a 60 minutos</strong> según
-        la carga de la cocina y la distancia. Facilita una dirección completa y un teléfono operativo: si al
+        interviene ninguna empresa de transporte— dentro del término municipal de{" "}
+        <strong>{REPARTO.municipio}</strong> y en un radio máximo de <strong>{REPARTO.radioKm} km</strong> desde el
+        local. Al escribir tu dirección comprobamos ambas cosas: si queda fuera de la zona te lo indicamos{" "}
+        <strong>antes de pagar</strong>. El reparto tiene un horario propio, más corto que el del local:{" "}
+        <strong>solo en el turno de noche, salvo viernes, sábados y domingos, en los que también repartimos al
+        mediodía</strong>; fuera de ese horario puedes recoger en el local, dejar el pedido programado o pedirnos
+        por las plataformas. Los gastos de envío son de <strong>{fmtEUR(REPARTO.gastosCents)}</strong> y el plazo
+        habitual, de <strong>30 a 60 minutos</strong> según la carga de la cocina y la distancia. Facilita una dirección completa y un teléfono operativo: si al
         llegar no es posible entregarte el pedido en la dirección indicada y no logramos contactar contigo, se
         aplica lo previsto en el apartado 6 para los pedidos no recogidos.
       </p>

@@ -10,11 +10,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { randomUUID } from "node:crypto";
 import { priceLine, fmtEUR, itemName, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
-import { LOCALES, estadoLocal, validarProgramado, distanciaKm } from "../src/locales.js";
+import { LOCALES, estadoLocal, estadoReparto, validarProgramado, distanciaKm } from "../src/locales.js";
 import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
 import { pagosDisponibles, crearPago, reembolsar } from "./_monei.js";
-import { geocodificar, GeoNoDisponible } from "./_geo.js";
+import { geocodificar, GeoNoDisponible, mismoMunicipio } from "./_geo.js";
 
 const ESTADOS = ["nuevo", "aceptado", "lista", "entregado", "rechazado", "no_recogido"];
 
@@ -69,15 +69,17 @@ async function crear(req, res) {
   if (!loc) return res.status(400).json({ error: "Elige un local válido." });
 
   const ahora = new Date();
+  const aDomicilio = b.entrega === "domicilio";
 
   // Pedido programado (para más tarde o cuando está cerrado). Si es válido, se
-  // salta la comprobación de "abierto ahora".
+  // salta la comprobación de "abierto ahora". A domicilio, la franja además
+  // tiene que caer dentro del horario de reparto, más corto que el del local.
   let programadoISO = null;
   if (b.programado_para) {
     if (!(await tieneColumna("programado_para"))) {
       return res.status(400).json({ error: "Los pedidos programados no están disponibles todavía." });
     }
-    const v = validarProgramado(b.local, b.programado_para, ahora);
+    const v = validarProgramado(b.local, b.programado_para, ahora, aDomicilio);
     if (!v.ok) return res.status(400).json({ error: v.error });
     programadoISO = v.iso;
   }
@@ -85,6 +87,14 @@ async function crear(req, res) {
   const estado = estadoLocal(b.local, ahora);
   if (!programadoISO && !estado.abierto) {
     return res.status(409).json({ error: `${estado.mensaje} — ${estado.detalle}. Puedes dejar tu pedido programado.` });
+  }
+
+  // El reparto tiene su propio horario dentro del horario del local.
+  if (aDomicilio && !programadoISO) {
+    const reparto = estadoReparto(b.local, ahora);
+    if (!reparto.disponible) {
+      return res.status(409).json({ error: `${reparto.mensaje} — ${reparto.detalle}. Puedes recoger en el local, programarlo o pedirnos por Glovo o Uber Eats.` });
+    }
   }
 
   // ¿Pedidos pausados desde el panel de administración? Si la consulta falla
@@ -161,6 +171,12 @@ async function crear(req, res) {
       }
       if (!punto) {
         return res.status(400).json({ error: "No hemos encontrado esa dirección. Revisa la calle y el número, o llámanos y te ayudamos." });
+      }
+      // El municipio manda sobre el radio: en línea recta hay pueblos vecinos
+      // más cerca que barrios propios, y ahí no repartimos.
+      const municipio = loc.delivery.municipio;
+      if (municipio && !mismoMunicipio(punto.municipio, municipio)) {
+        return res.status(400).json({ error: `Solo repartimos en ${municipio}${punto.municipio ? ` y esa dirección está en ${punto.municipio}` : ""}. Puedes elegir recogida en el local.` });
       }
       const km = distanciaKm(loc.lat, loc.lon, punto.lat, punto.lon);
       if (km > loc.delivery.radioKm) {

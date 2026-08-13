@@ -225,6 +225,8 @@ const DICT = {
   "pedir.zonaRadio": { es: "hasta {km} km del local", en: "within {km} km of the restaurant" },
   "pedir.gastosEnvio": { es: "🚚 Gastos de envío:", en: "🚚 Delivery fee:" },
   "pedir.minimoDom": { es: "mínimo {min}", en: "{min} minimum" },
+  "pedir.oPideApps": { es: "¿Lo quieres ya? Pídelo por:", en: "Want it now? Order through:" },
+  "pedir.oRecoge": { es: "Puedes recogerlo en el local.", en: "You can pick it up at the restaurant." },
   "pedir.calle": { es: "Calle y número *", en: "Street and number *" },
   "pedir.piso": { es: "Piso / puerta (opcional)", en: "Floor / door (optional)" },
   "pedir.cuando": { es: "¿Para cuándo?", en: "When for?" },

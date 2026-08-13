@@ -1,38 +1,14 @@
 import { useState } from "react";
 import { sx } from "./sx";
 import { useI18n } from "./i18n";
-import { LOCALES } from "./locales";
+import { LOCALES, HORARIO_TEXTO, repartoResumen } from "./locales";
 import { fmtEUR } from "./menu";
 
+// Datos de escaparate de cada local; lo compartido (dirección, teléfono,
+// horarios, enlaces a las apps) sale de locales.js para no duplicarlo.
 const LOCS = {
-  teatinos: {
-    name: "Teatinos",
-    address: "Av. Parménides 1, Local 5 · Málaga",
-    tel: "628053065",
-    phone: "628 053 065",
-    rating: "4,8",
-    reviews: "567",
-    days: "deliv.dias.teatinos",
-    schedule: "13:00–16:00 · 20:00–23:30",
-    rgb: "255 197 49",
-    justeat: "https://www.just-eat.es/restaurants-la-terracita-teatinos-malaga/menu?serviceType=collection&utm_source=google&utm_medium=organic&utm_campaign=foodorder",
-    glovo: "https://glovoapp.com/es/es/malaga/stores/beher-teatinos-malaga?utm_medium=organic&utm_campaign=google_reserve_place_order_action&utm_source=google",
-    ubereats: "https://www.ubereats.com/es/store/la-terracita-burger/KTBmYDR0XIefR_aNDkvgqg?diningMode=PICKUP&utm_campaign=CM2508147-search-free-nonbrand-google-pas_e_all_acq_Global&utm_medium=search-free-nonbrand&utm_source=google-pas",
-  },
-  rincon: {
-    name: "Rincón de la Victoria",
-    address: "Av. del Mediterráneo 139 · 29730",
-    tel: "622220826",
-    phone: "622 220 826",
-    rating: "4,7",
-    reviews: "807",
-    days: "deliv.dias.todos",
-    schedule: "13:00–16:00 · 20:00–23:30",
-    rgb: "255 92 40",
-    justeat: "https://www.just-eat.es/restaurants-la-terracita-rincon-de-la-victoria/menu?serviceType=collection&utm_source=google&utm_medium=organic&utm_campaign=foodorder",
-    glovo: "https://glovoapp.com/es/es/rincon-de-la-victoria/stores/la-terracita-rincon-de-la-victoria?utm_medium=organic&utm_campaign=google_reserve_place_order_action&utm_source=google",
-    ubereats: "https://www.ubereats.com/es/store/la-terracita-burger/Scz720n_WMedBmpzqbI-4A?diningMode=PICKUP&utm_campaign=CM2508147-search-free-nonbrand-google-pas_e_all_acq_Global&utm_medium=search-free-nonbrand&utm_source=google-pas",
-  },
+  teatinos: { ...LOCALES.teatinos, days: "deliv.dias.teatinos", rating: "4,8", reviews: "567" },
+  rincon: { ...LOCALES.rincon, days: "deliv.dias.todos", rating: "4,7", reviews: "807" },
 };
 
 // ¿Algún local reparte por su cuenta? Cambia el claim de la sección.
@@ -45,7 +21,7 @@ const PLATFORMS = [
 ];
 
 export default function Delivery() {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const [loc, setLoc] = useState("teatinos");
   const L = LOCS[loc];
   // Reparto propio del local (solo Rincón por ahora) — la config vive en locales.js.
@@ -102,7 +78,8 @@ export default function Delivery() {
 
         <div style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:12px 28px;margin:18px 0 32px;font-size:14px;color:rgba(246,241,233,.72);position:relative")}>
           <span>📍 {L.address}</span>
-          <span>🕒 {t(L.days)} · {L.schedule}</span>
+          <span>🕒 {t(L.days)} · {HORARIO_TEXTO}</span>
+          {reparto && <span style={{ color: `rgb(${L.rgb})` }}>🛵 {repartoResumen(idioma)}</span>}
           <span style={sx("display:inline-flex;align-items:center;gap:7px")}>
             <span style={sx("display:inline-flex;gap:1px")}>
               {[0, 1, 2, 3, 4].map((s) => (
@@ -159,7 +136,7 @@ export default function Delivery() {
           {PLATFORMS.map((p, idx) => (
             <a
               key={p.key}
-              href={L[p.key]}
+              href={L.apps[p.key]}
               target="_blank"
               rel="noreferrer"
               className={`ltb-deliv ${p.cls}`}
