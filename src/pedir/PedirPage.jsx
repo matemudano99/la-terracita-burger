@@ -804,7 +804,7 @@ function Seguimiento({ pedido, onNuevo }) {
       emoji: "🔥",
       titulo: t("pedir.seg.aceptadoT"),
       texto: readyLabel
-        ? t("pedir.seg.aceptadoD", { hora: readyLabel })
+        ? t(info?.entrega === "domicilio" ? "pedir.seg.aceptadoDdom" : "pedir.seg.aceptadoD", { hora: readyLabel })
         : progTxt
         ? t("pedir.seg.aceptadoDprog", { cuando: progTxt })
         : t("pedir.seg.aceptadoDsin"),
@@ -872,7 +872,7 @@ function Seguimiento({ pedido, onNuevo }) {
           {info?.total_cents != null && (
             pagoEstado === "reembolsado" ? <><br />{t("pedir.seg.devuelto", { t: fmtP(info.total_cents) })}</>
             : pagoEstado === "reembolso_parcial" ? <><br />{t("pedir.seg.pagadoParcial", { t: fmtP(info.total_cents), d: fmtP(info.reembolsado_cents || 0) })}</>
-            : <><br />{t("pedir.seg.pagado", { t: fmtP(info.total_cents) })}</>
+            : <><br />{t(info.entrega === "domicilio" ? "pedir.seg.pagadoDom" : "pedir.seg.pagado", { t: fmtP(info.total_cents) })}</>
           )}
         </div>
 

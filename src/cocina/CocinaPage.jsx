@@ -26,6 +26,10 @@ function haceCuanto(iso) {
   return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")}`;
 }
 
+// Minutos que se ofrecen al aceptar. A domicilio la hora que ve el cliente es
+// la de llegada, no la de "listo": incluye el viaje.
+const minutosDe = (o) => (o.entrega === "domicilio" ? [30, 45, 60] : [15, 25, 40]);
+
 const btn = (bg, color = "#0a0806") =>
   sx(`font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.04em;padding:12px 18px;border-radius:12px;border:0;cursor:pointer;background:${bg};color:${color}`);
 
@@ -354,7 +358,7 @@ export default function CocinaPage() {
               {programados.map((o) => (
                 <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
                   <div style={sx("display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px")}>
-                    {[15, 25, 40].map((m) => (
+                    {minutosDe(o).map((m) => (
                       <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={btn(`rgb(${L.rgb})`)}>✓ {m}′</button>
                     ))}
                   </div>
@@ -368,7 +372,7 @@ export default function CocinaPage() {
             {nuevos.map((o) => (
               <Card key={o.id} o={o} rgb={L.rgb} destacado onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
                 <div style={sx("display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px")}>
-                  {[15, 25, 40].map((m) => (
+                  {minutosDe(o).map((m) => (
                     <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={btn(`rgb(${L.rgb})`)}>✓ {m}′</button>
                   ))}
                 </div>
