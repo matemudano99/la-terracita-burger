@@ -61,6 +61,12 @@ alter table public.pedidos
   add column if not exists programado_para timestamptz,
   add column if not exists reembolsado_cents integer not null default 0;
 
+-- Promoción web aplicada al pedido (2ª hamburguesa al 50 %). Sin esta columna
+-- la promo se cobra igual de bien: el total ya viene descontado, pero no se
+-- puede desglosar en el ticket ni en el panel.
+alter table public.pedidos
+  add column if not exists promo_cents integer not null default 0;
+
 -- Ajustes por local: pausar pedidos online desde /admin (pestaña Ajustes).
 create table if not exists public.ajustes (
   local      text primary key,

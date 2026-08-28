@@ -203,6 +203,47 @@ export const MENU = [
   },
 ];
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PROMOCIÓN WEB — descuento que se aplica al carrito entero, no a un producto.
+// Se calcula igual en la web y en el servidor (que es quien manda).
+// Para quitarla: activa: false. Para cambiarla, toca solo estas constantes.
+//   pct        → % de descuento sobre la hamburguesa que entra en promoción
+//   categorias → qué categorías de la carta cuentan como "hamburguesa"
+// El descuento se aplica sobre el PRECIO BASE del producto, no sobre extras,
+// panes ni acompañamientos.
+// ─────────────────────────────────────────────────────────────────────────────
+export const PROMO = {
+  activa: true,
+  nombre: "PROMO WEB: 50 % en la segunda hamburguesa",
+  nombreEn: "WEB DEAL: 50% off your second burger",
+  corto: "50 % en la 2ª hamburguesa",
+  cortoEn: "50% off the 2nd burger",
+  pct: 50,
+  categorias: ["smash"],
+};
+
+// Ids de los productos que entran en la promoción.
+const idsPromo = new Set(
+  MENU.filter((c) => PROMO.categorias.includes(c.id)).flatMap((c) => c.items.map((i) => i.id))
+);
+export const enPromo = (itemId) => PROMO.activa && idsPromo.has(itemId);
+
+// Descuento de la promoción sobre unas líneas ya valoradas con priceLine().
+// Cada pareja de hamburguesas descuenta la más barata de las dos: con 3
+// hamburguesas se descuenta una, con 4 dos, y así.
+export function promoDescuento(items) {
+  if (!PROMO.activa || !Array.isArray(items)) return 0;
+  const unidades = [];
+  for (const it of items) {
+    if (!it || !enPromo(it.itemId)) continue;
+    for (let i = 0; i < it.qty; i++) unidades.push(it.baseCents ?? 0);
+  }
+  unidades.sort((a, b) => b - a); // de más cara a más barata
+  let desc = 0;
+  for (let i = 1; i < unidades.length; i += 2) desc += Math.round((unidades[i] * PROMO.pct) / 100);
+  return desc;
+}
+
 export const fmtEUR = (cents) =>
   (cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 
@@ -295,6 +336,7 @@ export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, 
       extras: extras.map((e) => e.label),
       descuento: descuento || null,
       qty: q,
+      baseCents: base, // precio del producto sin extras: lo que mira la promo
       unitCents: unit,
       lineCents: unit * q,
     };

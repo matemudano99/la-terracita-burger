@@ -42,6 +42,9 @@ function ticketHTML(o, localName) {
       : `<div class="band">PENDIENTE DE PAGO</div>`;
   const ordernote = o.nota ? `<div class="ordernote">&gt;&gt; NOTA: ${esc(o.nota)}</div>` : "";
   // Sin esta línea los productos no suman el total en los pedidos a domicilio.
+  const promo = o.promo_cents > 0
+    ? `<div class="linea"><span>Promo web</span><span>-${esc(fmtEUR(o.promo_cents))}</span></div>`
+    : "";
   const envio = o.envio_cents > 0
     ? `<div class="linea"><span>Envio</span><span>${esc(fmtEUR(o.envio_cents))}</span></div>`
     : "";
@@ -81,6 +84,7 @@ function ticketHTML(o, localName) {
     ${items}
     ${ordernote}
     <div class="sep"></div>
+    ${promo}
     ${envio}
     <div class="total"><span>TOTAL</span><span>${esc(fmtEUR(o.total_cents))}</span></div>
     ${pagoBand}

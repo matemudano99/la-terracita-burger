@@ -2,6 +2,15 @@ import { sx } from "./sx";
 import { BURGER_DEL_MES as B } from "./mesData";
 import { useI18n } from "./i18n";
 
+// Si la foto del mes todavía no se ha subido a /public/fotos, se enseña una
+// de la casa en vez de un hueco roto.
+const FOTO_RESPALDO = "/fotos/burger-laterracita.webp";
+const siFalta = (e) => {
+  if (e.currentTarget.dataset.respaldo) return;
+  e.currentTarget.dataset.respaldo = "1";
+  e.currentTarget.src = FOTO_RESPALDO;
+};
+
 export default function BurgerDelMes() {
   const { t, idioma } = useI18n();
   const en = idioma === "en";
@@ -16,10 +25,10 @@ export default function BurgerDelMes() {
         {/* Photo with neon frame + inset */}
         <div style={sx("position:relative")}>
           <div className="ltb-neon-box" style={sx("position:relative;border-radius:22px;overflow:hidden;aspect-ratio:4/5")}>
-            <img src={B.img} alt={t("mes.alt", { name: B.name })} width="1300" height="1086" fetchpriority="high" decoding="async" style={sx("display:block;width:100%;height:100%;object-fit:cover")} />
+            <img src={B.img} onError={siFalta} alt={t("mes.alt", { name: B.name })} width="1300" height="1086" fetchpriority="high" decoding="async" style={sx("display:block;width:100%;height:100%;object-fit:cover")} />
           </div>
           <div style={sx("position:absolute;right:-14px;bottom:-14px;width:40%;aspect-ratio:1/1;border-radius:16px;overflow:hidden;border:3px solid #0a0806;box-shadow:0 14px 34px rgba(0,0,0,.55)")}>
-            <img src={B.img2} alt="" width="1300" height="866" loading="lazy" decoding="async" style={sx("display:block;width:100%;height:100%;object-fit:cover")} />
+            <img src={B.img2} onError={siFalta} alt="" width="1300" height="866" loading="lazy" decoding="async" style={sx("display:block;width:100%;height:100%;object-fit:cover")} />
           </div>
           <span style={sx("position:absolute;top:-16px;left:-10px;display:grid;place-items:center;width:92px;height:92px;border-radius:50%;background:rgb(var(--emb));color:#0a0806;font-family:'Anton',sans-serif;font-size:14px;text-align:center;line-height:1.05;text-transform:uppercase;transform:rotate(-10deg)")}>{t("mes.badge")}</span>
         </div>

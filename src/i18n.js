@@ -240,6 +240,10 @@ const DICT = {
   "pedir.agotadoQuitar": { es: "— agotado hoy 😔", en: "— sold out today 😔" },
   "pedir.quitar": { es: "Quitar", en: "Remove" },
   "pedir.vacio": { es: "El carrito está vacío.", en: "Your cart is empty." },
+  "pedir.promo.detalle": {
+    es: "Se aplica sola al pedir dos o más hamburguesas: descontamos la mitad de la más barata de cada pareja.",
+    en: "Applied automatically with two or more burgers: half off the cheaper one in each pair.",
+  },
   "pedir.envio": { es: "Envío", en: "Delivery" },
   "pedir.total": { es: "TOTAL", en: "TOTAL" },
   "pedir.minimo": {

@@ -137,6 +137,31 @@ npm run dev
   días, el teléfono queda **bloqueado** para pedir online (se le invita a
   llamar). El checkout avisa de esta norma antes de enviar.
 
+## Promoción web (2ª hamburguesa al 50 %)
+
+Vive en la constante `PROMO` de **`src/menu.js`**, y la aplica el servidor:
+
+- **Qué descuenta**: por cada pareja de hamburguesas, la mitad de la más
+  barata de las dos (2 → una al 50 %; 3 → una; 4 → dos). Se calcula sobre el
+  **precio del producto**, no sobre extras, panes ni acompañamientos.
+- **Qué cuenta como hamburguesa**: las categorías de `PROMO.categorias`
+  (hoy solo `smash`, que incluye la burger del mes). Los camperos no entran.
+- **Quitarla o cambiarla**: `activa: false`, o toca `pct` / `categorias`.
+  El texto del cartel y del carrito sale de `nombre` / `corto` (y sus
+  versiones en inglés).
+- El pedido mínimo se mide sobre el total **ya con la promo aplicada**.
+- El navegador solo la enseña: el importe lo recalcula siempre `/api/orders`.
+
+Para que el ticket y el panel puedan desglosarla, ejecuta una vez en Supabase:
+
+```sql
+alter table public.pedidos
+  add column if not exists promo_cents integer not null default 0;
+```
+
+Sin esa columna la promo se cobra igual de bien (el total ya va descontado),
+solo que el ticket no enseña la línea «Promo web».
+
 ## Pedido mínimo, programados y reparto propio (oculto)
 
 - **Pedido mínimo online: 9 €** (constante `PEDIDO_MINIMO_CENTS` en
@@ -204,7 +229,11 @@ se rechaza aunque el cliente lo tuviera en el carrito. El panel de pedidos
 se actualiza cada 2 segundos.
 
 La **hamburguesa del mes** se pide online: nombre, ingredientes y precio se
-editan en `src/mesData.js` (campo `precioCents`).
+editan en `src/mesData.js` (campo `precioCents`). Las fotos van en
+`assets-src/fotos` como `.jpg` y se convierten con `npm run optimize:images`
+(genera los `.webp` de `public/fotos` y la imagen de compartir `og.jpg`, que
+sale de la foto principal del mes). Si un mes falta la foto, la portada enseña
+una de la casa en vez de romperse, pero conviene subirla.
 
 ## Pago online (MONEI)
 

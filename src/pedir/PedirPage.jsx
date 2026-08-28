@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
-import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
+import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, PROMO, promoDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
 import { LOCALES, estadoLocal, estadoReparto, repartoResumen, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
 import { useI18n } from "../i18n";
 import { menuPedir, tEtiqueta, precioEn, nombreItem } from "../menuI18n";
@@ -122,7 +122,10 @@ export default function PedirPage() {
   // Reparto propio del local elegido (Teatinos no tiene: solo plataformas).
   const reparto = L?.delivery?.activo ? L.delivery : null;
 
-  const totalCents = cart.reduce((s, l) => s + (pricedOf(l, carta)?.lineCents || 0), 0);
+  const lineasPrecio = cart.map((l) => pricedOf(l, carta)).filter(Boolean);
+  const brutoCents = lineasPrecio.reduce((s, p) => s + p.lineCents, 0);
+  const promoCents = promoDescuento(lineasPrecio);
+  const totalCents = brutoCents - promoCents;
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
 
   const addLine = (line) => {
@@ -230,6 +233,15 @@ export default function PedirPage() {
               )}
             </div>
 
+            {PROMO.activa && (
+              <div style={{ ...sx("display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:14px 20px;border-radius:16px;margin:0 0 26px;background:rgb(var(--emb) / .1)"), border: "1px solid rgb(var(--emb) / .45)" }}>
+                <span style={sx("font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.04em;text-transform:uppercase;color:rgb(var(--emb))")}>
+                  🔥 {idioma === "en" ? PROMO.nombreEn : PROMO.nombre}
+                </span>
+                <span style={sx("font-size:13px;line-height:1.5;color:rgba(246,241,233,.7)")}>{t("pedir.promo.detalle")}</span>
+              </div>
+            )}
+
             {/* Categorías */}
             <div style={sx("display:flex;flex-wrap:wrap;gap:10px;margin:0 0 26px")}>
               {CATS_PEDIR.map((c) => {
@@ -302,7 +314,7 @@ export default function PedirPage() {
       )}
 
       {modalItem && <OpcionesModal {...modalItem} carta={carta} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
-      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} rgb={rgb} estado={estado} pagos={pagos} programar={programar} ahora={ahora} totalCents={totalCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
+      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} rgb={rgb} estado={estado} pagos={pagos} programar={programar} ahora={ahora} totalCents={totalCents} promoCents={promoCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
     </div>
   );
 }
@@ -435,7 +447,7 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
 }
 
 // ── Carrito + checkout ───────────────────────────────────────────────────────
-function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, ahora, totalCents, onClose, onDone }) {
+function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, ahora, totalCents, promoCents, onClose, onDone }) {
   const { t, idioma } = useI18n();
   const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
   const [nombre, setNombre] = useState(localStorage.getItem("ltb_nombre") || "");
@@ -662,6 +674,12 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
         </div>
 
         <div style={sx("border-top:1px dashed rgba(246,241,233,.18);padding-top:14px;display:flex;flex-direction:column;gap:6px")}>
+          {promoCents > 0 && (
+            <div style={sx("display:flex;justify-content:space-between;gap:12px;font-size:14px;color:rgb(var(--emb))")}>
+              <span>🔥 {idioma === "en" ? PROMO.cortoEn : PROMO.corto}</span>
+              <span style={sx("white-space:nowrap")}>− {fmtP(promoCents)}</span>
+            </div>
+          )}
           {envioCents > 0 && (
             <div style={sx("display:flex;justify-content:space-between;font-size:14px;color:rgba(246,241,233,.72)")}>
               <span>{t("pedir.envio")}</span><span>{fmtP(envioCents)}</span>

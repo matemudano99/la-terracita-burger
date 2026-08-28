@@ -9,7 +9,7 @@
 // en los importes que envía el navegador.
 // ─────────────────────────────────────────────────────────────────────────────
 import { randomUUID } from "node:crypto";
-import { priceLine, fmtEUR, itemName, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
+import { priceLine, fmtEUR, itemName, promoDescuento, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
 import { LOCALES, estadoLocal, estadoReparto, validarProgramado, distanciaKm } from "../src/locales.js";
 import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
@@ -33,6 +33,7 @@ const publicView = (o) => ({
   envio_cents: o.envio_cents || 0,
   programado_para: o.programado_para || null,
   reembolsado_cents: o.reembolsado_cents || 0,
+  promo_cents: o.promo_cents || 0,
 });
 
 // Origen público de la petición (para las URLs de retorno y webhook del pago).
@@ -140,6 +141,11 @@ async function crear(req, res) {
     items.push(priced);
     total += priced.lineCents;
   }
+  // Promoción web: la calcula SIEMPRE el servidor sobre las líneas ya
+  // valoradas; el navegador solo la enseña.
+  const promoCents = promoDescuento(items);
+  total -= promoCents;
+
   if (total > 50000) return res.status(400).json({ error: "Para pedidos tan grandes, llámanos por teléfono y te lo preparamos 😉" });
 
   // Modalidad de entrega. El reparto propio está oculto tras el flag
@@ -187,7 +193,7 @@ async function crear(req, res) {
     envioCents = loc.delivery.gastosCents || 0;
   }
 
-  // Pedido mínimo (sobre los productos, sin contar gastos de envío).
+  // Pedido mínimo (sobre los productos ya con la promo, sin gastos de envío).
   const minimo = domicilio ? (loc.delivery.minimoCents || PEDIDO_MINIMO_CENTS) : PEDIDO_MINIMO_CENTS;
   if (total < minimo) {
     return res.status(400).json({ error: `El pedido mínimo ${domicilio ? "a domicilio" : "online"} es de ${fmtEUR(minimo)} — te faltan ${fmtEUR(minimo - total)}.` });
@@ -219,6 +225,7 @@ async function crear(req, res) {
     // Campos opcionales solo si se usan (requieren su columna en Supabase).
     ...(domicilio ? { entrega: "domicilio", direccion, envio_cents: envioCents } : {}),
     ...(programadoISO ? { programado_para: programadoISO } : {}),
+    ...(promoCents > 0 && (await tieneColumna("promo_cents")) ? { promo_cents: promoCents } : {}),
   };
   const saved = await insertOrder(order);
 

@@ -25,7 +25,7 @@ for (const f of fs.readdirSync(SRC).filter((x) => /\.jpe?g$/i.test(x))) {
 }
 
 // og:image 1200x630 (JPEG por compatibilidad con scrapers)
-await sharp(path.join(SRC, "mes-black-garlic-1.jpg"))
+await sharp(path.join(SRC, "mes-black-mirror-1.jpg"))
   .resize({ width: 1200, height: 630, fit: "cover", position: "centre" })
   .jpeg({ quality: 80, mozjpeg: true })
   .toFile("public/og.jpg");
