@@ -155,32 +155,31 @@ npm run dev
   entrega, (2) ajustar gastos/mínimo/radio y poner `activo: true`, (3)
   actualizar la sección de entrega de /condiciones (hoy dice que no hay envíos).
 
-## Cuadre con el banco (historial de /admin)
+## Cuadre (historial de /admin)
 
 El panel de MONEI enseña el **bruto cobrado**, pero al banco llega otra cifra.
-La pestaña **📋 Historial** desglosa el periodo elegido:
+La pestaña **📋 Historial** abre con el cuadre del periodo elegido:
 
 | Línea | Qué es |
 |---|---|
 | Cobrado online | lo que enseña MONEI: todos los cobros del periodo |
-| − Devoluciones | reembolsos (totales o parciales). MONEI los cuenta como cobro; el banco los resta |
+| − Devoluciones | reembolsos. MONEI los cuenta como cobro; el banco los resta |
 | = Neto cobrado | lo realmente ingresado por la pasarela |
-| − Comisión estimada | % + fijo por operación, con IVA |
-| ≈ Debería llegar al banco | suma de todas las transferencias del periodo |
 | Cobrado en el local | pedidos sin pago online (los de antes del prepago): no salen en MONEI |
-| Checkouts abandonados | pagos empezados y no completados: ni venta ni cobro |
 
-La comisión es un **estimado**: con el botón **⚙ Tarifa** se pone la del plan
-contratado (por defecto 0,9 % + 0,25 € por operación, IVA 21 %) y se guarda en
-ese dispositivo. Las cifras exactas de cada transferencia están en
+**La comisión no se estima.** Solo aparece (y con ella la línea «Al banco») si
+se pulsa **+ Comisión** y se mete la tarifa exacta del plan contratado, que se
+guarda en ese dispositivo; el botón **Quitar** la retira. Un número inventado
+no vale para cuadrar: las cifras reales de cada transferencia están en
 **MONEI → Liquidaciones**.
 
 > Un desfase típico: si un pedido se cobra y se devuelve en días distintos, el
 > cobro puede ir en una transferencia y el reembolso descontarse de la
 > siguiente, así que un periodo sale «de menos» y el otro «de más».
 
-El **export CSV** incluye ya las columnas Cobro (online / en el local), Total,
-Devuelto y Neto por pedido.
+Los pagos empezados y no completados no se enseñan en ningún sitio: ni son
+venta ni cobro. El **export CSV** incluye las columnas Cobro (online / en el
+local), Total, Devuelto y Neto por pedido.
 
 ## Devoluciones (totales o por producto)
 

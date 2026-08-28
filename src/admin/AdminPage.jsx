@@ -62,13 +62,14 @@ const esOnline = (o) => COBRADOS.includes(o.pago_estado);
 // Tarifa de la pasarela para estimar la comisión. Es un ESTIMADO: cada plan de
 // MONEI tiene la suya, así que se puede ajustar desde el propio panel.
 const TARIFA_KEY = "ltb-tarifa-monei";
-const TARIFA_DEF = { pct: 0.9, fija: 25, iva: 21 }; // % del cobro · céntimos por operación · % de IVA
+const TARIFA_DEF = { pct: 0.9, fija: 25, iva: 21 }; // solo para rellenar el formulario
+// Sin tarifa guardada devuelve null: la comisión no se estima, no se enseña.
 const leerTarifa = () => {
   try {
     const t = JSON.parse(localStorage.getItem(TARIFA_KEY) || "null");
-    return t && Number.isFinite(t.pct) && Number.isFinite(t.fija) ? { ...TARIFA_DEF, ...t } : TARIFA_DEF;
+    return t && Number.isFinite(t.pct) && Number.isFinite(t.fija) && Number.isFinite(t.iva) ? t : null;
   } catch {
-    return TARIFA_DEF;
+    return null;
   }
 };
 
@@ -119,7 +120,6 @@ function Panel({ user, salir }) {
   const [fechas, setFechas] = useState(() => ({ desde: isoDia(new Date(Date.now() - 30 * DIA)), hasta: isoDia(new Date()) }));
   const [localF, setLocalF] = useState("");
   const [orders, setOrders] = useState(null);
-  const [abandonados, setAbandonados] = useState(null);
   const [error, setError] = useState(null);
 
   const cargar = useCallback(async () => {
@@ -137,11 +137,9 @@ function Panel({ user, salir }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
       setOrders(data.orders || []);
-      setAbandonados(data.abandonados || null);
     } catch (e) {
       setError(e.message);
       setOrders([]);
-      setAbandonados(null);
       if (/sesión/i.test(e.message)) salir();
     }
   }, [rango, fechas, localF, salir]);
@@ -231,7 +229,7 @@ function Panel({ user, salir }) {
         {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>⚠️ {error}</div>}
 
         {tab === "resumen" && <Resumen orders={orders} localF={localF} />}
-        {tab === "historial" && <Historial orders={orders} abandonados={abandonados} />}
+        {tab === "historial" && <Historial orders={orders} />}
         {tab === "equipo" && <Equipo user={user} />}
         {tab === "ajustes" && <Ajustes />}
       </main>
@@ -343,7 +341,7 @@ function Resumen({ orders, localF }) {
 }
 
 // ── Historial ────────────────────────────────────────────────────────────────
-function Historial({ orders, abandonados }) {
+function Historial({ orders }) {
   const [busca, setBusca] = useState("");
   const [abierto, setAbierto] = useState(null);
   const [limite, setLimite] = useState(120);
@@ -380,7 +378,7 @@ function Historial({ orders, abandonados }) {
 
   return (
     <div style={sx("display:flex;flex-direction:column;gap:12px")}>
-      <Cuadre orders={orders} abandonados={abandonados} />
+      <Cuadre orders={orders} />
 
       <div style={sx("display:flex;flex-wrap:wrap;gap:10px;align-items:center")}>
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="🔍 Buscar por nº, nombre o teléfono…" style={{ ...inputStyle, maxWidth: 340 }} />
@@ -444,93 +442,85 @@ function Historial({ orders, abandonados }) {
   );
 }
 
-// ── Cuadre con el banco ──────────────────────────────────────────────────────
-// Explica la diferencia entre lo que enseña MONEI (bruto cobrado), lo que se
-// devolvió, la comisión de la pasarela y lo que acaba entrando en el banco.
-function Cuadre({ orders, abandonados }) {
+// ── Cuadre ───────────────────────────────────────────────────────────────────
+// Lo cobrado por la pasarela en el periodo, menos las devoluciones. La comisión
+// solo aparece si se ha puesto la tarifa real del plan: sin ella no se estima.
+function Cuadre({ orders }) {
   const [tarifa, setTarifa] = useState(leerTarifa);
   const [editando, setEditando] = useState(false);
+  const [borrador, setBorrador] = useState(() => leerTarifa() || TARIFA_DEF);
 
-  const ponTarifa = (campo, valor) => {
-    const t = { ...tarifa, [campo]: valor };
+  const guardar = (t) => {
     setTarifa(t);
-    try { localStorage.setItem(TARIFA_KEY, JSON.stringify(t)); } catch { /* modo incógnito */ }
+    setEditando(false);
+    try {
+      if (t) localStorage.setItem(TARIFA_KEY, JSON.stringify(t));
+      else localStorage.removeItem(TARIFA_KEY);
+    } catch { /* modo incógnito */ }
   };
 
   const online = orders.filter(esOnline);
   const bruto = online.reduce((s, o) => s + o.total_cents, 0);
   const devuelto = online.reduce((s, o) => s + devueltoDe(o), 0);
-  const nDevueltos = online.filter((o) => devueltoDe(o) > 0).length;
   const neto = bruto - devuelto;
-  // La comisión se cobra sobre el cobro original: un pedido devuelto ya pagó
-  // la suya y la pasarela no suele reintegrarla.
-  const comision = Math.round((bruto * tarifa.pct) / 100 + tarifa.fija * online.length);
-  const comisionIva = Math.round(comision * (1 + tarifa.iva / 100));
-  const banco = neto - comisionIva;
-
-  // Pedidos que nunca pasaron por la pasarela (los de antes del prepago).
   const enLocal = orders.filter((o) => !esOnline(o) && o.status !== "rechazado" && o.status !== "no_recogido");
   const enLocalCents = enLocal.reduce((s, o) => s + o.total_cents, 0);
 
-  if (online.length === 0 && enLocal.length === 0 && !abandonados?.n) return null;
+  // La comisión se cobra sobre el cobro original: un pedido devuelto ya pagó la
+  // suya y la pasarela no suele reintegrarla.
+  const comision = tarifa
+    ? Math.round(((bruto * tarifa.pct) / 100 + tarifa.fija * online.length) * (1 + tarifa.iva / 100))
+    : null;
+
+  if (online.length === 0 && enLocal.length === 0) return null;
 
   const fila = (etiqueta, valor, nota, opts = {}) => (
-    <div style={{ ...sx("display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:9px 0"), borderTop: opts.linea ? "1px solid rgba(246,241,233,.12)" : "none" }}>
-      <div>
-        <div style={sx(`font-size:${opts.fuerte ? "14.5px" : "13.5px"};font-weight:${opts.fuerte ? "700" : "400"};color:${opts.fuerte ? "#f6f1e9" : "rgba(246,241,233,.8)"}`)}>{etiqueta}</div>
-        {nota && <div style={sx("font-size:11.5px;color:rgba(246,241,233,.45);margin-top:2px")}>{nota}</div>}
-      </div>
+    <div style={{ ...sx("display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:8px 0"), borderTop: opts.linea ? "1px solid rgba(246,241,233,.12)" : "none" }}>
+      <span style={sx(`font-size:${opts.fuerte ? "14.5px" : "13.5px"};font-weight:${opts.fuerte ? "700" : "400"};color:${opts.fuerte ? "#f6f1e9" : "rgba(246,241,233,.8)"}`)}>
+        {etiqueta}
+        {nota && <span style={sx("font-size:11.5px;color:rgba(246,241,233,.4);margin-left:8px")}>{nota}</span>}
+      </span>
       <strong style={{ ...sx(`font-family:'Anton',sans-serif;font-size:${opts.fuerte ? "22px" : "17px"};white-space:nowrap`), color: opts.color || "#f6f1e9" }}>{valor}</strong>
     </div>
   );
 
   return (
     <div style={card}>
-      <div style={sx("display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px")}>
-        <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Cuadre con el banco</div>
-        <button onClick={() => setEditando(!editando)} style={sx("font-size:11.5px;padding:5px 12px;border-radius:100px;border:1px solid rgba(246,241,233,.2);background:transparent;color:rgba(246,241,233,.7);cursor:pointer;font-family:inherit")}>
-          {editando ? "Listo" : "⚙ Tarifa"}
+      <div style={sx("display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px")}>
+        <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Cuadre</div>
+        <button onClick={() => { setBorrador(tarifa || TARIFA_DEF); setEditando(!editando); }} style={sx("font-size:11.5px;padding:5px 12px;border-radius:100px;border:1px solid rgba(246,241,233,.2);background:transparent;color:rgba(246,241,233,.7);cursor:pointer;font-family:inherit")}>
+          {editando ? "Cerrar" : tarifa ? "⚙ Comisión" : "+ Comisión"}
         </button>
       </div>
 
       {editando && (
         <div style={sx("display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:12px 14px;margin-bottom:8px;border-radius:12px;background:rgba(246,241,233,.05)")}>
           {[
-            { campo: "pct", label: "% por cobro", paso: "0.05" },
-            { campo: "fija", label: "Céntimos por operación", paso: "1" },
+            { campo: "pct", label: "% por cobro", paso: "0.01" },
+            { campo: "fija", label: "Cént. por operación", paso: "1" },
             { campo: "iva", label: "% IVA", paso: "1" },
           ].map((c) => (
             <label key={c.campo} style={sx("font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.5)")}>
               {c.label}
-              <input type="number" step={c.paso} min="0" value={tarifa[c.campo]} onChange={(e) => ponTarifa(c.campo, Number(e.target.value) || 0)} style={{ ...inputStyle, width: 92, padding: "8px 10px", marginTop: 4 }} />
+              <input type="number" step={c.paso} min="0" value={borrador[c.campo]} onChange={(e) => setBorrador({ ...borrador, [c.campo]: Number(e.target.value) || 0 })} style={{ ...inputStyle, width: 92, padding: "8px 10px", marginTop: 4 }} />
             </label>
           ))}
-          <p style={sx("margin:0;flex:1;min-width:220px;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.45)")}>
-            Pon aquí la tarifa de tu plan de MONEI (la de por defecto es 0,9 % + 0,25 € por operación). Se guarda solo en este dispositivo.
+          <div style={sx("display:flex;gap:8px")}>
+            <button onClick={() => guardar(borrador)} style={btnAcc}>Aplicar</button>
+            {tarifa && <button onClick={() => guardar(null)} style={btnGhost}>Quitar</button>}
+          </div>
+          <p style={sx("margin:0;flex:1;min-width:200px;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.45)")}>
+            Pon la tarifa exacta de tu plan (la tienes en MONEI → Liquidaciones). Mientras no la pongas, no se descuenta ninguna comisión.
           </p>
         </div>
       )}
 
-      {fila("Cobrado online (lo que enseña MONEI)", fmtEUR(bruto), `${online.length} cobro${online.length === 1 ? "" : "s"} con tarjeta o Bizum`)}
-      {fila("Devoluciones", devuelto ? `− ${fmtEUR(devuelto)}` : "0,00 €",
-        devuelto ? `${nDevueltos} pedido${nDevueltos === 1 ? "" : "s"} · MONEI lo cuenta como cobro, el banco lo resta` : "ningún reembolso en este periodo",
-        { color: devuelto ? "rgb(255,140,110)" : undefined })}
-      {fila("Neto cobrado", fmtEUR(neto), "cobros menos devoluciones", { linea: true, fuerte: true })}
-      {fila("Comisión de la pasarela (estimada)", `− ${fmtEUR(comisionIva)}`,
-        `${num(tarifa.pct)} % + ${num((tarifa.fija / 100).toFixed(2))} € × ${online.length} op. · IVA ${num(tarifa.iva)} %`,
-        { color: "rgb(255,140,110)" })}
-      {fila("Debería llegar al banco", fmtEUR(banco), "sumando todas las transferencias del periodo", { linea: true, fuerte: true, color: "rgb(var(--acc))" })}
-
-      {(enLocal.length > 0 || abandonados?.n > 0) && (
-        <div style={sx("margin-top:10px;padding-top:4px;border-top:1px dashed rgba(246,241,233,.14)")}>
-          {enLocal.length > 0 && fila("Cobrado en el local", fmtEUR(enLocalCents), `${enLocal.length} pedido${enLocal.length === 1 ? "" : "s"} sin pago online — no aparecen en MONEI`, { color: "rgba(246,241,233,.75)" })}
-          {abandonados?.n > 0 && fila("Checkouts abandonados", fmtEUR(abandonados.total_cents), `${abandonados.n} pedido${abandonados.n === 1 ? "" : "s"} sin pagar — ni venta ni cobro`, { color: "rgba(246,241,233,.45)" })}
-        </div>
-      )}
-
-      <p style={sx("margin:12px 0 0;font-size:11.5px;line-height:1.55;color:rgba(246,241,233,.45)")}>
-        Si el banco no cuadra: un reembolso puede descontarse de una transferencia posterior a la del cobro, así que un periodo sale «de menos» y el siguiente «de más». El desglose exacto de cada transferencia está en MONEI → Liquidaciones.
-      </p>
+      {fila("Cobrado online", fmtEUR(bruto), `${online.length} cobro${online.length === 1 ? "" : "s"}`)}
+      {devuelto > 0 && fila("Devoluciones", `− ${fmtEUR(devuelto)}`, null, { color: "rgb(255,140,110)" })}
+      {fila("Neto cobrado", fmtEUR(neto), null, { linea: true, fuerte: !comision })}
+      {comision != null && fila("Comisión", `− ${fmtEUR(comision)}`, `${num(tarifa.pct)} % + ${num((tarifa.fija / 100).toFixed(2))} € × ${online.length}`, { color: "rgb(255,140,110)" })}
+      {comision != null && fila("Al banco", fmtEUR(neto - comision), null, { linea: true, fuerte: true, color: "rgb(var(--acc))" })}
+      {enLocal.length > 0 && fila("Cobrado en el local", fmtEUR(enLocalCents), `${enLocal.length} pedido${enLocal.length === 1 ? "" : "s"}`, { linea: true, color: "rgba(246,241,233,.75)" })}
     </div>
   );
 }
