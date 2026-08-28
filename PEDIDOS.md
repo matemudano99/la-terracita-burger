@@ -16,6 +16,10 @@ La web tiene un sistema de pedidos propio, sin comisiones:
 - **`/admin`** — panel de administración (solo admin): resumen de ventas
   (ingresos, ticket medio, horas punta, top productos), historial con búsqueda
   y export a CSV, gestión de cuentas de empleados y pausa de pedidos por local.
+  El periodo se elige con los botones **Hoy · Ayer · 7 · 30 · 90 días · 1 año**
+  o con **📅 Fechas** (dos fechas cualesquiera, sin límite de antigüedad), así
+  que se puede consultar cualquier mes pasado y cuadrarlo con el banco. El
+  historial abre con un **cuadre con el banco** del periodo elegido (ver abajo).
 - **`/api/*`** — funciones serverless (Vercel) que validan y guardan los pedidos
   en Supabase. Los precios se recalculan siempre en el servidor.
 
@@ -151,6 +155,33 @@ npm run dev
   entrega, (2) ajustar gastos/mínimo/radio y poner `activo: true`, (3)
   actualizar la sección de entrega de /condiciones (hoy dice que no hay envíos).
 
+## Cuadre con el banco (historial de /admin)
+
+El panel de MONEI enseña el **bruto cobrado**, pero al banco llega otra cifra.
+La pestaña **📋 Historial** desglosa el periodo elegido:
+
+| Línea | Qué es |
+|---|---|
+| Cobrado online | lo que enseña MONEI: todos los cobros del periodo |
+| − Devoluciones | reembolsos (totales o parciales). MONEI los cuenta como cobro; el banco los resta |
+| = Neto cobrado | lo realmente ingresado por la pasarela |
+| − Comisión estimada | % + fijo por operación, con IVA |
+| ≈ Debería llegar al banco | suma de todas las transferencias del periodo |
+| Cobrado en el local | pedidos sin pago online (los de antes del prepago): no salen en MONEI |
+| Checkouts abandonados | pagos empezados y no completados: ni venta ni cobro |
+
+La comisión es un **estimado**: con el botón **⚙ Tarifa** se pone la del plan
+contratado (por defecto 0,9 % + 0,25 € por operación, IVA 21 %) y se guarda en
+ese dispositivo. Las cifras exactas de cada transferencia están en
+**MONEI → Liquidaciones**.
+
+> Un desfase típico: si un pedido se cobra y se devuelve en días distintos, el
+> cobro puede ir en una transferencia y el reembolso descontarse de la
+> siguiente, así que un periodo sale «de menos» y el otro «de más».
+
+El **export CSV** incluye ya las columnas Cobro (online / en el local), Total,
+Devuelto y Neto por pedido.
+
 ## Devoluciones (totales o por producto)
 
 En /cocina, menú **⋯** de cada pedido pagado:
@@ -221,6 +252,9 @@ estado desde cualquier dispositivo, aunque cierre el navegador.
 
 - El cliente solo da nombre y teléfono; el aviso legal y la política de
   privacidad ya reflejan este tratamiento (30 días de conservación).
+- Ese borrado **anonimiza, no elimina**: los pedidos de más de 30 días siguen
+  en /admin con su fecha, local, estado e importe (la contabilidad se conserva
+  entera); lo que se va es el nombre, el teléfono, la nota y el detalle.
 - Para cumplir la retención, activa el trabajo programado comentado al final de
   `supabase/schema.sql` (requiere la extensión pg_cron) o borra a mano de vez
   en cuando desde el Table Editor de Supabase.

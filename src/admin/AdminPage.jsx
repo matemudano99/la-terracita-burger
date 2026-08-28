@@ -21,22 +21,59 @@ const ESTADO_UI = {
   no_recogido: { label: "No recogido", color: "255 100 80" },
 };
 
+const DIA = 24 * 3600 * 1000;
+
 const RANGOS = [
   { id: "hoy", label: "Hoy" },
   { id: "ayer", label: "Ayer" },
   { id: "7d", label: "7 días" },
   { id: "30d", label: "30 días" },
+  { id: "90d", label: "90 días" },
+  { id: "365d", label: "1 año" },
+  { id: "fechas", label: "📅 Fechas" },
 ];
 
-function rangoFechas(id) {
+const DIAS_RANGO = { "7d": 7, "30d": 30, "90d": 90, "365d": 365 };
+
+// yyyy-mm-dd en hora local, que es lo que entiende <input type="date">.
+const isoDia = (d) => new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+
+// `fechas` = { desde, hasta } en yyyy-mm-dd; solo lo usa el rango a medida.
+function rangoFechas(id, fechas) {
   const hoy0 = new Date();
   hoy0.setHours(0, 0, 0, 0);
-  const dia = 24 * 3600 * 1000;
   if (id === "hoy") return { desde: hoy0, hasta: new Date() };
-  if (id === "ayer") return { desde: new Date(hoy0 - dia), hasta: hoy0 };
-  if (id === "30d") return { desde: new Date(Date.now() - 30 * dia), hasta: new Date() };
-  return { desde: new Date(Date.now() - 7 * dia), hasta: new Date() };
+  if (id === "ayer") return { desde: new Date(hoy0 - DIA), hasta: hoy0 };
+  if (id === "fechas") {
+    return { desde: new Date(`${fechas.desde}T00:00:00`), hasta: new Date(`${fechas.hasta}T23:59:59.999`) };
+  }
+  return { desde: new Date(Date.now() - (DIAS_RANGO[id] || 7) * DIA), hasta: new Date() };
 }
+
+// Lo devuelto de un pedido. Si el reembolso fue total antes de que existiera la
+// columna acumuladora, `reembolsado_cents` viene a 0: manda el estado del pago.
+const devueltoDe = (o) =>
+  o.pago_estado === "reembolsado" ? Math.max(o.reembolsado_cents || 0, o.total_cents) : o.reembolsado_cents || 0;
+
+// Pedidos que pasaron por la pasarela (cobrados, aunque luego se devolvieran).
+const COBRADOS = ["pagado", "reembolsado", "reembolso_parcial"];
+const esOnline = (o) => COBRADOS.includes(o.pago_estado);
+
+// Tarifa de la pasarela para estimar la comisión. Es un ESTIMADO: cada plan de
+// MONEI tiene la suya, así que se puede ajustar desde el propio panel.
+const TARIFA_KEY = "ltb-tarifa-monei";
+const TARIFA_DEF = { pct: 0.9, fija: 25, iva: 21 }; // % del cobro · céntimos por operación · % de IVA
+const leerTarifa = () => {
+  try {
+    const t = JSON.parse(localStorage.getItem(TARIFA_KEY) || "null");
+    return t && Number.isFinite(t.pct) && Number.isFinite(t.fija) ? { ...TARIFA_DEF, ...t } : TARIFA_DEF;
+  } catch {
+    return TARIFA_DEF;
+  }
+};
+
+// Números a la española (coma decimal).
+const num = (n) => String(n).replace(".", ",");
 
 const horaDe = (iso) =>
   new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
@@ -78,26 +115,36 @@ export default function AdminPage() {
 function Panel({ user, salir }) {
   const [tab, setTab] = useState("resumen");
   const [rango, setRango] = useState("hoy");
+  // Rango a medida (pestaña 📅 Fechas): arranca en el último mes.
+  const [fechas, setFechas] = useState(() => ({ desde: isoDia(new Date(Date.now() - 30 * DIA)), hasta: isoDia(new Date()) }));
   const [localF, setLocalF] = useState("");
   const [orders, setOrders] = useState(null);
+  const [abandonados, setAbandonados] = useState(null);
   const [error, setError] = useState(null);
 
   const cargar = useCallback(async () => {
     setError(null);
     try {
-      const { desde, hasta } = rangoFechas(rango);
+      const { desde, hasta } = rangoFechas(rango, fechas);
+      if (isNaN(desde) || isNaN(hasta) || desde > hasta) {
+        setOrders([]);
+        setError("Revisa las fechas: la de inicio tiene que ser anterior a la de fin.");
+        return;
+      }
       const params = new URLSearchParams({ historial: "1", desde: desde.toISOString(), hasta: hasta.toISOString() });
       if (localF) params.set("local", localF);
       const res = await authFetch(`/api/orders?${params}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
       setOrders(data.orders || []);
+      setAbandonados(data.abandonados || null);
     } catch (e) {
       setError(e.message);
       setOrders([]);
+      setAbandonados(null);
       if (/sesión/i.test(e.message)) salir();
     }
-  }, [rango, localF, salir]);
+  }, [rango, fechas, localF, salir]);
 
   useEffect(() => { setOrders(null); cargar(); }, [cargar]);
 
@@ -108,6 +155,14 @@ function Panel({ user, salir }) {
     { id: "ajustes", label: "⚙️ Ajustes" },
   ];
   const conFiltros = tab === "resumen" || tab === "historial";
+  // ¿El rango elegido entra en la zona ya anonimizada por el borrado RGPD?
+  // Se compara contra el inicio del día 30 -1 para que el rango "30 días" no
+  // dispare el aviso por unas horas de diferencia.
+  const corteRgpd = new Date();
+  corteRgpd.setHours(0, 0, 0, 0);
+  corteRgpd.setDate(corteRgpd.getDate() - 30);
+  const desdeSel = rangoFechas(rango, fechas).desde;
+  const antiguos = conFiltros && !isNaN(desdeSel) && desdeSel < corteRgpd;
 
   return (
     <div style={sx("min-height:100vh;padding-bottom:60px")}>
@@ -153,10 +208,30 @@ function Panel({ user, salir }) {
           </div>
         )}
 
+        {/* Rango a medida: cualquier par de fechas, sin límite de antigüedad */}
+        {conFiltros && rango === "fechas" && (
+          <div style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:-10px")}>
+            <label style={sx("display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(246,241,233,.65)")}>
+              Desde
+              <input type="date" value={fechas.desde} max={fechas.hasta} onChange={(e) => setFechas((f) => ({ ...f, desde: e.target.value }))} style={{ ...inputStyle, width: "auto", padding: "9px 12px", colorScheme: "dark" }} />
+            </label>
+            <label style={sx("display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(246,241,233,.65)")}>
+              Hasta
+              <input type="date" value={fechas.hasta} min={fechas.desde} max={isoDia(new Date())} onChange={(e) => setFechas((f) => ({ ...f, hasta: e.target.value }))} style={{ ...inputStyle, width: "auto", padding: "9px 12px", colorScheme: "dark" }} />
+            </label>
+          </div>
+        )}
+
+        {antiguos && (
+          <p style={sx("margin:-8px 0 0;font-size:12.5px;line-height:1.5;color:rgba(246,241,233,.45)")}>
+            ℹ️ De los pedidos de hace más de 30 días se conservan fecha, local, estado e importe; el nombre, el teléfono y el detalle pueden salir anonimizados (RGPD).
+          </p>
+        )}
+
         {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>⚠️ {error}</div>}
 
         {tab === "resumen" && <Resumen orders={orders} localF={localF} />}
-        {tab === "historial" && <Historial orders={orders} />}
+        {tab === "historial" && <Historial orders={orders} abandonados={abandonados} />}
         {tab === "equipo" && <Equipo user={user} />}
         {tab === "ajustes" && <Ajustes />}
       </main>
@@ -170,8 +245,8 @@ function Resumen({ orders, localF }) {
 
   const validos = orders.filter((o) => o.status !== "rechazado" && o.status !== "no_recogido");
   // Ingresos netos: total cobrado menos lo devuelto (parcial o total).
-  const ingresos = validos.reduce((s, o) => s + o.total_cents - (o.reembolsado_cents || 0), 0);
-  const devoluciones = orders.reduce((s, o) => s + (o.reembolsado_cents || 0), 0);
+  const ingresos = validos.reduce((s, o) => s + o.total_cents - devueltoDe(o), 0);
+  const devoluciones = orders.reduce((s, o) => s + devueltoDe(o), 0);
   const ticketMedio = validos.length ? Math.round(ingresos / validos.length) : 0;
   const rechazados = orders.filter((o) => o.status === "rechazado").length;
   const noRecogidos = orders.filter((o) => o.status === "no_recogido").length;
@@ -195,7 +270,7 @@ function Resumen({ orders, localF }) {
   const porLocal = Object.keys(LOCALES).map((id) => ({
     id,
     n: validos.filter((o) => o.local === id).length,
-    eur: validos.filter((o) => o.local === id).reduce((s, o) => s + o.total_cents - (o.reembolsado_cents || 0), 0),
+    eur: validos.filter((o) => o.local === id).reduce((s, o) => s + o.total_cents - devueltoDe(o), 0),
   }));
 
   const kpi = (titulo, valor, extra) => (
@@ -210,7 +285,7 @@ function Resumen({ orders, localF }) {
     <div style={sx("display:flex;flex-direction:column;gap:16px")}>
       <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:14px")}>
         {kpi("Pedidos", validos.length, rechazados || noRecogidos ? `+ ${rechazados} rechazados · ${noRecogidos} sin recoger` : "ninguno rechazado")}
-        {kpi("Ingresos netos", fmtEUR(ingresos), devoluciones > 0 ? `cobrado online · ${fmtEUR(devoluciones)} devueltos` : "cobrado online por adelantado")}
+        {kpi("Ingresos netos", fmtEUR(ingresos), devoluciones > 0 ? `ventas del periodo · ${fmtEUR(devoluciones)} devueltos` : "ventas del periodo, ya sin devoluciones")}
         {kpi("Ticket medio", validos.length ? fmtEUR(ticketMedio) : "—")}
         {kpi("Pendientes ahora", orders.filter((o) => o.status === "nuevo" || o.status === "aceptado" || o.status === "lista").length, "nuevos + en cocina + listas")}
       </div>
@@ -268,9 +343,13 @@ function Resumen({ orders, localF }) {
 }
 
 // ── Historial ────────────────────────────────────────────────────────────────
-function Historial({ orders }) {
+function Historial({ orders, abandonados }) {
   const [busca, setBusca] = useState("");
   const [abierto, setAbierto] = useState(null);
+  const [limite, setLimite] = useState(120);
+
+  // Al cambiar de periodo o de búsqueda se vuelve a la primera tanda.
+  useEffect(() => { setLimite(120); }, [orders, busca]);
 
   if (orders === null) return <Cargando />;
 
@@ -280,11 +359,14 @@ function Historial({ orders }) {
     : orders;
 
   const exportCSV = () => {
-    const filas = [["Fecha", "Hora", "Nº", "Local", "Cliente", "Teléfono", "Estado", "Total €", "Artículos"]];
+    const dec = (c) => (c / 100).toFixed(2).replace(".", ",");
+    const filas = [["Fecha", "Hora", "Nº", "Local", "Cliente", "Teléfono", "Estado", "Cobro", "Total €", "Devuelto €", "Neto €", "Artículos"]];
     for (const o of filtrados) {
       filas.push([
         fechaDe(o.created_at), horaDe(o.created_at), o.code, LOCALES[o.local]?.name || o.local,
-        o.nombre, o.telefono, ESTADO_UI[o.status]?.label || o.status, (o.total_cents / 100).toFixed(2).replace(".", ","),
+        o.nombre, o.telefono, ESTADO_UI[o.status]?.label || o.status,
+        esOnline(o) ? "Online" : "En el local",
+        dec(o.total_cents), dec(devueltoDe(o)), dec(o.total_cents - devueltoDe(o)),
         (o.items || []).map((it) => `${it.qty}x ${it.name}${it.variant ? ` ${it.variant}` : ""}`).join(" | "),
       ]);
     }
@@ -298,6 +380,8 @@ function Historial({ orders }) {
 
   return (
     <div style={sx("display:flex;flex-direction:column;gap:12px")}>
+      <Cuadre orders={orders} abandonados={abandonados} />
+
       <div style={sx("display:flex;flex-wrap:wrap;gap:10px;align-items:center")}>
         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="🔍 Buscar por nº, nombre o teléfono…" style={{ ...inputStyle, maxWidth: 340 }} />
         <span style={sx("font-size:12.5px;color:rgba(246,241,233,.5)")}>{filtrados.length} pedido{filtrados.length === 1 ? "" : "s"}</span>
@@ -307,7 +391,7 @@ function Historial({ orders }) {
       {filtrados.length === 0 && <p style={sx("margin:16px 0;font-size:13.5px;color:rgba(246,241,233,.45)")}>No hay pedidos en este periodo.</p>}
 
       <div style={sx("display:flex;flex-direction:column;gap:8px")}>
-        {filtrados.map((o) => {
+        {filtrados.slice(0, limite).map((o) => {
           const e = ESTADO_UI[o.status] || ESTADO_UI.nuevo;
           const open = abierto === o.id;
           return (
@@ -350,6 +434,103 @@ function Historial({ orders }) {
           );
         })}
       </div>
+
+      {filtrados.length > limite && (
+        <button onClick={() => setLimite((n) => n + 200)} style={{ ...btnGhost, alignSelf: "center" }}>
+          Ver más ({filtrados.length - limite} pedido{filtrados.length - limite === 1 ? "" : "s"} más)
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Cuadre con el banco ──────────────────────────────────────────────────────
+// Explica la diferencia entre lo que enseña MONEI (bruto cobrado), lo que se
+// devolvió, la comisión de la pasarela y lo que acaba entrando en el banco.
+function Cuadre({ orders, abandonados }) {
+  const [tarifa, setTarifa] = useState(leerTarifa);
+  const [editando, setEditando] = useState(false);
+
+  const ponTarifa = (campo, valor) => {
+    const t = { ...tarifa, [campo]: valor };
+    setTarifa(t);
+    try { localStorage.setItem(TARIFA_KEY, JSON.stringify(t)); } catch { /* modo incógnito */ }
+  };
+
+  const online = orders.filter(esOnline);
+  const bruto = online.reduce((s, o) => s + o.total_cents, 0);
+  const devuelto = online.reduce((s, o) => s + devueltoDe(o), 0);
+  const nDevueltos = online.filter((o) => devueltoDe(o) > 0).length;
+  const neto = bruto - devuelto;
+  // La comisión se cobra sobre el cobro original: un pedido devuelto ya pagó
+  // la suya y la pasarela no suele reintegrarla.
+  const comision = Math.round((bruto * tarifa.pct) / 100 + tarifa.fija * online.length);
+  const comisionIva = Math.round(comision * (1 + tarifa.iva / 100));
+  const banco = neto - comisionIva;
+
+  // Pedidos que nunca pasaron por la pasarela (los de antes del prepago).
+  const enLocal = orders.filter((o) => !esOnline(o) && o.status !== "rechazado" && o.status !== "no_recogido");
+  const enLocalCents = enLocal.reduce((s, o) => s + o.total_cents, 0);
+
+  if (online.length === 0 && enLocal.length === 0 && !abandonados?.n) return null;
+
+  const fila = (etiqueta, valor, nota, opts = {}) => (
+    <div style={{ ...sx("display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:9px 0"), borderTop: opts.linea ? "1px solid rgba(246,241,233,.12)" : "none" }}>
+      <div>
+        <div style={sx(`font-size:${opts.fuerte ? "14.5px" : "13.5px"};font-weight:${opts.fuerte ? "700" : "400"};color:${opts.fuerte ? "#f6f1e9" : "rgba(246,241,233,.8)"}`)}>{etiqueta}</div>
+        {nota && <div style={sx("font-size:11.5px;color:rgba(246,241,233,.45);margin-top:2px")}>{nota}</div>}
+      </div>
+      <strong style={{ ...sx(`font-family:'Anton',sans-serif;font-size:${opts.fuerte ? "22px" : "17px"};white-space:nowrap`), color: opts.color || "#f6f1e9" }}>{valor}</strong>
+    </div>
+  );
+
+  return (
+    <div style={card}>
+      <div style={sx("display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px")}>
+        <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Cuadre con el banco</div>
+        <button onClick={() => setEditando(!editando)} style={sx("font-size:11.5px;padding:5px 12px;border-radius:100px;border:1px solid rgba(246,241,233,.2);background:transparent;color:rgba(246,241,233,.7);cursor:pointer;font-family:inherit")}>
+          {editando ? "Listo" : "⚙ Tarifa"}
+        </button>
+      </div>
+
+      {editando && (
+        <div style={sx("display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:12px 14px;margin-bottom:8px;border-radius:12px;background:rgba(246,241,233,.05)")}>
+          {[
+            { campo: "pct", label: "% por cobro", paso: "0.05" },
+            { campo: "fija", label: "Céntimos por operación", paso: "1" },
+            { campo: "iva", label: "% IVA", paso: "1" },
+          ].map((c) => (
+            <label key={c.campo} style={sx("font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.5)")}>
+              {c.label}
+              <input type="number" step={c.paso} min="0" value={tarifa[c.campo]} onChange={(e) => ponTarifa(c.campo, Number(e.target.value) || 0)} style={{ ...inputStyle, width: 92, padding: "8px 10px", marginTop: 4 }} />
+            </label>
+          ))}
+          <p style={sx("margin:0;flex:1;min-width:220px;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.45)")}>
+            Pon aquí la tarifa de tu plan de MONEI (la de por defecto es 0,9 % + 0,25 € por operación). Se guarda solo en este dispositivo.
+          </p>
+        </div>
+      )}
+
+      {fila("Cobrado online (lo que enseña MONEI)", fmtEUR(bruto), `${online.length} cobro${online.length === 1 ? "" : "s"} con tarjeta o Bizum`)}
+      {fila("Devoluciones", devuelto ? `− ${fmtEUR(devuelto)}` : "0,00 €",
+        devuelto ? `${nDevueltos} pedido${nDevueltos === 1 ? "" : "s"} · MONEI lo cuenta como cobro, el banco lo resta` : "ningún reembolso en este periodo",
+        { color: devuelto ? "rgb(255,140,110)" : undefined })}
+      {fila("Neto cobrado", fmtEUR(neto), "cobros menos devoluciones", { linea: true, fuerte: true })}
+      {fila("Comisión de la pasarela (estimada)", `− ${fmtEUR(comisionIva)}`,
+        `${num(tarifa.pct)} % + ${num((tarifa.fija / 100).toFixed(2))} € × ${online.length} op. · IVA ${num(tarifa.iva)} %`,
+        { color: "rgb(255,140,110)" })}
+      {fila("Debería llegar al banco", fmtEUR(banco), "sumando todas las transferencias del periodo", { linea: true, fuerte: true, color: "rgb(var(--acc))" })}
+
+      {(enLocal.length > 0 || abandonados?.n > 0) && (
+        <div style={sx("margin-top:10px;padding-top:4px;border-top:1px dashed rgba(246,241,233,.14)")}>
+          {enLocal.length > 0 && fila("Cobrado en el local", fmtEUR(enLocalCents), `${enLocal.length} pedido${enLocal.length === 1 ? "" : "s"} sin pago online — no aparecen en MONEI`, { color: "rgba(246,241,233,.75)" })}
+          {abandonados?.n > 0 && fila("Checkouts abandonados", fmtEUR(abandonados.total_cents), `${abandonados.n} pedido${abandonados.n === 1 ? "" : "s"} sin pagar — ni venta ni cobro`, { color: "rgba(246,241,233,.45)" })}
+        </div>
+      )}
+
+      <p style={sx("margin:12px 0 0;font-size:11.5px;line-height:1.55;color:rgba(246,241,233,.45)")}>
+        Si el banco no cuadra: un reembolso puede descontarse de una transferencia posterior a la del cobro, así que un periodo sale «de menos» y el siguiente «de más». El desglose exacto de cada transferencia está en MONEI → Liquidaciones.
+      </p>
     </div>
   );
 }

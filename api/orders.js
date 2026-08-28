@@ -258,7 +258,14 @@ async function consultar(req, res) {
     if (isNaN(desde) || isNaN(hasta)) return res.status(400).json({ error: "Fechas no válidas" });
     if (q.local && !LOCALES[q.local]) return res.status(400).json({ error: "Local no válido" });
     const rows = await listHistorial({ desde: desde.toISOString(), hasta: hasta.toISOString(), local: q.local || null });
-    return res.status(200).json({ orders: rows.filter((o) => o.status !== "pendiente_pago"), supabase: usingSupabase });
+    // Los pagos sin completar no son ventas ni cobros, pero al panel le sirve
+    // saber cuántos hubo para cuadrar (checkouts abandonados).
+    const sinPagar = rows.filter((o) => o.status === "pendiente_pago");
+    return res.status(200).json({
+      orders: rows.filter((o) => o.status !== "pendiente_pago"),
+      abandonados: { n: sinPagar.length, total_cents: sinPagar.reduce((s, o) => s + o.total_cents, 0) },
+      supabase: usingSupabase,
+    });
   }
 
   // Cliente — estado de su pedido (id UUID no adivinable + code)

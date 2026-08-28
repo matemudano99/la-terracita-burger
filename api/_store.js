@@ -91,12 +91,24 @@ export async function listOrders(local, sinceISO) {
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
 }
 
+const HISTORIAL_PAGINA = 1000;
+const HISTORIAL_MAX = 20000;
+
 // Historial para el panel de administración (rango de fechas, opcional local).
 export async function listHistorial({ desde, hasta, local }) {
   if (usingSupabase) {
-    let q = `${TABLE}?created_at=gte.${encodeURIComponent(desde)}&created_at=lte.${encodeURIComponent(hasta)}&order=created_at.desc&limit=1000`;
-    if (local) q += `&local=eq.${encodeURIComponent(local)}`;
-    return supa(q);
+    let base = `${TABLE}?created_at=gte.${encodeURIComponent(desde)}&created_at=lte.${encodeURIComponent(hasta)}&order=created_at.desc`;
+    if (local) base += `&local=eq.${encodeURIComponent(local)}`;
+    // Supabase pagina las respuestas: un rango largo (meses, un año) necesita
+    // varias vueltas o el panel enseñaría solo los 1000 pedidos más recientes.
+    const out = [];
+    while (out.length < HISTORIAL_MAX) {
+      const rows = await supa(`${base}&limit=${HISTORIAL_PAGINA}&offset=${out.length}`);
+      if (!rows?.length) break;
+      out.push(...rows);
+      if (rows.length < HISTORIAL_PAGINA) break;
+    }
+    return out;
   }
   return [...mem.values()]
     .filter((o) => o.created_at >= desde && o.created_at <= hasta && (!local || o.local === local))
