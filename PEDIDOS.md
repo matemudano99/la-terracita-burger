@@ -7,7 +7,11 @@ La web tiene un sistema de pedidos propio, sin comisiones:
   incluso con el local cerrado.
 - **`/cocina`** — panel para el local (móvil/tablet): suena una alarma con cada
   pedido, se acepta con un tiempo de preparación, se marca lista/entregada y se
-  imprime el ticket. Sección **⏰ Programados** para los pedidos con hora futura
+  imprime el ticket. El flujo de un pedido a domicilio se lee **recibido →
+  en cocina → en reparto → entregado**: donde uno de recogida dice «Lista para
+  recoger», el de domicilio dice «Sale a reparto», y la tarjeta pasa a «🛵 EN
+  REPARTO». El estado guardado es el mismo (`lista`): solo cambia el nombre
+  según el tipo de entrega, también en /admin y en la pantalla del cliente. Sección **⏰ Programados** para los pedidos con hora futura
   (pasan solos a Nuevos con alarma cuando faltan ≤30 min). El cliente ve el
   estado en su móvil en tiempo real. El botón **● Abierto / ⏸ Cerrado** de la
   barra superior cierra y reabre el local al instante si hay cualquier problema

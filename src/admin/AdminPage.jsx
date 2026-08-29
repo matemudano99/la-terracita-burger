@@ -23,6 +23,13 @@ const ESTADO_UI = {
 
 const DIA = 24 * 3600 * 1000;
 
+// Un pedido a domicilio no está "listo" esperando en el local: está en
+// reparto. El estado guardado es el mismo, cambia solo cómo se llama.
+const estadoDe = (o) =>
+  o.status === "lista" && o.entrega === "domicilio"
+    ? { label: "En reparto", color: "255 140 90" }
+    : ESTADO_UI[o.status] || ESTADO_UI.nuevo;
+
 const RANGOS = [
   { id: "hoy", label: "Hoy" },
   { id: "ayer", label: "Ayer" },
@@ -362,7 +369,7 @@ function Historial({ orders }) {
     for (const o of filtrados) {
       filas.push([
         fechaDe(o.created_at), horaDe(o.created_at), o.code, LOCALES[o.local]?.name || o.local,
-        o.nombre, o.telefono, ESTADO_UI[o.status]?.label || o.status,
+        o.nombre, o.telefono, estadoDe(o).label,
         esOnline(o) ? "Online" : "En el local",
         dec(o.total_cents), dec(devueltoDe(o)), dec(o.total_cents - devueltoDe(o)),
         (o.items || []).map((it) => `${it.qty}x ${it.name}${it.variant ? ` ${it.variant}` : ""}`).join(" | "),
@@ -390,7 +397,7 @@ function Historial({ orders }) {
 
       <div style={sx("display:flex;flex-direction:column;gap:8px")}>
         {filtrados.slice(0, limite).map((o) => {
-          const e = ESTADO_UI[o.status] || ESTADO_UI.nuevo;
+          const e = estadoDe(o);
           const open = abierto === o.id;
           return (
             <div key={o.id} style={{ ...card, padding: 0, overflow: "hidden" }}>

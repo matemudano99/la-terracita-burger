@@ -278,6 +278,8 @@ export default function CocinaPage() {
   const nuevos = orders.filter((o) => o.status === "nuevo" && !esProgramadoLejano(o));
   const enCocina = orders.filter((o) => o.status === "aceptado");
   const listas = orders.filter((o) => o.status === "lista");
+  // La tercera columna se llama distinto si el local reparte a domicilio.
+  const reparteAlgo = Boolean(L?.delivery?.activo) || listas.some(esDomicilio);
   const cerrados = orders.filter((o) => o.status === "entregado" || o.status === "rechazado" || o.status === "no_recogido");
 
   return (
@@ -384,18 +386,26 @@ export default function CocinaPage() {
           <Columna icono="🔥" titulo="En cocina" n={enCocina.length} tono={L.rgb} vacio="Nada en plancha ahora mismo.">
             {enCocina.map((o) => (
               <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
-                <button onClick={() => patch(o.id, "lista")} style={btn(`rgb(${L.rgb})`)}>✓ Lista para recoger</button>
+                <button onClick={() => patch(o.id, "lista")} style={btn(`rgb(${L.rgb})`)}>
+                  {esDomicilio(o) ? "🛵 Sale a reparto" : "✓ Lista para recoger"}
+                </button>
               </Card>
             ))}
           </Columna>
 
-          <Columna icono="✅" titulo="Listas" n={listas.length} tono="120 220 130" vacio="Ninguna esperando recogida.">
+          <Columna
+            icono={reparteAlgo ? "🛵" : "✅"}
+            titulo={reparteAlgo ? "Listas · En reparto" : "Listas"}
+            n={listas.length}
+            tono="120 220 130"
+            vacio={reparteAlgo ? "Nada esperando ni en reparto." : "Ninguna esperando recogida."}
+          >
             {listas.map((o) => (
               <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
                 <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
                   <button onClick={() => patch(o.id, "entregado")} style={{ ...btn("rgb(120 220 130 / .9)"), flex: 1 }}>✓ Entregada</button>
-                  <button onClick={() => window.confirm(`¿Marcar el pedido ${o.code} de ${o.nombre} como NO recogido?\n\nCon 1 aviso la web pedirá confirmar sus próximos pedidos; con 2, su teléfono queda bloqueado para pedir online.`) && patch(o.id, "no_recogido")} style={btn("transparent", "rgb(255,120,90)")}>
-                    Nadie vino
+                  <button onClick={() => window.confirm(`¿Marcar el pedido ${o.code} de ${o.nombre} como NO ${esDomicilio(o) ? "entregado" : "recogido"}?\n\nCon 1 aviso la web pedirá confirmar sus próximos pedidos; con 2, su teléfono queda bloqueado para pedir online.`) && patch(o.id, "no_recogido")} style={btn("transparent", "rgb(255,120,90)")}>
+                    {esDomicilio(o) ? "Nadie abrió" : "Nadie vino"}
                   </button>
                 </div>
               </Card>
@@ -428,7 +438,11 @@ export default function CocinaPage() {
   );
 }
 
-// Columna kanban: Nuevos → En cocina → Listas.
+// A domicilio el pedido no espera en el mostrador: sale a reparto. El estado
+// interno es el mismo ("lista"), lo que cambia es cómo se llama en el panel.
+const esDomicilio = (o) => o.entrega === "domicilio";
+
+// Columna kanban: Nuevos → En cocina → Listas / En reparto.
 function Columna({ icono, titulo, n, tono, pulso, vacio, children }) {
   return (
     <section style={sx("display:flex;flex-direction:column;gap:12px;min-width:0")}>
@@ -471,7 +485,7 @@ function Card({ o, rgb, destacado, onPrint, onCancelar, onReembolsar, children }
       )}
       {o.entrega === "domicilio" && (
         <div style={sx("font-size:13px;font-weight:700;line-height:1.45;padding:9px 12px;border-radius:10px;border:1px solid rgb(var(--emb) / .55);background:rgb(var(--emb) / .1);color:rgb(var(--emb))")}>
-          🛵 A DOMICILIO — {o.direccion}
+          🛵 {o.status === "lista" ? "EN REPARTO" : "A DOMICILIO"} — {o.direccion}
         </div>
       )}
       {o.pago_estado === "pagado" && (
