@@ -9,6 +9,9 @@
 
 const MONEI_KEY = process.env.MONEI_API_KEY;
 const API = "https://api.monei.com/v1";
+// El REST solo cubre pagos; las liquidaciones y las facturas de comisiones
+// viven en la API GraphQL, con la misma clave.
+const GRAPHQL = "https://graphql.monei.com";
 
 export const moneiReady = Boolean(MONEI_KEY);
 export const devPagos = !moneiReady && !process.env.VERCEL;
@@ -26,6 +29,40 @@ async function monei(path, { method = "GET", body } = {}) {
     throw new Error(`MONEI ${method} ${path} → ${res.status}: ${(data.message || "").slice(0, 200)}`);
   }
   return data;
+}
+
+// Consulta a la API GraphQL de MONEI (liquidaciones, facturas, saldos).
+async function graphql(query) {
+  const res = await fetch(GRAPHQL, {
+    method: "POST",
+    headers: { Authorization: MONEI_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`MONEI GraphQL → ${res.status}`);
+  if (data.errors) throw new Error(`MONEI GraphQL: ${(data.errors[0]?.message || "").slice(0, 200)}`);
+  return data.data;
+}
+
+// Liquidaciones (lo que MONEI transfiere al banco) y facturas de comisiones
+// (que se cobran aparte, por recibo domiciliado). Importes en céntimos.
+export async function liquidaciones() {
+  const d = await graphql(`{
+    accountSettlements {
+      items {
+        id status payMethod currency
+        grossVolume acquirerFees netVolume reservedAmount releasedAmount
+        periodStartAt periodEndAt scheduledAt
+      }
+    }
+    accountInvoices {
+      items { number createdAt status amount tax totalAmount }
+    }
+  }`);
+  return {
+    settlements: d.accountSettlements?.items || [],
+    invoices: d.accountInvoices?.items || [],
+  };
 }
 
 // Crea el pago y devuelve la URL de la página de pago alojada de MONEI.

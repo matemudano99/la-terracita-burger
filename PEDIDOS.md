@@ -166,6 +166,27 @@ alter table public.pedidos
 Sin esa columna la promo se cobra igual de bien (el total ya va descontado),
 solo que el ticket no enseña la línea «Promo web».
 
+## Pestaña 🏦 Banco — el neto real de MONEI
+
+Lo que MONEI transfiere de verdad, sin estimar nada. El REST de MONEI solo
+expone pagos, pero su **API GraphQL** (`https://graphql.monei.com`, misma clave
+`MONEI_API_KEY` que ya está en Vercel) da las liquidaciones y las facturas.
+Lo consulta `/api/liquidaciones` **desde el servidor** — la clave nunca llega
+al navegador — y solo para el rol admin.
+
+Por cada liquidación se ve **bruto → comisiones de adquirencia → reserva →
+neto transferido**, y arriba tres cifras: lo ya recibido en el banco, lo
+retenido ahora mismo y las comisiones totales (las descontadas de las
+liquidaciones más las facturadas aparte por recibo domiciliado).
+
+Dos cosas que conviene saber, confirmadas por el soporte de MONEI:
+
+- **La reserva es rotatoria**: se retiene un 10 % de cada liquidación y se
+  libera con la siguiente, que a su vez retiene el 10 % de la suya. En todo
+  momento solo queda retenido el 10 % de la última.
+- Un cobro devuelto el mismo día **se compensa dentro de su propia
+  liquidación** (bruto 0), no se descuenta de las demás.
+
 ## Pedido mínimo, programados y reparto propio (oculto)
 
 - **Pedido mínimo online: 9 €** (constante `PEDIDO_MINIMO_CENTS` en
@@ -196,11 +217,8 @@ La pestaña **📋 Historial** abre con el cuadre del periodo elegido:
 | = Neto cobrado | lo realmente ingresado por la pasarela |
 | Cobrado en el local | pedidos sin pago online (los de antes del prepago): no salen en MONEI |
 
-**La comisión no se estima.** Solo aparece (y con ella la línea «Al banco») si
-se pulsa **+ Comisión** y se mete la tarifa exacta del plan contratado, que se
-guarda en ese dispositivo; el botón **Quitar** la retira. Un número inventado
-no vale para cuadrar: las cifras reales de cada transferencia están en
-**MONEI → Liquidaciones**.
+**Aquí no se estiman comisiones.** Lo que de verdad entra en el banco, con sus
+comisiones y su reserva, está en la pestaña **🏦 Banco** (ver abajo).
 
 > Un desfase típico: si un pedido se cobra y se devuelve en días distintos, el
 > cobro puede ir en una transferencia y el reembolso descontarse de la

@@ -66,23 +66,6 @@ const devueltoDe = (o) =>
 const COBRADOS = ["pagado", "reembolsado", "reembolso_parcial"];
 const esOnline = (o) => COBRADOS.includes(o.pago_estado);
 
-// Tarifa de la pasarela para estimar la comisión. Es un ESTIMADO: cada plan de
-// MONEI tiene la suya, así que se puede ajustar desde el propio panel.
-const TARIFA_KEY = "ltb-tarifa-monei";
-const TARIFA_DEF = { pct: 0.9, fija: 25, iva: 21 }; // solo para rellenar el formulario
-// Sin tarifa guardada devuelve null: la comisión no se estima, no se enseña.
-const leerTarifa = () => {
-  try {
-    const t = JSON.parse(localStorage.getItem(TARIFA_KEY) || "null");
-    return t && Number.isFinite(t.pct) && Number.isFinite(t.fija) && Number.isFinite(t.iva) ? t : null;
-  } catch {
-    return null;
-  }
-};
-
-// Números a la española (coma decimal).
-const num = (n) => String(n).replace(".", ",");
-
 const horaDe = (iso) =>
   new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 const fechaDe = (iso) =>
@@ -156,6 +139,7 @@ function Panel({ user, salir }) {
   const TABS = [
     { id: "resumen", label: "📊 Resumen" },
     { id: "historial", label: "📋 Historial" },
+    { id: "banco", label: "🏦 Banco" },
     { id: "equipo", label: "👥 Equipo" },
     { id: "ajustes", label: "⚙️ Ajustes" },
   ];
@@ -237,6 +221,7 @@ function Panel({ user, salir }) {
 
         {tab === "resumen" && <Resumen orders={orders} localF={localF} />}
         {tab === "historial" && <Historial orders={orders} />}
+        {tab === "banco" && <Banco />}
         {tab === "equipo" && <Equipo user={user} />}
         {tab === "ajustes" && <Ajustes />}
       </main>
@@ -450,34 +435,14 @@ function Historial({ orders }) {
 }
 
 // ── Cuadre ───────────────────────────────────────────────────────────────────
-// Lo cobrado por la pasarela en el periodo, menos las devoluciones. La comisión
-// solo aparece si se ha puesto la tarifa real del plan: sin ella no se estima.
+// Lo cobrado por la pasarela en el periodo, menos las devoluciones. Lo que
+// acaba entrando en el banco, con sus comisiones, está en la pestaña Banco.
 function Cuadre({ orders }) {
-  const [tarifa, setTarifa] = useState(leerTarifa);
-  const [editando, setEditando] = useState(false);
-  const [borrador, setBorrador] = useState(() => leerTarifa() || TARIFA_DEF);
-
-  const guardar = (t) => {
-    setTarifa(t);
-    setEditando(false);
-    try {
-      if (t) localStorage.setItem(TARIFA_KEY, JSON.stringify(t));
-      else localStorage.removeItem(TARIFA_KEY);
-    } catch { /* modo incógnito */ }
-  };
-
   const online = orders.filter(esOnline);
   const bruto = online.reduce((s, o) => s + o.total_cents, 0);
   const devuelto = online.reduce((s, o) => s + devueltoDe(o), 0);
-  const neto = bruto - devuelto;
   const enLocal = orders.filter((o) => !esOnline(o) && o.status !== "rechazado" && o.status !== "no_recogido");
   const enLocalCents = enLocal.reduce((s, o) => s + o.total_cents, 0);
-
-  // La comisión se cobra sobre el cobro original: un pedido devuelto ya pagó la
-  // suya y la pasarela no suele reintegrarla.
-  const comision = tarifa
-    ? Math.round(((bruto * tarifa.pct) / 100 + tarifa.fija * online.length) * (1 + tarifa.iva / 100))
-    : null;
 
   if (online.length === 0 && enLocal.length === 0) return null;
 
@@ -493,41 +458,150 @@ function Cuadre({ orders }) {
 
   return (
     <div style={card}>
-      <div style={sx("display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:4px")}>
-        <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Cuadre</div>
-        <button onClick={() => { setBorrador(tarifa || TARIFA_DEF); setEditando(!editando); }} style={sx("font-size:11.5px;padding:5px 12px;border-radius:100px;border:1px solid rgba(246,241,233,.2);background:transparent;color:rgba(246,241,233,.7);cursor:pointer;font-family:inherit")}>
-          {editando ? "Cerrar" : tarifa ? "⚙ Comisión" : "+ Comisión"}
-        </button>
-      </div>
+      <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:4px")}>Cuadre</div>
+      {fila("Cobrado online", fmtEUR(bruto), `${online.length} cobro${online.length === 1 ? "" : "s"}`)}
+      {devuelto > 0 && fila("Devoluciones", `− ${fmtEUR(devuelto)}`, null, { color: "rgb(255,140,110)" })}
+      {fila("Neto cobrado", fmtEUR(bruto - devuelto), null, { linea: true, fuerte: true })}
+      {enLocal.length > 0 && fila("Cobrado en el local", fmtEUR(enLocalCents), `${enLocal.length} pedido${enLocal.length === 1 ? "" : "s"}`, { linea: true, color: "rgba(246,241,233,.75)" })}
+    </div>
+  );
+}
 
-      {editando && (
-        <div style={sx("display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:12px 14px;margin-bottom:8px;border-radius:12px;background:rgba(246,241,233,.05)")}>
-          {[
-            { campo: "pct", label: "% por cobro", paso: "0.01" },
-            { campo: "fija", label: "Cént. por operación", paso: "1" },
-            { campo: "iva", label: "% IVA", paso: "1" },
-          ].map((c) => (
-            <label key={c.campo} style={sx("font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.5)")}>
-              {c.label}
-              <input type="number" step={c.paso} min="0" value={borrador[c.campo]} onChange={(e) => setBorrador({ ...borrador, [c.campo]: Number(e.target.value) || 0 })} style={{ ...inputStyle, width: 92, padding: "8px 10px", marginTop: 4 }} />
-            </label>
-          ))}
-          <div style={sx("display:flex;gap:8px")}>
-            <button onClick={() => guardar(borrador)} style={btnAcc}>Aplicar</button>
-            {tarifa && <button onClick={() => guardar(null)} style={btnGhost}>Quitar</button>}
-          </div>
-          <p style={sx("margin:0;flex:1;min-width:200px;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.45)")}>
-            Pon la tarifa exacta de tu plan (la tienes en MONEI → Liquidaciones). Mientras no la pongas, no se descuenta ninguna comisión.
-          </p>
+// ── Banco ────────────────────────────────────────────────────────────────────
+// Lo que MONEI transfiere de verdad: bruto, comisiones de adquirencia, reserva
+// retenida y neto. Aquí no se estima nada — son los datos de su API.
+const fechaCorta = (t) => (t ? new Date(t * 1000).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "2-digit" }) : "—");
+
+const ESTADO_LIQ = {
+  COMPLETED: { label: "Transferida", color: "120 220 130" },
+  PENDING: { label: "Pendiente", color: "255 197 49" },
+  SUSPENDED: { label: "Suspendida", color: "150 160 150" },
+  FAILED: { label: "Fallida", color: "255 100 80" },
+};
+
+const METODO_LIQ = { card: "Tarjeta", bizum: "Bizum" };
+
+function Banco() {
+  const [datos, setDatos] = useState(null);
+  const [error, setError] = useState(null);
+
+  const cargar = useCallback(async () => {
+    setError(null);
+    try {
+      const res = await authFetch("/api/liquidaciones");
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || `Error ${res.status}`);
+      setDatos(d);
+    } catch (e) {
+      setError(e.message);
+      setDatos({ ready: false, settlements: [], invoices: [] });
+    }
+  }, []);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  if (datos === null) return <Cargando />;
+
+  const liq = datos.settlements || [];
+  const facturas = datos.invoices || [];
+  const transferidas = liq.filter((s) => s.status === "COMPLETED");
+  const recibido = transferidas.reduce((a, s) => a + (s.netVolume || 0), 0);
+  // Saldo vivo de la reserva: se guarda en negativo cuando se retiene y vuelve
+  // en positivo al liberarse, así que el saldo se corrige solo con cada
+  // liquidación nueva (MONEI mantiene retenido el 10 % de la última).
+  const retenido = Math.max(0, transferidas.reduce((a, s) => a - (s.reservedAmount || 0) - (s.releasedAmount || 0), 0));
+  const comisionesLiq = liq.reduce((a, s) => a + Math.abs(s.acquirerFees || 0), 0);
+  const comisionesFact = facturas.reduce((a, f) => a + (f.totalAmount || 0), 0);
+
+  const kpi = (titulo, valor, extra) => (
+    <div style={card}>
+      <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:8px")}>{titulo}</div>
+      <div style={sx("font-family:'Anton',sans-serif;font-size:30px;line-height:1;color:rgb(var(--acc))")}>{valor}</div>
+      {extra && <div style={sx("font-size:12px;color:rgba(246,241,233,.5);margin-top:6px")}>{extra}</div>}
+    </div>
+  );
+
+  const celda = sx("padding:11px 10px;white-space:nowrap");
+  const cabecera = sx("padding:8px 10px;font-weight:600");
+
+  return (
+    <div style={sx("display:flex;flex-direction:column;gap:16px")}>
+      {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>⚠️ {error}</div>}
+
+      {!datos.ready && !error && (
+        <div style={sx("padding:16px 20px;border-radius:14px;border:1px dashed rgba(246,241,233,.25);font-size:14px;line-height:1.5;color:rgba(246,241,233,.7)")}>
+          Sin conexión con MONEI en este entorno (falta la clave). En producción esta pestaña enseña las liquidaciones reales.
         </div>
       )}
 
-      {fila("Cobrado online", fmtEUR(bruto), `${online.length} cobro${online.length === 1 ? "" : "s"}`)}
-      {devuelto > 0 && fila("Devoluciones", `− ${fmtEUR(devuelto)}`, null, { color: "rgb(255,140,110)" })}
-      {fila("Neto cobrado", fmtEUR(neto), null, { linea: true, fuerte: !comision })}
-      {comision != null && fila("Comisión", `− ${fmtEUR(comision)}`, `${num(tarifa.pct)} % + ${num((tarifa.fija / 100).toFixed(2))} € × ${online.length}`, { color: "rgb(255,140,110)" })}
-      {comision != null && fila("Al banco", fmtEUR(neto - comision), null, { linea: true, fuerte: true, color: "rgb(var(--acc))" })}
-      {enLocal.length > 0 && fila("Cobrado en el local", fmtEUR(enLocalCents), `${enLocal.length} pedido${enLocal.length === 1 ? "" : "s"}`, { linea: true, color: "rgba(246,241,233,.75)" })}
+      {liq.length > 0 && (
+        <>
+          <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:14px")}>
+            {kpi("En el banco", fmtEUR(recibido), `${transferidas.length} liquidación${transferidas.length === 1 ? "" : "es"} transferida${transferidas.length === 1 ? "" : "s"}`)}
+            {kpi("Retenido", fmtEUR(retenido), "reserva del 10 %, se libera en la siguiente")}
+            {kpi("Comisiones", fmtEUR(comisionesLiq + comisionesFact), `${fmtEUR(comisionesLiq)} descontadas · ${fmtEUR(comisionesFact)} facturadas`)}
+          </div>
+
+          <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+            <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 20px 10px")}>
+              <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Liquidaciones</div>
+              <button onClick={cargar} title="Actualizar" style={btnGhost}>↻</button>
+            </div>
+            <div style={sx("overflow-x:auto")}>
+              <table style={sx("width:100%;border-collapse:collapse;font-size:13.5px;min-width:660px")}>
+                <thead>
+                  <tr style={sx("text-align:right;color:rgba(246,241,233,.5);font-size:11px;letter-spacing:.1em;text-transform:uppercase")}>
+                    <th style={{ ...cabecera, textAlign: "left", paddingLeft: 20 }}>Fecha</th>
+                    <th style={{ ...cabecera, textAlign: "left" }}>Periodo</th>
+                    <th style={cabecera}>Bruto</th>
+                    <th style={cabecera}>Comisiones</th>
+                    <th style={cabecera}>Reserva</th>
+                    <th style={{ ...cabecera, paddingRight: 20 }}>Neto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {liq.map((s) => {
+                    const e = ESTADO_LIQ[s.status] || { label: s.status, color: "150 160 150" };
+                    return (
+                      <tr key={s.id} style={sx("border-top:1px solid rgba(246,241,233,.1);text-align:right")}>
+                        <td style={{ ...celda, textAlign: "left", paddingLeft: 20 }}>
+                          {fechaCorta(s.scheduledAt)}
+                          <div style={sx("display:flex;align-items:center;gap:6px;margin-top:3px")}>
+                            <span style={{ ...sx("font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:100px"), color: `rgb(${e.color})`, border: `1px solid rgb(${e.color} / .5)` }}>{e.label}</span>
+                            <span style={sx("font-size:11px;color:rgba(246,241,233,.45)")}>{METODO_LIQ[s.payMethod] || s.payMethod}</span>
+                          </div>
+                        </td>
+                        <td style={{ ...celda, textAlign: "left", color: "rgba(246,241,233,.6)", fontSize: "12.5px" }}>{fechaCorta(s.periodStartAt)} – {fechaCorta(s.periodEndAt)}</td>
+                        <td style={celda}>{fmtEUR(s.grossVolume || 0)}</td>
+                        <td style={{ ...celda, color: "rgb(255,140,110)" }}>{s.acquirerFees ? `− ${fmtEUR(Math.abs(s.acquirerFees))}` : "—"}</td>
+                        <td style={{ ...celda, color: "rgba(246,241,233,.6)" }}>{s.reservedAmount ? `${s.reservedAmount < 0 ? "− " : "+ "}${fmtEUR(Math.abs(s.reservedAmount))}` : "—"}</td>
+                        <td style={{ ...celda, paddingRight: 20, fontFamily: "'Anton',sans-serif", fontSize: "17px", color: (s.netVolume || 0) < 0 ? "rgb(255,140,110)" : "rgb(var(--acc))" }}>{fmtEUR(s.netVolume || 0)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p style={sx("margin:0;padding:12px 20px 16px;font-size:11.5px;line-height:1.55;color:rgba(246,241,233,.45)")}>
+              La reserva del 10 % se libera con la liquidación siguiente, que retiene a su vez el 10 % de la suya: en todo momento solo queda retenido el 10 % de la última. Las comisiones facturadas se cobran aparte, por recibo domiciliado.
+            </p>
+          </div>
+        </>
+      )}
+
+      {facturas.length > 0 && (
+        <div style={card}>
+          <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:6px")}>Facturas de comisiones</div>
+          {facturas.map((f) => (
+            <div key={f.number} style={sx("display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:9px 0;border-top:1px solid rgba(246,241,233,.08);font-size:13.5px")}>
+              <span>
+                {f.number}
+                <span style={sx("font-size:11.5px;color:rgba(246,241,233,.45);margin-left:8px")}>{fechaCorta(f.createdAt)}</span>
+              </span>
+              <strong style={sx("white-space:nowrap")}>{fmtEUR(f.totalAmount || 0)}</strong>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
