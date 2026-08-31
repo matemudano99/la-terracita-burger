@@ -7,13 +7,13 @@
 // nunca se cobra lo que diga el navegador.
 // ─────────────────────────────────────────────────────────────────────────────
 import { requireUser } from "./_auth.js";
-import { getPrecios, setPrecio, borrarPrecio, preciosListos, storeReady } from "./_store.js";
-import { MENU, EXTRAS, PANES, UPGRADES, ID_EXTRA, ID_PAN, ID_UPGRADE } from "../src/menu.js";
+import { getPrecios, setPrecio, borrarPrecio, preciosListos, getProductos, productosListos, storeReady } from "./_store.js";
+import { MENU, EXTRAS, PANES, UPGRADES, ID_EXTRA, ID_PAN, ID_UPGRADE, fusionarCarta } from "../src/menu.js";
 
 // Todo lo que se puede editar: producto+variante, extras, panes y patatas.
-function editables() {
+function editables(menu = MENU) {
   const ids = new Set();
-  for (const cat of MENU) {
+  for (const cat of menu) {
     if (cat.soloCarta) continue; // los extras se editan por su propio id
     for (const it of cat.items) {
       for (const v of it.variants || []) ids.add(`${it.id}:${v.id}`);
@@ -48,7 +48,8 @@ export default async function handler(req, res) {
       const b = req.body || {};
       const itemId = String(b.itemId || "");
       const variantId = String(b.variantId || "u");
-      if (!editables().has(`${itemId}:${variantId}`)) {
+      const menu = fusionarCarta((await productosListos()) ? await getProductos().catch(() => []) : []);
+      if (!editables(menu).has(`${itemId}:${variantId}`)) {
         return res.status(400).json({ error: "Ese producto no existe en la carta." });
       }
       // cents = null → se borra la fila y vuelve a mandar src/menu.js.

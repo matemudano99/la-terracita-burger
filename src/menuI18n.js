@@ -217,9 +217,9 @@ export function precioEn(txt) {
 // MENU para /pedir en el idioma pedido: conserva la estructura completa
 // (variants con céntimos, flags upgrades/extras/panes…) y solo traduce los
 // textos. NO usar cartaEn() aquí: esa devuelve precios ya formateados.
-export function menuPedir(idioma) {
-  if (idioma !== "en") return MENU;
-  return MENU.map((cat) => ({
+export function menuPedir(idioma, menu = MENU) {
+  if (idioma !== "en") return menu;
+  return menu.map((cat) => ({
     ...cat,
     label: CAT_EN[cat.id]?.label || cat.label,
     nota: CAT_EN[cat.id]?.nota ?? cat.nota,
@@ -227,8 +227,10 @@ export function menuPedir(idioma) {
       const tr = ITEM_EN[it.id] || {};
       return {
         ...it,
-        name: tr.name || it.name,
-        desc: tr.desc ?? it.desc,
+        // Lo escrito en /admin manda sobre el diccionario; si no hay inglés,
+        // se ve el español (nunca queda un hueco).
+        name: it.nameEn || tr.name || it.name,
+        desc: it.descEn ?? tr.desc ?? it.desc,
         tag: it.tag ? TAG_EN[it.tag] || it.tag : it.tag,
         priceLabel: it.priceLabel === "Consulta" ? "Ask us" : it.priceLabel,
       };
@@ -237,8 +239,8 @@ export function menuPedir(idioma) {
 }
 
 // Carta lista para pintar (solo lectura), en el idioma pedido.
-export function cartaEn(idioma, precios) {
-  const cats = displayCats(precios);
+export function cartaEn(idioma, precios, menu) {
+  const cats = displayCats(precios, menu);
   if (idioma !== "en") return cats;
   return cats.map((cat) => ({
     ...cat,
@@ -248,8 +250,8 @@ export function cartaEn(idioma, precios) {
       const tr = ITEM_EN[it.id] || {};
       return {
         ...it,
-        name: tr.name || it.name,
-        desc: tr.desc ?? it.desc,
+        name: it.nameEn || tr.name || it.name,
+        desc: it.descEn ?? tr.desc ?? it.desc,
         tag: it.tag ? TAG_EN[it.tag] || it.tag : it.tag,
         rows: it.rows.map(([label, precio]) => [VARIANTE_EN[label] || label, precioEn(precio)]),
       };

@@ -79,6 +79,24 @@ create table if not exists public.precios (
 );
 alter table public.precios enable row level security;
 
+-- Productos editados o creados desde /admin (pestaña Carta). Es una capa
+-- encima de src/menu.js: sin filas, la carta es la del código.
+--   · fila con el id de un producto del código → cambia sus textos (o lo oculta)
+--   · fila con un id nuevo                     → producto nuevo en esa categoría
+create table if not exists public.productos (
+  id             text primary key,
+  categoria      text not null,
+  nombre         text not null,
+  nombre_en      text,
+  descripcion    text,
+  descripcion_en text,
+  etiqueta       text,
+  variantes      jsonb not null default '[]'::jsonb,
+  oculto         boolean not null default false,
+  updated_at     timestamptz not null default now()
+);
+alter table public.productos enable row level security;
+
 -- Ajustes por local: pausar pedidos online desde /admin (pestaña Ajustes).
 create table if not exists public.ajustes (
   local      text primary key,

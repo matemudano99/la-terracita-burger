@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
-import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, precioDe, ID_EXTRA, ID_PAN, ID_UPGRADE, PROMO, promoDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
+import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, precioDe, fusionarCarta, ID_EXTRA, ID_PAN, ID_UPGRADE, PROMO, promoDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
 import { LOCALES, estadoLocal, estadoReparto, repartoResumen, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
 import { useI18n } from "../i18n";
 import { menuPedir, tEtiqueta, precioEn, nombreItem } from "../menuI18n";
@@ -29,8 +29,8 @@ function lineKey(l) {
   return [l.itemId, l.variantId, l.upgradeId || "no", l.panId || "patata", (l.extraIds || []).slice().sort().join(","), l.nota || ""].join("|");
 }
 
-function pricedOf(l, carta, precios) {
-  return priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta, precios });
+function pricedOf(l, carta, precios, menu) {
+  return priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta, precios, menu });
 }
 
 export default function PedirPage() {
@@ -94,6 +94,8 @@ export default function PedirPage() {
   const [ajustes, setAjustes] = useState({});
   const [cartaEstado, setCartaEstado] = useState({});
   const [precios, setPrecios] = useState({}); // precios cambiados desde /admin
+  const [productos, setProductos] = useState([]); // altas y cambios de /admin
+  const menuEfectivo = useMemo(() => fusionarCarta(productos), [productos]);
   const [pagos, setPagos] = useState(true); // ¿pago online disponible?
   const [programar, setProgramar] = useState(false); // ¿se pueden programar pedidos?
   useEffect(() => {
@@ -103,6 +105,7 @@ export default function PedirPage() {
         setAjustes(d.ajustes || {});
         setCartaEstado(d.carta || {});
         setPrecios(d.precios || {});
+        setProductos(d.productos || []);
         setPagos(d.pagos !== false);
         setProgramar(!!d.programar);
       })
@@ -124,9 +127,11 @@ export default function PedirPage() {
   // Reparto propio del local elegido (Teatinos no tiene: solo plataformas).
   const reparto = L?.delivery?.activo ? L.delivery : null;
 
-  const lineasPrecio = cart.map((l) => pricedOf(l, carta, precios)).filter(Boolean);
+  // Carta efectiva (la del código + lo editado en /admin): la usan el catálogo,
+  // los precios del carrito y la promoción.
+  const lineasPrecio = cart.map((l) => pricedOf(l, carta, precios, menuEfectivo)).filter(Boolean);
   const brutoCents = lineasPrecio.reduce((s, p) => s + p.lineCents, 0);
-  const promoCents = promoDescuento(lineasPrecio);
+  const promoCents = promoDescuento(lineasPrecio, menuEfectivo);
   const totalCents = brutoCents - promoCents;
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
 
@@ -165,7 +170,7 @@ export default function PedirPage() {
 
   // Las categorías "solo carta" (p. ej. Extras) no se muestran en /pedir:
   // sus conceptos se eligen dentro de cada producto.
-  const CATS_PEDIR = menuPedir(idioma).filter((c) => !c.soloCarta);
+  const CATS_PEDIR = useMemo(() => menuPedir(idioma, menuEfectivo).filter((c) => !c.soloCarta), [idioma, menuEfectivo]);
   const categoria = CATS_PEDIR.find((c) => c.id === cat) || CATS_PEDIR[0];
 
   return (
@@ -315,17 +320,17 @@ export default function PedirPage() {
         </div>
       )}
 
-      {modalItem && <OpcionesModal {...modalItem} carta={carta} precios={precios} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
-      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} precios={precios} rgb={rgb} estado={estado} pagos={pagos} programar={programar} ahora={ahora} totalCents={totalCents} promoCents={promoCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
+      {modalItem && <OpcionesModal {...modalItem} carta={carta} precios={precios} menu={menuEfectivo} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
+      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} precios={precios} menu={menuEfectivo} rgb={rgb} estado={estado} pagos={pagos} programar={programar} ahora={ahora} totalCents={totalCents} promoCents={promoCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
     </div>
   );
 }
 
 // ── Modal de opciones (tamaño, acompañamiento, extras, pan, cantidad, nota) ──
-function OpcionesModal({ catId, item, carta, precios, rgb, onClose, onAdd }) {
+function OpcionesModal({ catId, item, carta, precios, menu, rgb, onClose, onAdd }) {
   const { t, idioma } = useI18n();
   const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
-  const categoria = menuPedir(idioma).find((c) => c.id === catId);
+  const categoria = menuPedir(idioma, menu).find((c) => c.id === catId);
   const descuentoItem = carta?.[item.id]?.descuento || 0;
   const [variantId, setVariantId] = useState(item.variants[0].id);
   const [upgradeId, setUpgradeId] = useState("no");
@@ -337,7 +342,7 @@ function OpcionesModal({ catId, item, carta, precios, rgb, onClose, onAdd }) {
   const toggleExtra = (id) =>
     setExtraIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 10 ? [...prev, id] : prev));
 
-  const priced = pricedOf({ itemId: item.id, variantId, upgradeId, extraIds, panId, qty }, carta, precios);
+  const priced = pricedOf({ itemId: item.id, variantId, upgradeId, extraIds, panId, qty }, carta, precios, menu);
 
   const radio = (checked) =>
     sx(`display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-radius:12px;cursor:pointer;font-size:14.5px;border:1px solid ${checked ? `rgb(${rgb})` : "rgba(246,241,233,.15)"};background:${checked ? `rgb(${rgb} / .1)` : "transparent"};color:#f6f1e9`);
@@ -449,7 +454,7 @@ function OpcionesModal({ catId, item, carta, precios, rgb, onClose, onAdd }) {
 }
 
 // ── Carrito + checkout ───────────────────────────────────────────────────────
-function CartDrawer({ cart, setQty, loc, carta, precios, rgb, estado, pagos, programar, ahora, totalCents, promoCents, onClose, onDone }) {
+function CartDrawer({ cart, setQty, loc, carta, precios, menu, rgb, estado, pagos, programar, ahora, totalCents, promoCents, onClose, onDone }) {
   const { t, idioma } = useI18n();
   const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
   const [nombre, setNombre] = useState(localStorage.getItem("ltb_nombre") || "");
@@ -641,7 +646,7 @@ function CartDrawer({ cart, setQty, loc, carta, precios, rgb, estado, pagos, pro
 
         <div style={sx("display:flex;flex-direction:column;gap:12px")}>
           {cart.map((l, i) => {
-            const p = pricedOf(l, carta, precios);
+            const p = pricedOf(l, carta, precios, menu);
             if (!p) {
               // El producto se ha agotado (o dejó de ser válido) con el carrito ya hecho.
               return (

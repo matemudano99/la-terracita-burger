@@ -8,6 +8,7 @@ import Carousel from "./Carousel";
 import Delivery from "./Delivery";
 import LtbMark from "./LtbMark";
 import { cartaEn } from "./menuI18n";
+import { fusionarCarta } from "./menu";
 import { useI18n } from "./i18n";
 
 // Texto con saltos de línea escritos como "<br />" en el diccionario.
@@ -22,17 +23,18 @@ const cardStyle = (hovered) =>
 
 export default function Landing() {
   const { t, idioma } = useI18n();
-  // Precios cambiados desde /admin (si no hay ninguno, manda src/menu.js).
+  // Precios y productos cambiados desde /admin (si no hay nada, manda src/menu.js).
   const [precios, setPrecios] = useState({});
+  const [productos, setProductos] = useState([]);
   useEffect(() => {
     fetch("/api/ajustes")
       .then((r) => (r.ok ? r.json() : {}))
-      .then((d) => setPrecios(d.precios || {}))
+      .then((d) => { setPrecios(d.precios || {}); setProductos(d.productos || []); })
       .catch(() => {});
   }, []);
   // La carta vive en src/menu.js (única fuente de verdad, compartida con /pedir
   // y el backend); aquí solo se traduce y se da el formato de presentación.
-  const CATS = useMemo(() => cartaEn(idioma, precios), [idioma, precios]);
+  const CATS = useMemo(() => cartaEn(idioma, precios, fusionarCarta(productos)), [idioma, precios, productos]);
   const [activeCat, setActiveCat] = useState("smash");
   const [hover, setHover] = useState(null);
 

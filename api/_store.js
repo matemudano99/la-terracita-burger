@@ -229,6 +229,52 @@ export async function preciosListos() {
   return true;
 }
 
+// ── Productos editados o creados desde /admin ────────────────────────────────
+// Capa encima de src/menu.js: cambia nombre/descripción, oculta un producto de
+// la carta base o añade uno nuevo. Sin filas, la carta es la del código.
+const memProductos = new Map();
+
+export async function getProductos() {
+  if (usingSupabase) {
+    return supa("productos?select=id,categoria,nombre,nombre_en,descripcion,descripcion_en,etiqueta,variantes,oculto&order=id");
+  }
+  return [...memProductos.values()];
+}
+
+export async function setProducto(p) {
+  if (usingSupabase) {
+    await supa("productos", {
+      method: "POST",
+      body: { ...p, updated_at: new Date().toISOString() },
+      headers: { Prefer: "resolution=merge-duplicates" },
+    });
+    return;
+  }
+  memProductos.set(p.id, { ...(memProductos.get(p.id) || {}), ...p });
+}
+
+export async function borrarProducto(id) {
+  if (usingSupabase) {
+    await supa(`productos?id=eq.${encodeURIComponent(id)}`, { method: "DELETE" });
+    return;
+  }
+  memProductos.delete(id);
+}
+
+// ¿Existe ya la tabla? Permite desplegar antes de ejecutar su SQL.
+let cacheProductos = false;
+export async function productosListos() {
+  if (!usingSupabase) return true;
+  if (cacheProductos) return true;
+  try {
+    await supa("productos?select=id&limit=1");
+    cacheProductos = true;
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 // ── Ajustes por local (p. ej. pausar pedidos online) ─────────────────────────
 const memAjustes = new Map();
 

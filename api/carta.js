@@ -5,9 +5,9 @@
 // El estado se lee públicamente vía GET /api/ajustes (lo usa /pedir).
 // ─────────────────────────────────────────────────────────────────────────────
 import { requireUser } from "./_auth.js";
-import { getCarta, setCartaItem, storeReady } from "./_store.js";
+import { getCarta, setCartaItem, getProductos, productosListos, storeReady } from "./_store.js";
 import { LOCALES } from "../src/locales.js";
-import { MENU } from "../src/menu.js";
+import { MENU, fusionarCarta } from "../src/menu.js";
 
 export default async function handler(req, res) {
   try {
@@ -24,7 +24,8 @@ export default async function handler(req, res) {
     if (user.rol === "empleado" && user.local && user.local !== b.local) {
       return res.status(403).json({ error: `Tu cuenta solo gestiona ${LOCALES[user.local]?.name || user.local}.` });
     }
-    const existe = MENU.some((c) => !c.soloCarta && c.items.some((i) => i.id === b.itemId));
+    const menu = fusionarCarta((await productosListos()) ? await getProductos().catch(() => []) : []);
+    const existe = menu.some((c) => !c.soloCarta && c.items.some((i) => i.id === b.itemId));
     if (!existe) return res.status(400).json({ error: "Producto no válido." });
 
     const descuento = Math.min(90, Math.max(0, Math.floor(Number(b.descuento) || 0)));

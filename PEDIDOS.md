@@ -168,22 +168,36 @@ alter table public.pedidos
 Sin esa columna la promo se cobra igual de bien (el total ya va descontado),
 solo que el ticket no enseña la línea «Promo web».
 
-## Pestaña 🍔 Carta — precios y disponibilidad desde /admin
+## Pestaña 🍔 Carta — gestionar la carta desde /admin
 
-Los precios de `src/menu.js` son los **de partida**. En la pestaña **🍔 Carta**
-de /admin se cambia el precio de cualquier producto y variante, de los añadidos,
-los panes y los acompañamientos; **«Volver»** borra el cambio y deja otra vez el
-de la carta. Desde ahí también se marcan **agotados por local** (lo mismo que se
-puede hacer desde /cocina).
+`src/menu.js` es la **carta base**. La pestaña **🍔 Carta** de /admin la edita
+sin tocar código ni desplegar, y todo tiene vuelta atrás:
 
-- Lo editado se guarda en la tabla `precios` de Supabase, y solo se guarda lo
-  que se cambia: sin fila, manda `src/menu.js`.
-- El cambio se ve al instante en la portada, en `/carta` y en `/pedir`, y es
-  **el que cobra el servidor** — que sigue recalculando cada pedido por su
-  cuenta, así que el navegador no puede colar un precio.
-- Solo el rol admin puede tocarlos (`/api/precios`).
+| Qué | Cómo | Dónde se guarda |
+|---|---|---|
+| Precio de un producto o variante | Se escribe y **Guardar**; **Volver** deja el de la carta | tabla `precios` |
+| Precio de añadidos, panes y acompañamientos | Igual, en sus tres pestañas | tabla `precios` |
+| Agotado, por local | Botón **Disponible / Agotado** | tabla `carta` |
+| Oferta (% de descuento), por local | Campo **% dto.** | tabla `carta` |
+| Nombre, descripción, etiqueta y su versión en inglés | Botón **✎ Editar** | tabla `productos` |
+| Producto nuevo | **+ Nuevo producto**: categoría, textos y precios | tabla `productos` |
+| Quitar un producto | **Quitar**. Si venía de la carta base se **oculta** (y se recupera desde «Ocultos»); si se creó aquí, se borra | tabla `productos` |
 
-Requiere ejecutar una vez en Supabase (está en `supabase/schema.sql`):
+Cómo encaja con el código:
+
+- Las tablas son **capas encima** de `src/menu.js`: solo guardan lo que se
+  cambia. Sin filas, la carta es exactamente la del archivo.
+- `fusionarCarta()` en `src/menu.js` devuelve la **carta efectiva** (base +
+  cambios), y es la que usan la portada, `/carta`, `/pedir` y el servidor.
+  Un producto creado desde el panel entra también en la promoción web.
+- El precio lo sigue recalculando `/api/orders`, así que el navegador no puede
+  colar uno; un producto oculto o agotado se rechaza aunque estuviera en el
+  carrito.
+- Solo el rol admin edita (`/api/precios` y `/api/productos`).
+- Un producto creado desde el panel **sin versión en inglés** se ve en español
+  en la web en inglés (nunca queda un hueco).
+
+Requiere ejecutar una vez en Supabase (está entero en `supabase/schema.sql`):
 
 ```sql
 create table if not exists public.precios (
@@ -194,10 +208,24 @@ create table if not exists public.precios (
   primary key (item_id, variant_id)
 );
 alter table public.precios enable row level security;
+
+create table if not exists public.productos (
+  id             text primary key,
+  categoria      text not null,
+  nombre         text not null,
+  nombre_en      text,
+  descripcion    text,
+  descripcion_en text,
+  etiqueta       text,
+  variantes      jsonb not null default '[]'::jsonb,
+  oculto         boolean not null default false,
+  updated_at     timestamptz not null default now()
+);
+alter table public.productos enable row level security;
 ```
 
-Sin esa tabla la web funciona igual con los precios de `src/menu.js`, y la
-pestaña avisa de que falta el SQL.
+Sin esas tablas la web funciona igual con la carta del código, y la pestaña
+avisa de lo que falta.
 
 ## Pestaña 🏦 Banco — el neto real de MONEI
 

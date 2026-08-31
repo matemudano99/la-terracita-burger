@@ -222,20 +222,20 @@ export const PROMO = {
   categorias: ["smash"],
 };
 
-// Ids de los productos que entran en la promoción.
-const idsPromo = new Set(
-  MENU.filter((c) => PROMO.categorias.includes(c.id)).flatMap((c) => c.items.map((i) => i.id))
-);
-export const enPromo = (itemId) => PROMO.activa && idsPromo.has(itemId);
+// Ids de los productos que entran en la promoción. Se calculan sobre la carta
+// efectiva para que un producto creado desde /admin también entre.
+export const idsEnPromo = (menu = MENU) =>
+  new Set(menu.filter((c) => PROMO.categorias.includes(c.id)).flatMap((c) => c.items.map((i) => i.id)));
 
 // Descuento de la promoción sobre unas líneas ya valoradas con priceLine().
 // Cada pareja de hamburguesas descuenta la más barata de las dos: con 3
 // hamburguesas se descuenta una, con 4 dos, y así.
-export function promoDescuento(items) {
+export function promoDescuento(items, menu = MENU) {
   if (!PROMO.activa || !Array.isArray(items)) return 0;
+  const enPromo = idsEnPromo(menu);
   const unidades = [];
   for (const it of items) {
-    if (!it || !enPromo(it.itemId)) continue;
+    if (!it || !enPromo.has(it.itemId)) continue;
     for (let i = 0; i < it.qty; i++) unidades.push(it.baseCents ?? 0);
   }
   unidades.sort((a, b) => b - a); // de más cara a más barata
@@ -263,6 +263,58 @@ export function precioDe(precios, itemId, variantId, porDefecto) {
   return Number.isInteger(v) && v >= 0 ? v : porDefecto;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PRODUCTOS EDITADOS DESDE /admin
+// La carta de este archivo es la base. La tabla `productos` de Supabase puede,
+// sobre esa base: cambiar nombre/descripción/etiqueta de un producto, ocultarlo
+// o añadir productos nuevos. `fusionarCarta()` devuelve la carta resultante y
+// es la que usan la web y el servidor — nadie lee MENU a pelo salvo como base.
+// ─────────────────────────────────────────────────────────────────────────────
+export function fusionarCarta(productos) {
+  if (!Array.isArray(productos) || productos.length === 0) return MENU;
+  const porId = new Map(productos.map((p) => [p.id, p]));
+  const enBase = new Set(MENU.flatMap((c) => c.items.map((i) => i.id)));
+
+  const cats = MENU.map((cat) => ({
+    ...cat,
+    items: cat.items
+      .filter((it) => !porId.get(it.id)?.oculto)
+      .map((it) => {
+        const ov = porId.get(it.id);
+        if (!ov) return it;
+        return {
+          ...it,
+          name: ov.nombre || it.name,
+          nameEn: ov.nombre_en || undefined,
+          desc: ov.descripcion ?? it.desc,
+          descEn: ov.descripcion_en || undefined,
+          tag: ov.etiqueta === "" ? undefined : ov.etiqueta || it.tag,
+          variants: Array.isArray(ov.variantes) && ov.variantes.length ? ov.variantes : it.variants,
+          editado: true,
+        };
+      }),
+  }));
+
+  // Productos creados desde el panel (los que no existen en este archivo).
+  for (const p of productos) {
+    if (p.oculto || enBase.has(p.id)) continue;
+    const cat = cats.find((c) => c.id === p.categoria);
+    if (!cat || !Array.isArray(p.variantes) || p.variantes.length === 0) continue;
+    cat.items.push({
+      id: p.id,
+      name: p.nombre,
+      nameEn: p.nombre_en || undefined,
+      desc: p.descripcion || "",
+      descEn: p.descripcion_en || undefined,
+      tag: p.etiqueta || undefined,
+      notaHint: cat.notaHint,
+      variants: p.variantes,
+      nuevo: true,
+    });
+  }
+  return cats;
+}
+
 export const fmtEUR = (cents) =>
   (cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 
@@ -275,15 +327,17 @@ export const PEDIDO_MINIMO_CENTS = 900;
 // añadido (`extra:bacon`): aquí se traduce el id para buscarlo.
 const idParaPrecio = (id) => (id.startsWith("extra-") ? ID_EXTRA(id.slice(6)) : id);
 
-export const displayCats = (precios) =>
-  MENU.map((cat) => ({
+export const displayCats = (precios, menu = MENU) =>
+  menu.map((cat) => ({
     id: cat.id,
     label: cat.label,
     nota: cat.nota,
     items: cat.items.map((it) => ({
       id: it.id,
       name: it.name,
+      nameEn: it.nameEn,
       desc: it.desc,
+      descEn: it.descEn,
       tag: it.tag,
       rows: it.orderable === false
         ? [["", it.priceLabel || "Consulta"]]
@@ -292,8 +346,8 @@ export const displayCats = (precios) =>
   }));
 
 // Nombre de un ítem por id (para mensajes de error).
-export function itemName(id) {
-  for (const c of MENU) {
+export function itemName(id, menu = MENU) {
+  for (const c of menu) {
     const it = c.items.find((i) => i.id === id);
     if (it) return it.name;
   }
@@ -309,8 +363,8 @@ export const conDescuento = (cents, descuento) =>
 // `carta` es el estado por local (agotados/descuentos) gestionado desde /cocina:
 // un ítem agotado no es pedible y el descuento se aplica al precio base
 // (no a extras ni acompañamientos).
-export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, carta, precios }) {
-  for (const cat of MENU) {
+export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, carta, precios, menu = MENU }) {
+  for (const cat of menu) {
     const it = cat.items.find((i) => i.id === itemId);
     if (!it) continue;
     if (it.orderable === false || it.soloLocal || cat.soloCarta) return null;

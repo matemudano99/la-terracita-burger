@@ -9,9 +9,9 @@
 // en los importes que envía el navegador.
 // ─────────────────────────────────────────────────────────────────────────────
 import { randomUUID } from "node:crypto";
-import { priceLine, fmtEUR, itemName, promoDescuento, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
+import { priceLine, fmtEUR, itemName, fusionarCarta, promoDescuento, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
 import { LOCALES, estadoLocal, estadoReparto, validarProgramado, distanciaKm } from "../src/locales.js";
-import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, getPrecios, preciosListos, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
+import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, getPrecios, preciosListos, getProductos, productosListos, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
 import { pagosDisponibles, crearPago, reembolsar } from "./_monei.js";
 import { geocodificar, GeoNoDisponible, mismoMunicipio } from "./_geo.js";
@@ -130,14 +130,16 @@ async function crear(req, res) {
   // precios vigentes (los editados desde /admin mandan sobre src/menu.js).
   const carta = await getCarta(b.local).catch(() => ({}));
   const precios = (await preciosListos()) ? await getPrecios().catch(() => ({})) : {};
+  // Carta efectiva: la de src/menu.js con lo editado desde /admin.
+  const menu = fusionarCarta((await productosListos()) ? await getProductos().catch(() => []) : []);
 
   const items = [];
   let total = 0;
   for (const l of b.lineas) {
     if (carta[l.itemId]?.agotado) {
-      return res.status(409).json({ error: `"${itemName(l.itemId)}" se nos ha agotado hoy 😔 — quítalo del carrito y elige otra cosa.` });
+      return res.status(409).json({ error: `"${itemName(l.itemId, menu)}" se nos ha agotado hoy 😔 — quítalo del carrito y elige otra cosa.` });
     }
-    const priced = priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta, precios });
+    const priced = priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta, precios, menu });
     if (!priced) return res.status(400).json({ error: "Hay un producto no válido en el carrito. Recarga la página e inténtalo de nuevo." });
     priced.nota = String(l.nota || "").trim().slice(0, 140) || null;
     items.push(priced);
@@ -145,7 +147,7 @@ async function crear(req, res) {
   }
   // Promoción web: la calcula SIEMPRE el servidor sobre las líneas ya
   // valoradas; el navegador solo la enseña.
-  const promoCents = promoDescuento(items);
+  const promoCents = promoDescuento(items, menu);
   total -= promoCents;
 
   if (total > 50000) return res.status(400).json({ error: "Para pedidos tan grandes, llámanos por teléfono y te lo preparamos 😉" });

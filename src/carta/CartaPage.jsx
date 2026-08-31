@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { sx } from "../sx";
 import { cartaEn } from "../menuI18n";
+import { fusionarCarta } from "../menu";
 import { useI18n } from "../i18n";
 import LangSwitcher from "../LangSwitcher";
 import { iconoDe, colorDe } from "./identidad";
@@ -17,15 +18,16 @@ import LtbMark from "../LtbMark";
 
 export default function CartaPage() {
   const { t, idioma } = useI18n();
-  // Precios cambiados desde /admin (si no hay ninguno, manda src/menu.js).
+  // Precios y productos cambiados desde /admin (si no hay nada, manda src/menu.js).
   const [precios, setPrecios] = useState({});
+  const [productos, setProductos] = useState([]);
   useEffect(() => {
     fetch("/api/ajustes")
       .then((r) => (r.ok ? r.json() : {}))
-      .then((d) => setPrecios(d.precios || {}))
+      .then((d) => { setPrecios(d.precios || {}); setProductos(d.productos || []); })
       .catch(() => {});
   }, []);
-  const CATS = useMemo(() => cartaEn(idioma, precios), [idioma, precios]);
+  const CATS = useMemo(() => cartaEn(idioma, precios, fusionarCarta(productos)), [idioma, precios, productos]);
   const [activa, setActiva] = useState(CATS[0]?.id);
 
   useEffect(() => {
