@@ -67,6 +67,18 @@ alter table public.pedidos
 alter table public.pedidos
   add column if not exists promo_cents integer not null default 0;
 
+-- Precios editados desde /admin (pestaña Carta). Solo guarda lo que se cambia:
+-- sin fila, manda el precio de src/menu.js. Los añadidos llevan prefijo en el
+-- id para no chocar con los productos: extra:bacon, pan:sin-gluten, upg:boniato.
+create table if not exists public.precios (
+  item_id    text not null,
+  variant_id text not null default 'u',
+  cents      integer not null check (cents >= 0),
+  updated_at timestamptz not null default now(),
+  primary key (item_id, variant_id)
+);
+alter table public.precios enable row level security;
+
 -- Ajustes por local: pausar pedidos online desde /admin (pestaña Ajustes).
 create table if not exists public.ajustes (
   local      text primary key,

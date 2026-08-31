@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
-import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, PROMO, promoDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
+import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, precioDe, ID_EXTRA, ID_PAN, ID_UPGRADE, PROMO, promoDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
 import { LOCALES, estadoLocal, estadoReparto, repartoResumen, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
 import { useI18n } from "../i18n";
 import { menuPedir, tEtiqueta, precioEn, nombreItem } from "../menuI18n";
@@ -29,8 +29,8 @@ function lineKey(l) {
   return [l.itemId, l.variantId, l.upgradeId || "no", l.panId || "patata", (l.extraIds || []).slice().sort().join(","), l.nota || ""].join("|");
 }
 
-function pricedOf(l, carta) {
-  return priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta });
+function pricedOf(l, carta, precios) {
+  return priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta, precios });
 }
 
 export default function PedirPage() {
@@ -93,6 +93,7 @@ export default function PedirPage() {
   // para que los cambios aparezcan sin recargar la página.
   const [ajustes, setAjustes] = useState({});
   const [cartaEstado, setCartaEstado] = useState({});
+  const [precios, setPrecios] = useState({}); // precios cambiados desde /admin
   const [pagos, setPagos] = useState(true); // ¿pago online disponible?
   const [programar, setProgramar] = useState(false); // ¿se pueden programar pedidos?
   useEffect(() => {
@@ -101,6 +102,7 @@ export default function PedirPage() {
       .then((d) => {
         setAjustes(d.ajustes || {});
         setCartaEstado(d.carta || {});
+        setPrecios(d.precios || {});
         setPagos(d.pagos !== false);
         setProgramar(!!d.programar);
       })
@@ -122,7 +124,7 @@ export default function PedirPage() {
   // Reparto propio del local elegido (Teatinos no tiene: solo plataformas).
   const reparto = L?.delivery?.activo ? L.delivery : null;
 
-  const lineasPrecio = cart.map((l) => pricedOf(l, carta)).filter(Boolean);
+  const lineasPrecio = cart.map((l) => pricedOf(l, carta, precios)).filter(Boolean);
   const brutoCents = lineasPrecio.reduce((s, p) => s + p.lineCents, 0);
   const promoCents = promoDescuento(lineasPrecio);
   const totalCents = brutoCents - promoCents;
@@ -261,7 +263,7 @@ export default function PedirPage() {
                 const estadoItem = carta[item.id];
                 const agotado = !!estadoItem?.agotado;
                 const descuento = estadoItem?.descuento || 0;
-                const desdeBase = item.orderable === false ? null : Math.min(...item.variants.map((v) => v.cents));
+                const desdeBase = item.orderable === false ? null : Math.min(...item.variants.map((v) => precioDe(precios, item.id, v.id, v.cents)));
                 const desde = desdeBase != null ? conDescuento(desdeBase, descuento) : null;
                 return (
                   <div key={item.id} style={{ ...sx(`position:relative;background:#100c08;border:1px solid ${descuento && !agotado ? "rgb(var(--emb) / .5)" : "rgba(246,241,233,.1)"};border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px;animation:ltb-rise .4s both;transition:transform .25s,border-color .25s`), animationDelay: `${i * 0.03}s`, opacity: agotado ? 0.5 : 1 }}>
@@ -313,14 +315,14 @@ export default function PedirPage() {
         </div>
       )}
 
-      {modalItem && <OpcionesModal {...modalItem} carta={carta} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
-      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} rgb={rgb} estado={estado} pagos={pagos} programar={programar} ahora={ahora} totalCents={totalCents} promoCents={promoCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
+      {modalItem && <OpcionesModal {...modalItem} carta={carta} precios={precios} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
+      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} precios={precios} rgb={rgb} estado={estado} pagos={pagos} programar={programar} ahora={ahora} totalCents={totalCents} promoCents={promoCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
     </div>
   );
 }
 
 // ── Modal de opciones (tamaño, acompañamiento, extras, pan, cantidad, nota) ──
-function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
+function OpcionesModal({ catId, item, carta, precios, rgb, onClose, onAdd }) {
   const { t, idioma } = useI18n();
   const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
   const categoria = menuPedir(idioma).find((c) => c.id === catId);
@@ -335,7 +337,7 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
   const toggleExtra = (id) =>
     setExtraIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 10 ? [...prev, id] : prev));
 
-  const priced = pricedOf({ itemId: item.id, variantId, upgradeId, extraIds, panId, qty }, carta);
+  const priced = pricedOf({ itemId: item.id, variantId, upgradeId, extraIds, panId, qty }, carta, precios);
 
   const radio = (checked) =>
     sx(`display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-radius:12px;cursor:pointer;font-size:14.5px;border:1px solid ${checked ? `rgb(${rgb})` : "rgba(246,241,233,.15)"};background:${checked ? `rgb(${rgb} / .1)` : "transparent"};color:#f6f1e9`);
@@ -360,8 +362,8 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
                     {tEtiqueta(v.label, idioma)}
                   </span>
                   <strong style={{ ...sx("display:inline-flex;align-items:baseline;gap:7px"), color: `rgb(${rgb})` }}>
-                    {descuentoItem > 0 && <s style={sx("font-size:12px;color:rgba(246,241,233,.4)")}>{fmtP(v.cents)}</s>}
-                    {fmtP(conDescuento(v.cents, descuentoItem))}
+                    {descuentoItem > 0 && <s style={sx("font-size:12px;color:rgba(246,241,233,.4)")}>{fmtP(precioDe(precios, item.id, v.id, v.cents))}</s>}
+                    {fmtP(conDescuento(precioDe(precios, item.id, v.id, v.cents), descuentoItem))}
                   </strong>
                 </label>
               ))}
@@ -379,7 +381,7 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
                     <input type="radio" name="upgrade" checked={upgradeId === u.id} onChange={() => setUpgradeId(u.id)} />
                     {tEtiqueta(u.label, idioma)}
                   </span>
-                  <strong style={{ color: `rgb(${rgb})` }}>{u.cents ? `+${fmtP(u.cents)}` : ""}</strong>
+                  <strong style={{ color: `rgb(${rgb})` }}>{precioDe(precios, ID_UPGRADE(u.id), "u", u.cents) ? `+${fmtP(precioDe(precios, ID_UPGRADE(u.id), "u", u.cents))}` : ""}</strong>
                 </label>
               ))}
             </div>
@@ -396,7 +398,7 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
                     <input type="radio" name="pan" checked={panId === p.id} onChange={() => setPanId(p.id)} />
                     {tEtiqueta(p.label, idioma)}
                   </span>
-                  <strong style={{ color: `rgb(${rgb})` }}>{p.cents ? `+${fmtP(p.cents)}` : ""}</strong>
+                  <strong style={{ color: `rgb(${rgb})` }}>{precioDe(precios, ID_PAN(p.id), "u", p.cents) ? `+${fmtP(precioDe(precios, ID_PAN(p.id), "u", p.cents))}` : ""}</strong>
                 </label>
               ))}
             </div>
@@ -415,7 +417,7 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
                       <input type="checkbox" checked={on} onChange={() => toggleExtra(e.id)} />
                       {tEtiqueta(e.label, idioma)}
                     </span>
-                    <strong style={{ color: `rgb(${rgb})`, whiteSpace: "nowrap" }}>+{fmtP(e.cents)}</strong>
+                    <strong style={{ color: `rgb(${rgb})`, whiteSpace: "nowrap" }}>+{fmtP(precioDe(precios, ID_EXTRA(e.id), "u", e.cents))}</strong>
                   </label>
                 );
               })}
@@ -447,7 +449,7 @@ function OpcionesModal({ catId, item, carta, rgb, onClose, onAdd }) {
 }
 
 // ── Carrito + checkout ───────────────────────────────────────────────────────
-function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, ahora, totalCents, promoCents, onClose, onDone }) {
+function CartDrawer({ cart, setQty, loc, carta, precios, rgb, estado, pagos, programar, ahora, totalCents, promoCents, onClose, onDone }) {
   const { t, idioma } = useI18n();
   const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
   const [nombre, setNombre] = useState(localStorage.getItem("ltb_nombre") || "");
@@ -639,7 +641,7 @@ function CartDrawer({ cart, setQty, loc, carta, rgb, estado, pagos, programar, a
 
         <div style={sx("display:flex;flex-direction:column;gap:12px")}>
           {cart.map((l, i) => {
-            const p = pricedOf(l, carta);
+            const p = pricedOf(l, carta, precios);
             if (!p) {
               // El producto se ha agotado (o dejó de ser válido) con el carrito ya hecho.
               return (

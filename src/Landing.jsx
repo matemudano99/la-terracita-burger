@@ -22,9 +22,17 @@ const cardStyle = (hovered) =>
 
 export default function Landing() {
   const { t, idioma } = useI18n();
+  // Precios cambiados desde /admin (si no hay ninguno, manda src/menu.js).
+  const [precios, setPrecios] = useState({});
+  useEffect(() => {
+    fetch("/api/ajustes")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) => setPrecios(d.precios || {}))
+      .catch(() => {});
+  }, []);
   // La carta vive en src/menu.js (única fuente de verdad, compartida con /pedir
   // y el backend); aquí solo se traduce y se da el formato de presentación.
-  const CATS = useMemo(() => cartaEn(idioma), [idioma]);
+  const CATS = useMemo(() => cartaEn(idioma, precios), [idioma, precios]);
   const [activeCat, setActiveCat] = useState("smash");
   const [hover, setHover] = useState(null);
 

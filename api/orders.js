@@ -11,7 +11,7 @@
 import { randomUUID } from "node:crypto";
 import { priceLine, fmtEUR, itemName, promoDescuento, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
 import { LOCALES, estadoLocal, estadoReparto, validarProgramado, distanciaKm } from "../src/locales.js";
-import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
+import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, getPrecios, preciosListos, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
 import { pagosDisponibles, crearPago, reembolsar } from "./_monei.js";
 import { geocodificar, GeoNoDisponible, mismoMunicipio } from "./_geo.js";
@@ -126,8 +126,10 @@ async function crear(req, res) {
   if (!Array.isArray(b.lineas) || b.lineas.length < 1 || b.lineas.length > 30) {
     return res.status(400).json({ error: "El carrito está vacío." });
   }
-  // Estado de la carta del local (agotados y descuentos, desde /cocina).
+  // Estado de la carta del local (agotados y descuentos, desde /cocina) y
+  // precios vigentes (los editados desde /admin mandan sobre src/menu.js).
   const carta = await getCarta(b.local).catch(() => ({}));
+  const precios = (await preciosListos()) ? await getPrecios().catch(() => ({})) : {};
 
   const items = [];
   let total = 0;
@@ -135,7 +137,7 @@ async function crear(req, res) {
     if (carta[l.itemId]?.agotado) {
       return res.status(409).json({ error: `"${itemName(l.itemId)}" se nos ha agotado hoy 😔 — quítalo del carrito y elige otra cosa.` });
     }
-    const priced = priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta });
+    const priced = priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta, precios });
     if (!priced) return res.status(400).json({ error: "Hay un producto no válido en el carrito. Recarga la página e inténtalo de nuevo." });
     priced.nota = String(l.nota || "").trim().slice(0, 140) || null;
     items.push(priced);

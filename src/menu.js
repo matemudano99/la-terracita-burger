@@ -244,6 +244,25 @@ export function promoDescuento(items) {
   return desc;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PRECIOS EDITABLES DESDE /admin
+// Los de este archivo son los de partida. Si en la tabla `precios` de Supabase
+// hay una fila para un producto (o extra, pan o acompañamiento), esa manda.
+// Clave: `itemId:variantId`. Los añadidos van con prefijo para no chocar con
+// los ids de producto: `extra:bacon`, `pan:sin-gluten`, `upg:boniato`.
+// Borrar la fila devuelve el precio de este archivo.
+// ─────────────────────────────────────────────────────────────────────────────
+export const clavePrecio = (itemId, variantId = "u") => `${itemId}:${variantId}`;
+export const ID_EXTRA = (id) => `extra:${id}`;
+export const ID_PAN = (id) => `pan:${id}`;
+export const ID_UPGRADE = (id) => `upg:${id}`;
+
+// Precio vigente: el de /admin si existe, si no el de la carta.
+export function precioDe(precios, itemId, variantId, porDefecto) {
+  const v = precios?.[clavePrecio(itemId, variantId)];
+  return Number.isInteger(v) && v >= 0 ? v : porDefecto;
+}
+
 export const fmtEUR = (cents) =>
   (cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 
@@ -251,7 +270,12 @@ export const fmtEUR = (cents) =>
 export const PEDIDO_MINIMO_CENTS = 900;
 
 // Forma que espera la sección "Carta" de Landing.jsx (rows [etiqueta, precio]).
-export const displayCats = () =>
+// La categoría "Extras" de la carta lista los añadidos como si fueran
+// productos (id `extra-bacon`), pero su precio se guarda con el prefijo del
+// añadido (`extra:bacon`): aquí se traduce el id para buscarlo.
+const idParaPrecio = (id) => (id.startsWith("extra-") ? ID_EXTRA(id.slice(6)) : id);
+
+export const displayCats = (precios) =>
   MENU.map((cat) => ({
     id: cat.id,
     label: cat.label,
@@ -263,7 +287,7 @@ export const displayCats = () =>
       tag: it.tag,
       rows: it.orderable === false
         ? [["", it.priceLabel || "Consulta"]]
-        : it.variants.map((v) => [v.label, fmtEUR(v.cents)]),
+        : it.variants.map((v) => [v.label, fmtEUR(precioDe(precios, idParaPrecio(it.id), v.id, v.cents))]),
     })),
   }));
 
@@ -285,7 +309,7 @@ export const conDescuento = (cents, descuento) =>
 // `carta` es el estado por local (agotados/descuentos) gestionado desde /cocina:
 // un ítem agotado no es pedible y el descuento se aplica al precio base
 // (no a extras ni acompañamientos).
-export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, carta }) {
+export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, carta, precios }) {
   for (const cat of MENU) {
     const it = cat.items.find((i) => i.id === itemId);
     if (!it) continue;
@@ -325,8 +349,11 @@ export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, 
     if (!Number.isFinite(q) || q < 1 || q > 20) return null;
 
     const descuento = estadoCarta?.descuento || 0;
-    const base = conDescuento(v.cents, descuento);
-    const unit = base + (upgrade ? upgrade.cents : 0) + (pan ? pan.cents : 0) + extras.reduce((s, e) => s + e.cents, 0);
+    const base = conDescuento(precioDe(precios, itemId, v.id, v.cents), descuento);
+    const upgradeCents = upgrade ? precioDe(precios, ID_UPGRADE(upgrade.id), "u", upgrade.cents) : 0;
+    const panCents = pan ? precioDe(precios, ID_PAN(pan.id), "u", pan.cents) : 0;
+    const extrasCents = extras.reduce((s, e) => s + precioDe(precios, ID_EXTRA(e.id), "u", e.cents), 0);
+    const unit = base + upgradeCents + panCents + extrasCents;
     return {
       itemId,
       name: it.name,

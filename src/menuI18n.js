@@ -237,8 +237,8 @@ export function menuPedir(idioma) {
 }
 
 // Carta lista para pintar (solo lectura), en el idioma pedido.
-export function cartaEn(idioma) {
-  const cats = displayCats();
+export function cartaEn(idioma, precios) {
+  const cats = displayCats(precios);
   if (idioma !== "en") return cats;
   return cats.map((cat) => ({
     ...cat,

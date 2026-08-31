@@ -8,7 +8,7 @@
 //           o van saturados, cierran ellos mismos sin esperar a nadie.
 // ─────────────────────────────────────────────────────────────────────────────
 import { requireUser } from "./_auth.js";
-import { getAjustes, setAjuste, getCartaTodos, pagosListos, tieneColumna, storeReady } from "./_store.js";
+import { getAjustes, setAjuste, getCartaTodos, getPrecios, preciosListos, pagosListos, tieneColumna, storeReady } from "./_store.js";
 import { LOCALES } from "../src/locales.js";
 import { pagosDisponibles } from "./_monei.js";
 
@@ -19,6 +19,8 @@ export default async function handler(req, res) {
       // Estado de la carta (agotados/descuentos) de todos los locales en una
       // sola consulta — público, lo usa /pedir.
       const carta = storeReady ? await getCartaTodos().catch(() => ({})) : {};
+      // Precios cambiados desde /admin (sin fila, manda src/menu.js).
+      const precios = storeReady && (await preciosListos()) ? await getPrecios().catch(() => ({})) : {};
       const pagos = pagosDisponibles && (await pagosListos());
       const programar = storeReady && (await tieneColumna("programado_para"));
       const refundParcial = storeReady && (await tieneColumna("reembolsado_cents"));
@@ -27,7 +29,7 @@ export default async function handler(req, res) {
       // un cambio (pausa/agotado) tarda ~10 s en verse (antes /pedir ya sondeaba
       // cada 60 s, así que es más fresco que antes).
       res.setHeader("Cache-Control", "public, s-maxage=10, stale-while-revalidate=30");
-      return res.status(200).json({ ajustes, carta, pagos, programar, refundParcial });
+      return res.status(200).json({ ajustes, carta, precios, pagos, programar, refundParcial });
     }
 
     if (req.method === "PUT") {

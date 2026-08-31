@@ -35,6 +35,8 @@ un local). Nadie puede registrarse por su cuenta: el admin crea las cuentas.
 La carta (productos y precios) vive en **`src/menu.js`** — al editarla se
 actualizan a la vez la sección Carta de la portada, la página de pedidos y los
 precios que valida el servidor. Los horarios están en **`src/locales.js`**.
+Los **precios del día a día se cambian desde /admin** (pestaña 🍔 Carta), sin
+tocar código ni desplegar: ver más abajo.
 
 ## 1. Crear la base de datos (Supabase, gratis — 10 min)
 
@@ -165,6 +167,37 @@ alter table public.pedidos
 
 Sin esa columna la promo se cobra igual de bien (el total ya va descontado),
 solo que el ticket no enseña la línea «Promo web».
+
+## Pestaña 🍔 Carta — precios y disponibilidad desde /admin
+
+Los precios de `src/menu.js` son los **de partida**. En la pestaña **🍔 Carta**
+de /admin se cambia el precio de cualquier producto y variante, de los añadidos,
+los panes y los acompañamientos; **«Volver»** borra el cambio y deja otra vez el
+de la carta. Desde ahí también se marcan **agotados por local** (lo mismo que se
+puede hacer desde /cocina).
+
+- Lo editado se guarda en la tabla `precios` de Supabase, y solo se guarda lo
+  que se cambia: sin fila, manda `src/menu.js`.
+- El cambio se ve al instante en la portada, en `/carta` y en `/pedir`, y es
+  **el que cobra el servidor** — que sigue recalculando cada pedido por su
+  cuenta, así que el navegador no puede colar un precio.
+- Solo el rol admin puede tocarlos (`/api/precios`).
+
+Requiere ejecutar una vez en Supabase (está en `supabase/schema.sql`):
+
+```sql
+create table if not exists public.precios (
+  item_id    text not null,
+  variant_id text not null default 'u',
+  cents      integer not null check (cents >= 0),
+  updated_at timestamptz not null default now(),
+  primary key (item_id, variant_id)
+);
+alter table public.precios enable row level security;
+```
+
+Sin esa tabla la web funciona igual con los precios de `src/menu.js`, y la
+pestaña avisa de que falta el SQL.
 
 ## Pestaña 🏦 Banco — el neto real de MONEI
 

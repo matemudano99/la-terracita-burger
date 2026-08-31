@@ -17,7 +17,15 @@ import LtbMark from "../LtbMark";
 
 export default function CartaPage() {
   const { t, idioma } = useI18n();
-  const CATS = useMemo(() => cartaEn(idioma), [idioma]);
+  // Precios cambiados desde /admin (si no hay ninguno, manda src/menu.js).
+  const [precios, setPrecios] = useState({});
+  useEffect(() => {
+    fetch("/api/ajustes")
+      .then((r) => (r.ok ? r.json() : {}))
+      .then((d) => setPrecios(d.precios || {}))
+      .catch(() => {});
+  }, []);
+  const CATS = useMemo(() => cartaEn(idioma, precios), [idioma, precios]);
   const [activa, setActiva] = useState(CATS[0]?.id);
 
   useEffect(() => {

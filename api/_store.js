@@ -181,6 +181,54 @@ export async function setCartaItem(local, itemId, estado) {
   memCarta.set(`${local}|${itemId}`, estado);
 }
 
+// ── Precios editados desde /admin ────────────────────────────────────────────
+// Solo guarda lo que se ha cambiado: sin fila, manda el precio de src/menu.js.
+// Clave `item_id:variant_id`, la misma que usa precioDe() en menu.js.
+const memPrecios = new Map();
+
+export async function getPrecios() {
+  if (usingSupabase) {
+    const rows = await supa("precios?select=item_id,variant_id,cents");
+    return Object.fromEntries(rows.map((r) => [`${r.item_id}:${r.variant_id}`, r.cents]));
+  }
+  return Object.fromEntries(memPrecios);
+}
+
+export async function setPrecio(itemId, variantId, cents) {
+  if (usingSupabase) {
+    await supa("precios", {
+      method: "POST",
+      body: { item_id: itemId, variant_id: variantId, cents, updated_at: new Date().toISOString() },
+      headers: { Prefer: "resolution=merge-duplicates" },
+    });
+    return;
+  }
+  memPrecios.set(`${itemId}:${variantId}`, cents);
+}
+
+// Quitar el precio editado = volver al de la carta.
+export async function borrarPrecio(itemId, variantId) {
+  if (usingSupabase) {
+    await supa(`precios?item_id=eq.${encodeURIComponent(itemId)}&variant_id=eq.${encodeURIComponent(variantId)}`, { method: "DELETE" });
+    return;
+  }
+  memPrecios.delete(`${itemId}:${variantId}`);
+}
+
+// ¿Existe ya la tabla? Permite desplegar antes de ejecutar su SQL.
+let cachePrecios = false;
+export async function preciosListos() {
+  if (!usingSupabase) return true;
+  if (cachePrecios) return true;
+  try {
+    await supa("precios?select=item_id&limit=1");
+    cachePrecios = true;
+  } catch {
+    return false;
+  }
+  return true;
+}
+
 // ── Ajustes por local (p. ej. pausar pedidos online) ─────────────────────────
 const memAjustes = new Map();
 

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { sx } from "../sx";
-import { fmtEUR } from "../menu";
+import { fmtEUR, MENU, EXTRAS, PANES, UPGRADES, precioDe, clavePrecio, ID_EXTRA, ID_PAN, ID_UPGRADE } from "../menu";
 import { LOCALES } from "../locales";
 import LtbMark from "../LtbMark";
 import LoginBox from "../LoginBox";
@@ -139,6 +139,7 @@ function Panel({ user, salir }) {
   const TABS = [
     { id: "resumen", label: "📊 Resumen" },
     { id: "historial", label: "📋 Historial" },
+    { id: "carta", label: "🍔 Carta" },
     { id: "banco", label: "🏦 Banco" },
     { id: "equipo", label: "👥 Equipo" },
     { id: "ajustes", label: "⚙️ Ajustes" },
@@ -221,6 +222,7 @@ function Panel({ user, salir }) {
 
         {tab === "resumen" && <Resumen orders={orders} localF={localF} />}
         {tab === "historial" && <Historial orders={orders} />}
+        {tab === "carta" && <Carta />}
         {tab === "banco" && <Banco />}
         {tab === "equipo" && <Equipo user={user} />}
         {tab === "ajustes" && <Ajustes />}
@@ -463,6 +465,222 @@ function Cuadre({ orders }) {
       {devuelto > 0 && fila("Devoluciones", `− ${fmtEUR(devuelto)}`, null, { color: "rgb(255,140,110)" })}
       {fila("Neto cobrado", fmtEUR(bruto - devuelto), null, { linea: true, fuerte: true })}
       {enLocal.length > 0 && fila("Cobrado en el local", fmtEUR(enLocalCents), `${enLocal.length} pedido${enLocal.length === 1 ? "" : "s"}`, { linea: true, color: "rgba(246,241,233,.75)" })}
+    </div>
+  );
+}
+
+// ── Carta ────────────────────────────────────────────────────────────────────
+// Precios y disponibilidad. Los precios de src/menu.js son los de partida:
+// aquí solo se guarda lo que se cambia, y "Volver" borra el cambio. El servidor
+// cobra siempre con estos precios, así que lo que se toque aquí es lo que vale.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Filas editables: producto + variante, y luego añadidos, panes y patatas.
+function gruposEditables() {
+  const grupos = MENU.filter((c) => !c.soloCarta).map((cat) => ({
+    id: cat.id,
+    label: cat.label,
+    filas: cat.items.flatMap((it) =>
+      (it.variants || []).map((v) => ({
+        itemId: it.id,
+        variantId: v.id,
+        nombre: it.name,
+        detalle: v.label || null,
+        base: v.cents,
+        agotable: true,
+      }))
+    ),
+  }));
+  const simple = (titulo, id, lista, prefijo) => ({
+    id,
+    label: titulo,
+    filas: lista.map((x) => ({
+      itemId: prefijo(x.id),
+      variantId: "u",
+      nombre: x.label,
+      detalle: null,
+      base: x.cents,
+      agotable: false,
+    })),
+  });
+  grupos.push(simple("Añadidos", "extras", EXTRAS, ID_EXTRA));
+  grupos.push(simple("Panes", "panes", PANES, ID_PAN));
+  grupos.push(simple("Acompañamientos", "upgrades", UPGRADES, ID_UPGRADE));
+  return grupos;
+}
+
+// 12,90 € → 1290 céntimos. Devuelve null si lo escrito no es un precio.
+function aCentimos(txt) {
+  const limpio = String(txt).replace(/[^\d.,]/g, "").replace(",", ".");
+  if (!limpio) return null;
+  const n = Math.round(Number(limpio) * 100);
+  return Number.isFinite(n) && n >= 0 && n <= 100000 ? n : null;
+}
+const aEuros = (cents) => (cents / 100).toFixed(2).replace(".", ",");
+
+function Carta() {
+  const [precios, setPrecios] = useState(null);
+  const [cartaLocal, setCartaLocal] = useState({});
+  const [grupo, setGrupo] = useState("smash");
+  const [error, setError] = useState(null);
+  const [aviso, setAviso] = useState(null);
+  const [guardando, setGuardando] = useState(null);
+  const grupos = useMemo(gruposEditables, []);
+
+  const cargar = useCallback(async () => {
+    setError(null);
+    try {
+      const [pr, aj] = await Promise.all([
+        authFetch("/api/precios").then((r) => r.json()),
+        fetch("/api/ajustes", { cache: "no-store" }).then((r) => r.json()),
+      ]);
+      if (pr.error) setError(pr.error);
+      setPrecios(pr.precios || {});
+      setCartaLocal(aj.carta || {});
+    } catch (e) {
+      setError(e.message);
+      setPrecios({});
+    }
+  }, []);
+  useEffect(() => { cargar(); }, [cargar]);
+
+  const guardarPrecio = async (fila, cents) => {
+    setGuardando(clavePrecio(fila.itemId, fila.variantId));
+    setError(null);
+    setAviso(null);
+    try {
+      const res = await authFetch("/api/precios", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ itemId: fila.itemId, variantId: fila.variantId, cents }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || `Error ${res.status}`);
+      setPrecios(d.precios || {});
+      setAviso(cents === null ? `${fila.nombre}: precio de la carta restaurado.` : `${fila.nombre}: ${aEuros(cents)} € guardado.`);
+    } catch (e) {
+      setError(e.message);
+    }
+    setGuardando(null);
+  };
+
+  const marcarAgotado = async (local, itemId, agotado) => {
+    setError(null);
+    setAviso(null);
+    try {
+      const res = await authFetch("/api/carta", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ local, itemId, agotado, descuento: cartaLocal[local]?.[itemId]?.descuento || 0 }),
+      });
+      const d = await res.json();
+      if (!res.ok) throw new Error(d.error || `Error ${res.status}`);
+      setCartaLocal((prev) => ({ ...prev, [local]: { ...(prev[local] || {}), [itemId]: { ...(prev[local]?.[itemId] || {}), agotado } } }));
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
+  if (precios === null) return <Cargando />;
+
+  const activo = grupos.find((g) => g.id === grupo) || grupos[0];
+
+  return (
+    <div style={sx("display:flex;flex-direction:column;gap:16px")}>
+      {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px;line-height:1.5")}>⚠️ {error}</div>}
+      {aviso && <div style={sx("padding:12px 16px;border-radius:12px;border:1px solid rgb(120 220 130 / .4);background:rgb(120 220 130 / .08);font-size:13.5px")}>✓ {aviso}</div>}
+
+      <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
+        {grupos.map((g) => (
+          <button key={g.id} onClick={() => setGrupo(g.id)} style={sx(`font-size:13px;font-weight:600;padding:9px 16px;border-radius:100px;cursor:pointer;border:1px solid ${grupo === g.id ? "rgb(var(--acc))" : "rgba(246,241,233,.16)"};background:${grupo === g.id ? "rgb(var(--acc) / .14)" : "transparent"};color:${grupo === g.id ? "rgb(var(--acc))" : "rgba(246,241,233,.75)"}`)}>
+            {g.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+        <div style={sx("display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:16px 20px 8px")}>
+          <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>{activo.label}</div>
+          <div style={sx("font-size:11.5px;color:rgba(246,241,233,.45)")}>Agotado hoy, por local</div>
+        </div>
+        {activo.filas.map((f) => (
+          <FilaPrecio
+            key={clavePrecio(f.itemId, f.variantId)}
+            fila={f}
+            precios={precios}
+            cartaLocal={cartaLocal}
+            guardando={guardando === clavePrecio(f.itemId, f.variantId)}
+            onGuardar={guardarPrecio}
+            onAgotado={marcarAgotado}
+          />
+        ))}
+      </div>
+
+      <p style={sx("margin:0;font-size:12px;line-height:1.6;color:rgba(246,241,233,.45)")}>
+        Los cambios se ven al instante en la web y son los que cobra el servidor. «Volver» deja el precio original de la carta. Marcar un producto como agotado lo tacha en la web de ese local y bloquea su pedido.
+      </p>
+    </div>
+  );
+}
+
+function FilaPrecio({ fila, precios, cartaLocal, guardando, onGuardar, onAgotado }) {
+  const vigente = precioDe(precios, fila.itemId, fila.variantId, fila.base);
+  const cambiado = vigente !== fila.base;
+  const [txt, setTxt] = useState(aEuros(vigente));
+  useEffect(() => { setTxt(aEuros(vigente)); }, [vigente]);
+
+  const cents = aCentimos(txt);
+  const sinGuardar = cents !== null && cents !== vigente;
+
+  return (
+    <div style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:11px 20px;border-top:1px solid rgba(246,241,233,.09)")}>
+      <div style={sx("flex:1;min-width:min(100%,180px)")}>
+        <span style={sx("font-size:14px")}>{fila.nombre}</span>
+        {fila.detalle && <span style={sx("font-size:12px;color:rgba(246,241,233,.5);margin-left:8px")}>{fila.detalle}</span>}
+        {cambiado && <span style={sx("font-size:11px;color:rgb(var(--emb));margin-left:8px")}>antes {aEuros(fila.base)} €</span>}
+      </div>
+
+      <div style={sx("display:flex;align-items:center;gap:8px")}>
+        <input
+          value={txt}
+          onChange={(e) => setTxt(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && sinGuardar) onGuardar(fila, cents); }}
+          inputMode="decimal"
+          aria-label={`Precio de ${fila.nombre}`}
+          style={{ ...inputStyle, width: 92, padding: "9px 11px", textAlign: "right", borderColor: cents === null ? "rgba(255,92,40,.6)" : sinGuardar ? "rgb(var(--acc))" : "rgba(246,241,233,.18)" }}
+        />
+        <span style={sx("font-size:13px;color:rgba(246,241,233,.5)")}>€</span>
+        <button
+          onClick={() => onGuardar(fila, cents)}
+          disabled={!sinGuardar || guardando}
+          style={{ ...btnAcc, padding: "9px 16px", fontSize: "13px", opacity: sinGuardar && !guardando ? 1 : 0.35, cursor: sinGuardar && !guardando ? "pointer" : "default" }}
+        >
+          {guardando ? "…" : "Guardar"}
+        </button>
+        {cambiado && (
+          <button onClick={() => onGuardar(fila, null)} disabled={guardando} style={{ ...btnGhost, padding: "9px 14px", fontSize: "12px" }}>
+            Volver
+          </button>
+        )}
+      </div>
+
+      {fila.agotable && (
+        <div style={sx("display:flex;gap:8px")}>
+          {Object.keys(LOCALES).map((id) => {
+            const agotado = !!cartaLocal[id]?.[fila.itemId]?.agotado;
+            return (
+              <button
+                key={id}
+                onClick={() => onAgotado(id, fila.itemId, !agotado)}
+                title={`${LOCALES[id].name}: ${agotado ? "agotado hoy" : "disponible"}`}
+                style={sx(`font-size:11px;font-weight:700;letter-spacing:.04em;padding:7px 11px;border-radius:100px;cursor:pointer;border:1px solid ${agotado ? "rgba(255,92,40,.55)" : "rgba(246,241,233,.16)"};background:${agotado ? "rgba(255,92,40,.12)" : "transparent"};color:${agotado ? "rgb(255,140,110)" : "rgba(246,241,233,.5)"}`)}
+              >
+                {agotado ? "✕" : "✓"} {LOCALES[id].name.split(" ")[0]}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
