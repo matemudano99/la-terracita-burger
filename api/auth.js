@@ -46,13 +46,27 @@ export default async function handler(req, res) {
       payload = { email, password };
     }
 
-    const supa = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=${grant}`, {
-      method: "POST",
-      headers: { apikey: SUPA_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    // Si Supabase no contesta, es un problema pasajero: 503. El panel mantiene
+    // la sesión abierta y lo reintenta, en vez de echar a la cocina.
+    let supa;
+    try {
+      supa = await fetch(`${SUPA_URL}/auth/v1/token?grant_type=${grant}`, {
+        method: "POST",
+        headers: { apikey: SUPA_KEY, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.error("[api/auth] sin respuesta de Supabase", err);
+      return res.status(503).json({ error: "No hemos podido conectar ahora mismo. Inténtalo de nuevo en unos segundos." });
+    }
     const data = await supa.json().catch(() => ({}));
     if (!supa.ok) {
+      // 401 SOLO cuando los datos o el token no valen de verdad. Un 429 o un
+      // 5xx de Supabase no significan que la sesión esté caducada.
+      if (supa.status >= 500 || supa.status === 429) {
+        console.error("[api/auth] Supabase respondió", supa.status);
+        return res.status(503).json({ error: "El servicio de acceso no responde ahora mismo. Inténtalo de nuevo en unos segundos." });
+      }
       const msg = grant === "password" ? "Usuario o contraseña incorrectos." : "La sesión ha caducado. Vuelve a iniciar sesión.";
       return res.status(401).json({ error: msg });
     }

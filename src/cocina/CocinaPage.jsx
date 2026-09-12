@@ -109,7 +109,7 @@ export default function CocinaPage() {
       localStorage.setItem(LS_LOCAL, local);
     } catch (e) {
       setError(e.message);
-      if (/sesión/i.test(e.message)) salir();
+      if (e.sesionCaducada) salir();
     }
   }, [sesion, local, L, salir]);
 
@@ -175,7 +175,7 @@ export default function CocinaPage() {
       if (status === "aceptado") imprimirTicket(data.order, L.name); // ticket automático
     } catch (e) {
       setError(e.message);
-      if (/sesión/i.test(e.message)) salir();
+      if (e.sesionCaducada) salir();
     }
   };
 
@@ -196,7 +196,7 @@ export default function CocinaPage() {
     if (refundParcial) { setDevolucion(o); return; }
     const queda = o.total_cents - (o.reembolsado_cents || 0);
     if (!window.confirm(`¿Devolver ${fmtEUR(queda)} a ${o.nombre} (pedido ${o.code})?`)) return;
-    hacerDevolucion(o, queda).catch((e) => { setError(e.message); if (/sesión/i.test(e.message)) salir(); });
+    hacerDevolucion(o, queda).catch((e) => { setError(e.message); if (e.sesionCaducada) salir(); });
   };
   const hacerDevolucion = async (o, importe_cents) => {
     const res = await authFetch("/api/orders", {
@@ -228,7 +228,7 @@ export default function CocinaPage() {
       setError(null);
     } catch (e) {
       setError(e.message);
-      if (/sesión/i.test(e.message)) salir();
+      if (e.sesionCaducada) salir();
     } finally {
       setGuardandoPausa(false);
     }

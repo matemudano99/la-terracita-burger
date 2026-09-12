@@ -32,6 +32,14 @@ Auth — contraseñas cifradas, tokens que caducan y se renuevan solos). Dos
 roles: **admin** (todo) y **empleado** (solo /cocina; opcionalmente limitado a
 un local). Nadie puede registrarse por su cuenta: el admin crea las cuentas.
 
+La sesión vive en el navegador y **la comparten todas las pestañas** del
+aparato, así que cerrarla afecta a todas. Por eso `src/authClient.js` solo la
+cierra cuando el servidor dice que el token ya no vale (401): un bache de WiFi
+o un error pasajero de Supabase (5xx, 429 → el servidor responde 503) mantiene
+la sesión y se reintenta en la siguiente consulta. Además solo se renueva una
+vez a la vez —el panel de cocina consulta cada 2 s y con red lenta se solapan—
+y antes de cerrar se relee lo guardado, por si otra pestaña ya había renovado.
+
 La carta (productos y precios) vive en **`src/menu.js`** — al editarla se
 actualizan a la vez la sección Carta de la portada, la página de pedidos y los
 precios que valida el servidor. Los horarios están en **`src/locales.js`**.

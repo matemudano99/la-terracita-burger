@@ -130,7 +130,7 @@ function Panel({ user, salir }) {
     } catch (e) {
       setError(e.message);
       setOrders([]);
-      if (/sesión/i.test(e.message)) salir();
+      if (e.sesionCaducada) salir();
     }
   }, [rango, fechas, localF, salir]);
 
