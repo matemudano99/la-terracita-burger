@@ -2,7 +2,7 @@
 // so both look identical.
 
 const A = ["La Terracita Burger", "🔥", "Smash burgers", "Angus Dry Age", "🖤"];
-const B = ["Black Mirror", "Cheddar fundido", "100% Mediterráneo", "Pan de papa", "🔥"];
+const B = ["La Victoria", "Cheddar fundido", "100% Mediterráneo", "Pan de papa", "🔥"];
 const C = ["Para volverte adicto", "Smash · Angus", "La Terracita", "🖤"];
 
 function Strip({ items, rot = 0, top, dir = "ltb-marq", dur = 22, solid = false, fontSize = 26, opacity = 1 }) {
