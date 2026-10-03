@@ -16,7 +16,18 @@ import { imprimirTicket } from "./ticket";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LS_LOCAL = "ltb_panel_local";
+const LS_SILENCIO = "ltb_panel_silencio"; // "1" = alarma silenciada a mano
 const POLL_MS = 2000;
+
+// Colores de cada estado en los tickets (RGB para poder usar opacidades).
+const TONO = {
+  nuevo: "255 90 70",
+  cocina: "255 176 46",
+  tarde: "255 90 70",
+  lista: "120 220 130",
+  programado: "180 165 255",
+  cerrado: "120 112 104",
+};
 
 // "ahora" / "3 min" / "1 h 05" — edad del pedido, clave en cocina.
 function haceCuanto(iso) {
@@ -47,7 +58,14 @@ export default function CocinaPage() {
   });
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState(null);
-  const [muted, setMuted] = useState(false);
+  // Alarma activada por defecto: solo queda en silencio si alguien la apagó a
+  // mano en esta tablet (y se recuerda al recargar).
+  const [muted, setMuted] = useState(() => {
+    try { return localStorage.getItem(LS_SILENCIO) === "1"; } catch { return false; }
+  });
+  const [sonidoBloqueado, setSonidoBloqueado] = useState(false); // ¿el navegador no deja sonar todavía?
+  const [filtro, setFiltro] = useState("todos"); // qué tickets se ven
+  const [ahora, setAhora] = useState(() => Date.now()); // reloj para cronómetros y hora
   const [vista, setVista] = useState("pedidos"); // "pedidos" | "carta"
   const [refundParcial, setRefundParcial] = useState(false); // ¿existe la columna acumuladora?
   const [pantallaOn, setPantallaOn] = useState(false); // ¿wake lock activo?
@@ -98,14 +116,76 @@ export default function CocinaPage() {
     } catch { /* sin audio */ }
   }, []);
 
+  // Chrome no deja sonar nada hasta que alguien toca la página. Si la tablet
+  // recarga sola, la alarma se quedaría muda sin avisar: aquí se desbloquea con
+  // el primer toque en cualquier parte, y mientras tanto se avisa en pantalla.
+  useEffect(() => {
+    if (!sesion || !L) return;
+    let ctx;
+    try {
+      if (!audioCtx.current) audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+      ctx = audioCtx.current;
+    } catch { return; }
+    const revisar = () => setSonidoBloqueado(ctx.state !== "running");
+    const desbloquear = () => { if (ctx.state !== "running") ctx.resume().then(revisar).catch(() => {}); };
+    revisar();
+    ctx.addEventListener?.("statechange", revisar);
+    const eventos = ["pointerdown", "touchstart", "keydown"];
+    eventos.forEach((ev) => document.addEventListener(ev, desbloquear, { passive: true }));
+    return () => {
+      ctx.removeEventListener?.("statechange", revisar);
+      eventos.forEach((ev) => document.removeEventListener(ev, desbloquear));
+    };
+  }, [sesion, L]);
+
+  const cambiarSilencio = () => {
+    setMuted((m) => {
+      const nuevo = !m;
+      try { localStorage.setItem(LS_SILENCIO, nuevo ? "1" : "0"); } catch { /* modo privado */ }
+      return nuevo;
+    });
+    beep();
+  };
+
+  // Reloj: mantiene vivos los cronómetros de los tickets aunque no llegue nada.
+  useEffect(() => {
+    const iv = setInterval(() => setAhora(Date.now()), 10000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // ── Respuesta inmediata al tocar un botón ──────────────────────────────────
+  // El cambio se pinta al instante (optimista) y se guarda en `pendientes`
+  // hasta que el servidor lo confirma. Una consulta que salió ANTES de esa
+  // confirmación trae el estado viejo y haría saltar la tarjeta hacia atrás:
+  // por eso se descarta (`marcaMutacion`).
+  const pendientes = useRef(new Map()); // id → cambios aún sin confirmar
+  const marcaMutacion = useRef(0);
+
+  // Avisos de las acciones (no se pudo aceptar, devolver, cerrar…). Van aparte
+  // del error de conexión de la cabecera, que el siguiente sondeo borra: estos
+  // se quedan a la vista unos segundos o hasta que se tocan.
+  const [aviso, setAviso] = useState(null);
+  const avisar = useCallback((texto) => setAviso({ texto, id: Date.now() }), []);
+  useEffect(() => {
+    if (!aviso) return;
+    const t = setTimeout(() => setAviso(null), 9000);
+    return () => clearTimeout(t);
+  }, [aviso]);
+
+  const conPendientes = (lista) =>
+    lista.map((o) => (pendientes.current.has(o.id) ? { ...o, ...pendientes.current.get(o.id), _guardando: true } : o));
+
   const cargar = useCallback(async () => {
     if (!sesion || !L) return;
+    const inicio = Date.now();
     try {
       const res = await authFetch(`/api/orders?panel=1&local=${encodeURIComponent(local)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
-      setOrders(data.orders || []);
+      if (inicio < marcaMutacion.current) return; // respuesta anterior a un cambio: vieja
+      setOrders(conPendientes(data.orders || []));
       setError(null);
+      setAhora(Date.now());
       localStorage.setItem(LS_LOCAL, local);
     } catch (e) {
       setError(e.message);
@@ -113,12 +193,25 @@ export default function CocinaPage() {
     }
   }, [sesion, local, L, salir]);
 
-  // Sondeo continuo
+  // Sondeo continuo, de una en una: la siguiente consulta no sale hasta que
+  // vuelve la anterior (con WiFi lenta se solapaban y llegaban desordenadas).
+  // Al volver a la pestaña (tablet que se despierta) se consulta al momento.
   useEffect(() => {
     if (!sesion || !L) return;
-    cargar();
-    const iv = setInterval(cargar, POLL_MS);
-    return () => clearInterval(iv);
+    let vivo = true;
+    let t;
+    const ciclo = async () => {
+      await cargar();
+      if (vivo) t = setTimeout(ciclo, POLL_MS);
+    };
+    ciclo();
+    const alVolver = () => { if (document.visibilityState === "visible") cargar(); };
+    document.addEventListener("visibilitychange", alVolver);
+    return () => {
+      vivo = false;
+      clearTimeout(t);
+      document.removeEventListener("visibilitychange", alVolver);
+    };
   }, [sesion, L, cargar]);
 
   // Mantener la PANTALLA ENCENDIDA mientras el panel está abierto (Screen Wake
@@ -163,6 +256,12 @@ export default function CocinaPage() {
   useEffect(() => { document.title = hayNuevos ? "🔴 PEDIDO NUEVO — Cocina LTB" : "Cocina — La Terracita"; }, [hayNuevos]);
 
   const patch = async (id, status, ready_minutes) => {
+    if (pendientes.current.has(id)) return; // ya hay un cambio en vuelo: evita el doble toque
+    // 1) Al instante: la tarjeta cambia de estado sin esperar al servidor.
+    const optimista = { status };
+    if (status === "aceptado") optimista.ready_at = new Date(Date.now() + (ready_minutes || 25) * 60000).toISOString();
+    pendientes.current.set(id, optimista);
+    setOrders((prev) => conPendientes(prev));
     try {
       const res = await authFetch("/api/orders", {
         method: "PATCH",
@@ -171,10 +270,19 @@ export default function CocinaPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+      // 2) Confirmado: manda lo que dice el servidor.
+      pendientes.current.delete(id);
+      marcaMutacion.current = Date.now();
       setOrders((prev) => prev.map((o) => (o.id === id ? data.order : o)));
       if (status === "aceptado") imprimirTicket(data.order, L.name); // ticket automático
+      cargar();
     } catch (e) {
-      setError(e.message);
+      // 3) Falló: se deshace el cambio, se vuelve a pedir el estado real y se
+      //    avisa en grande (un aviso de la cabecera lo borraría el sondeo).
+      pendientes.current.delete(id);
+      marcaMutacion.current = Date.now();
+      cargar();
+      avisar(e.message);
       if (e.sesionCaducada) salir();
     }
   };
@@ -196,7 +304,7 @@ export default function CocinaPage() {
     if (refundParcial) { setDevolucion(o); return; }
     const queda = o.total_cents - (o.reembolsado_cents || 0);
     if (!window.confirm(`¿Devolver ${fmtEUR(queda)} a ${o.nombre} (pedido ${o.code})?`)) return;
-    hacerDevolucion(o, queda).catch((e) => { setError(e.message); if (e.sesionCaducada) salir(); });
+    hacerDevolucion(o, queda).catch((e) => { avisar(e.message); if (e.sesionCaducada) salir(); });
   };
   const hacerDevolucion = async (o, importe_cents) => {
     const res = await authFetch("/api/orders", {
@@ -206,6 +314,7 @@ export default function CocinaPage() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+    marcaMutacion.current = Date.now();
     setOrders((prev) => prev.map((x) => (x.id === o.id ? data.order : x)));
     return data.order;
   };
@@ -225,9 +334,8 @@ export default function CocinaPage() {
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
       setPausa(data.ajustes?.[local] || { pausado, motivo, desde: new Date().toISOString() });
       setCerrando(false);
-      setError(null);
     } catch (e) {
-      setError(e.message);
+      avisar(e.message);
       if (e.sesionCaducada) salir();
     } finally {
       setGuardandoPausa(false);
@@ -272,59 +380,150 @@ export default function CocinaPage() {
 
   // ── Panel ──────────────────────────────────────────────────────────────────
   const cerradoManual = !!pausa?.pausado;
-  const programados = orders
-    .filter((o) => o.status === "nuevo" && esProgramadoLejano(o))
-    .sort((a, b) => (a.programado_para < b.programado_para ? -1 : 1));
-  const nuevos = orders.filter((o) => o.status === "nuevo" && !esProgramadoLejano(o));
-  const enCocina = orders.filter((o) => o.status === "aceptado");
-  const listas = orders.filter((o) => o.status === "lista");
-  // La tercera columna se llama distinto si el local reparte a domicilio.
+  const porHora = (campo) => (a, b) => ((a[campo] || a.created_at) < (b[campo] || b.created_at) ? -1 : 1);
+  const programados = orders.filter((o) => o.status === "nuevo" && esProgramadoLejano(o)).sort(porHora("programado_para"));
+  const nuevos = orders.filter((o) => o.status === "nuevo" && !esProgramadoLejano(o)).sort(porHora("created_at"));
+  // En cocina va primero lo que antes tiene que estar listo.
+  const enCocina = orders.filter((o) => o.status === "aceptado").sort(porHora("ready_at"));
+  const listas = orders.filter((o) => o.status === "lista").sort(porHora("created_at"));
   const reparteAlgo = Boolean(L?.delivery?.activo) || listas.some(esDomicilio);
-  const cerrados = orders.filter((o) => o.status === "entregado" || o.status === "rechazado" || o.status === "no_recogido");
+  const cerrados = orders.filter((o) => ["entregado", "rechazado", "no_recogido"].includes(o.status));
+
+  // Filtros de la barra. "Todos" enseña lo activo por orden de urgencia:
+  // nuevos → en cocina → listas → programados.
+  const GRUPOS = [
+    { id: "nuevo", label: "Nuevos", tono: TONO.nuevo, lista: nuevos },
+    { id: "cocina", label: "En cocina", tono: TONO.cocina, lista: enCocina },
+    { id: "lista", label: reparteAlgo ? "Listas/Reparto" : "Listas", tono: TONO.lista, lista: listas },
+    { id: "programado", label: "Programados", tono: TONO.programado, lista: programados },
+  ];
+  const activos = [...nuevos, ...enCocina, ...listas, ...programados];
+  const visibles = filtro === "todos" ? activos : GRUPOS.find((g) => g.id === filtro)?.lista || activos;
+  const estadoDe = (o) =>
+    o.status === "nuevo" ? (esProgramadoLejano(o) ? "programado" : "nuevo")
+      : o.status === "aceptado" ? "cocina"
+      : o.status === "lista" ? "lista"
+      : "cerrado";
+
+  // Botón principal de cada ticket según su estado.
+  const accionesDe = (o) => {
+    const e = estadoDe(o);
+    if (e === "nuevo" || e === "programado") {
+      return (
+        <>
+          <div style={sx("display:grid;grid-template-columns:repeat(3,1fr);gap:7px")}>
+            {minutosDe(o).map((m) => (
+              <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={botonAccion(TONO[e])}>✓ {m}′</button>
+            ))}
+          </div>
+          <button onClick={() => window.confirm(`¿Rechazar el pedido ${o.code} de ${o.nombre}?`) && patch(o.id, "rechazado")} style={botonSecundario}>
+            ✕ Rechazar
+          </button>
+        </>
+      );
+    }
+    if (e === "cocina") {
+      return (
+        <button onClick={() => patch(o.id, "lista")} style={botonAccion(TONO.lista)}>
+          {esDomicilio(o) ? "🛵 Sale a reparto" : "✓ Lista para recoger"}
+        </button>
+      );
+    }
+    if (e === "lista") {
+      return (
+        <div style={sx("display:grid;grid-template-columns:1fr auto;gap:7px")}>
+          <button onClick={() => patch(o.id, "entregado")} style={botonAccion(TONO.lista)}>✓ Entregada</button>
+          <button
+            onClick={() => window.confirm(`¿Marcar el pedido ${o.code} de ${o.nombre} como NO ${esDomicilio(o) ? "entregado" : "recogido"}?\n\nCon 1 aviso la web pedirá confirmar sus próximos pedidos; con 2, su teléfono queda bloqueado para pedir online.`) && patch(o.id, "no_recogido")}
+            style={{ ...botonSecundario, width: "auto" }}
+          >
+            {esDomicilio(o) ? "Nadie abrió" : "Nadie vino"}
+          </button>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const botonIcono = (activo = false) =>
+    sx(`display:inline-flex;align-items:center;justify-content:center;font-size:18px;width:44px;height:44px;border-radius:12px;cursor:pointer;text-decoration:none;border:1px solid ${activo ? `rgb(${L.rgb})` : "rgba(246,241,233,.2)"};background:${activo ? `rgb(${L.rgb})` : "transparent"};color:#f6f1e9`);
 
   return (
-    <div style={sx("min-height:100vh;padding:0 0 60px")}>
-      <header style={{ ...sx("position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 12px;padding:12px clamp(14px,3vw,28px);background:rgba(10,8,6,.94);border-bottom:1px solid rgba(246,241,233,.1)"), boxShadow: hayNuevos ? `0 4px 30px rgb(${L.rgb} / .35)` : "none" }}>
-        <div style={sx("display:flex;align-items:center;gap:12px")}>
+    <div style={sx("min-height:100vh;display:flex;flex-direction:column")}>
+      <header style={{ ...sx("position:sticky;top:0;z-index:30;display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;padding:10px clamp(12px,2vw,22px);background:rgba(10,8,6,.96);backdrop-filter:blur(8px);border-bottom:1px solid rgba(246,241,233,.1)"), boxShadow: hayNuevos ? `0 4px 30px rgb(${TONO.nuevo} / .35)` : "none" }}>
+        {/* Marca y local */}
+        <div style={sx("display:flex;align-items:center;gap:11px;min-width:0")}>
           <LtbMark size={22} style={{ color: "#f6f1e9" }} />
-          <div>
-            <div style={sx("font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.06em;line-height:1")}>COCINA · <span style={{ color: `rgb(${L.rgb})` }}>{L.name.toUpperCase()}</span></div>
-            <div style={sx("font-size:11px;color:rgba(246,241,233,.5)")}>{error ? `⚠️ ${error}` : `${sesion.user?.nombre} · actualiza cada ${POLL_MS / 1000}s${pantallaOn ? " · 🔆 pantalla activa" : ""}`}</div>
+          <div style={sx("min-width:0")}>
+            <div style={sx("font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.06em;line-height:1;white-space:nowrap")}>
+              COCINA · <span style={{ color: `rgb(${L.rgb})` }}>{L.name.split(" ")[0].toUpperCase()}</span>
+            </div>
+            <div style={{ ...sx("font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:240px"), color: error ? "rgb(255,150,120)" : "rgba(246,241,233,.5)" }}>
+              {error ? `⚠️ ${error}` : `${sesion.user?.nombre} · en directo${pantallaOn ? " · 🔆" : ""}`}
+            </div>
           </div>
         </div>
-        <div style={sx("display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:8px")}>
-          {/* Cerrar / reabrir el local a mano */}
+
+        {/* Filtros por estado */}
+        {vista === "pedidos" && (
+          <nav aria-label="Filtrar pedidos" style={sx("display:flex;flex-wrap:wrap;gap:6px;flex:1;justify-content:center")}>
+            <Chip activo={filtro === "todos"} onClick={() => setFiltro("todos")} n={activos.length} tono="246 241 233">Todos</Chip>
+            {GRUPOS.filter((g) => g.id !== "programado" || g.lista.length > 0).map((g) => (
+              <Chip
+                key={g.id}
+                activo={filtro === g.id}
+                onClick={() => setFiltro(filtro === g.id ? "todos" : g.id)}
+                n={g.lista.length}
+                tono={g.tono}
+                pulso={g.id === "nuevo" && g.lista.length > 0}
+              >
+                {g.label}
+              </Chip>
+            ))}
+          </nav>
+        )}
+
+        {/* Controles */}
+        <div style={sx("display:flex;align-items:center;gap:7px;margin-left:auto")}>
           <button
             onClick={() => (cerradoManual ? cambiarPausa(false) : setCerrando(true))}
             disabled={guardandoPausa || pausa === null}
             title={cerradoManual ? "Volver a aceptar pedidos online" : "Dejar de aceptar pedidos online"}
-            style={sx(`display:inline-flex;align-items:center;gap:7px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:12px 16px;border-radius:12px;cursor:pointer;border:1px solid ${cerradoManual ? "rgb(255 100 80)" : "rgb(120 220 130 / .55)"};background:${cerradoManual ? "rgb(255 100 80)" : "transparent"};color:${cerradoManual ? "#0a0806" : "rgb(120,220,130)"}`)}
+            style={sx(`display:inline-flex;align-items:center;gap:7px;height:44px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:0 14px;border-radius:12px;cursor:pointer;border:1px solid ${cerradoManual ? "rgb(255 100 80)" : "rgb(120 220 130 / .55)"};background:${cerradoManual ? "rgb(255 100 80)" : "transparent"};color:${cerradoManual ? "#0a0806" : "rgb(120,220,130)"}`)}
           >
             {cerradoManual ? "⏸ Cerrado" : "● Abierto"}
           </button>
-          <button
-            className="ltb-solo-icono"
-            onClick={() => setVista((v) => (v === "pedidos" ? "carta" : "pedidos"))}
-            title={vista === "carta" ? "Volver a pedidos" : "Marcar agotados en la carta"}
-            style={sx(`font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:12px 18px;border-radius:12px;cursor:pointer;border:1px solid ${vista === "carta" ? `rgb(${L.rgb})` : "rgba(246,241,233,.2)"};background:${vista === "carta" ? `rgb(${L.rgb})` : "transparent"};color:${vista === "carta" ? "#0a0806" : "#f6f1e9"}`)}
-          >
-            {vista === "carta" ? <>📦 <span className="rotulo">Volver a pedidos</span></> : <>🍔 <span className="rotulo">Carta</span></>}
+          <button onClick={() => setVista((v) => (v === "pedidos" ? "carta" : "pedidos"))} title={vista === "carta" ? "Volver a pedidos" : "Marcar agotados en la carta"} style={botonIcono(vista === "carta")}>
+            {vista === "carta" ? "📦" : "🍔"}
           </button>
-          <a href="/admin" className="ltb-solo-icono" title="Panel de administración" style={sx("display:inline-flex;align-items:center;gap:7px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.05em;text-transform:uppercase;padding:12px 16px;border-radius:12px;border:1px solid rgba(246,241,233,.2);color:#f6f1e9;text-decoration:none")}>
-            🛠 <span className="rotulo">Admin</span>
-          </a>
-          <button onClick={() => { setMuted((m) => !m); beep(); }} aria-label="Silenciar alarma" style={sx("font-size:19px;width:44px;height:44px;border-radius:12px;border:1px solid rgba(246,241,233,.2);background:transparent;cursor:pointer")}>
+          <a href="/admin" title="Panel de administración" style={botonIcono()}>🛠</a>
+          <button onClick={cambiarSilencio} aria-label={muted ? "Activar alarma" : "Silenciar alarma"} title={muted ? "Alarma silenciada — tocar para activarla" : "Alarma activada — tocar para silenciarla"} style={{ ...botonIcono(), borderColor: muted ? "rgb(255 100 80 / .6)" : "rgba(246,241,233,.2)" }}>
             {muted ? "🔕" : "🔔"}
           </button>
-          <button onClick={salir} className="ltb-solo-icono" title="Cerrar sesión" style={sx("font-size:12px;letter-spacing:.06em;text-transform:uppercase;padding:12px 16px;border-radius:12px;border:1px solid rgba(246,241,233,.2);background:transparent;color:rgba(246,241,233,.7);cursor:pointer")}>
-            🚪 <span className="rotulo">Salir</span>
-          </button>
+          <span title="Hora" style={sx("font-family:'Anton',sans-serif;font-size:21px;letter-spacing:.03em;padding:0 4px;color:rgba(246,241,233,.85)")}>
+            {horaMadrid(new Date(ahora).toISOString())}
+          </span>
+          <button onClick={salir} title="Cerrar sesión" style={botonIcono()}>🚪</button>
         </div>
       </header>
 
+      {/* El navegador no deja sonar hasta que alguien toca la pantalla */}
+      {!muted && sonidoBloqueado && vista === "pedidos" && (
+        <button
+          onClick={() => {
+            const ctx = audioCtx.current;
+            if (!ctx) return;
+            ctx.resume().then(() => { setSonidoBloqueado(ctx.state !== "running"); beep(); }).catch(() => {});
+          }}
+          style={sx("display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:14px 18px;border:0;background:rgb(255 176 46);color:#0a0806;font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.04em;text-transform:uppercase;cursor:pointer")}
+        >
+          🔈 Toca aquí para activar el sonido de los pedidos
+        </button>
+      )}
+
       {/* Mientras está cerrado, que no se olvide de reabrir */}
       {cerradoManual && (
-        <div style={sx("max-width:1380px;margin:0 auto;padding:16px clamp(14px,3vw,28px) 0")}>
+        <div style={sx("padding:14px clamp(12px,2vw,22px) 0")}>
           <div style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 18px;border-radius:14px;background:rgb(255 100 80 / .12);border:1px solid rgb(255 100 80 / .5)")}>
             <span style={sx("font-size:20px;line-height:1")}>⏸</span>
             <div style={sx("flex:1;min-width:200px")}>
@@ -348,82 +547,38 @@ export default function CocinaPage() {
       {vista === "carta" ? (
         <GestionCarta local={local} rgb={L.rgb} />
       ) : (
-      <main style={sx("max-width:1380px;margin:0 auto;padding:22px clamp(14px,3vw,28px);display:flex;flex-direction:column;gap:26px")}>
-        {programados.length > 0 && (
-          <section>
-            <div style={sx("display:flex;align-items:center;gap:11px;padding:13px 17px;border-radius:14px;margin-bottom:12px;background:rgb(150 130 255 / .1);border:1px solid rgb(150 130 255 / .4)")}>
-              <span style={sx("font-size:19px;line-height:1")}>⏰</span>
-              <h2 style={sx("margin:0;flex:1;font-family:'Anton',sans-serif;font-weight:400;font-size:18px;letter-spacing:.05em;text-transform:uppercase")}>Programados</h2>
-              <span style={sx("font-family:'Anton',sans-serif;font-size:16px;line-height:1;padding:5px 13px;border-radius:100px;background:rgb(180 165 255);color:#0a0806")}>{programados.length}</span>
+        <main style={sx("flex:1;padding:16px clamp(12px,2vw,22px) 40px")}>
+          {visibles.length === 0 ? (
+            <div style={sx("min-height:55vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;color:rgba(246,241,233,.45)")}>
+              <div style={sx("font-size:46px;line-height:1;color:rgb(120,220,130)")}>✓</div>
+              <div style={sx("font-family:'Anton',sans-serif;font-size:26px;letter-spacing:.04em;text-transform:uppercase;color:rgba(246,241,233,.75)")}>
+                {filtro === "todos" ? "Todo al día" : `Nada en «${GRUPOS.find((g) => g.id === filtro)?.label}»`}
+              </div>
+              <div style={sx("font-size:13.5px")}>
+                {filtro === "todos" ? "Los pedidos nuevos aparecerán aquí con alarma." : "Toca «Todos» para ver el resto."}
+              </div>
             </div>
-            <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px")}>
-              {programados.map((o) => (
-                <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
-                  <div style={sx("display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px")}>
-                    {minutosDe(o).map((m) => (
-                      <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={btn(`rgb(${L.rgb})`)}>✓ {m}′</button>
-                    ))}
-                  </div>
-                </Card>
+          ) : (
+            <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,272px),1fr));gap:14px")}>
+              {visibles.map((o) => (
+                <Ticket key={o.id} o={o} estado={estadoDe(o)} ahora={ahora} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
+                  {accionesDe(o)}
+                </Ticket>
               ))}
             </div>
-          </section>
-        )}
-        <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:18px;align-items:start")}>
-          <Columna icono="🔴" titulo="Nuevos" n={nuevos.length} tono="255 90 70" pulso={nuevos.length > 0} vacio="Sin pedidos nuevos — todo al día.">
-            {nuevos.map((o) => (
-              <Card key={o.id} o={o} rgb={L.rgb} destacado onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
-                <div style={sx("display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px")}>
-                  {minutosDe(o).map((m) => (
-                    <button key={m} onClick={() => patch(o.id, "aceptado", m)} style={btn(`rgb(${L.rgb})`)}>✓ {m}′</button>
-                  ))}
-                </div>
-                <button onClick={() => window.confirm(`¿Rechazar el pedido ${o.code} de ${o.nombre}?`) && patch(o.id, "rechazado")} style={{ ...btn("transparent", "rgb(255,120,90)"), border: "1px solid rgba(255,100,80,.35)" }}>✕ Rechazar</button>
-              </Card>
-            ))}
-          </Columna>
+          )}
 
-          <Columna icono="🔥" titulo="En cocina" n={enCocina.length} tono={L.rgb} vacio="Nada en plancha ahora mismo.">
-            {enCocina.map((o) => (
-              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
-                <button onClick={() => patch(o.id, "lista")} style={btn(`rgb(${L.rgb})`)}>
-                  {esDomicilio(o) ? "🛵 Sale a reparto" : "✓ Lista para recoger"}
-                </button>
-              </Card>
-            ))}
-          </Columna>
-
-          <Columna
-            icono={reparteAlgo ? "🛵" : "✅"}
-            titulo={reparteAlgo ? "Listas · En reparto" : "Listas"}
-            n={listas.length}
-            tono="120 220 130"
-            vacio={reparteAlgo ? "Nada esperando ni en reparto." : "Ninguna esperando recogida."}
-          >
-            {listas.map((o) => (
-              <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onCancelar={cancelarPedido} onReembolsar={abrirDevolucion}>
-                <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
-                  <button onClick={() => patch(o.id, "entregado")} style={{ ...btn("rgb(120 220 130 / .9)"), flex: 1 }}>✓ Entregada</button>
-                  <button onClick={() => window.confirm(`¿Marcar el pedido ${o.code} de ${o.nombre} como NO ${esDomicilio(o) ? "entregado" : "recogido"}?\n\nCon 1 aviso la web pedirá confirmar sus próximos pedidos; con 2, su teléfono queda bloqueado para pedir online.`) && patch(o.id, "no_recogido")} style={btn("transparent", "rgb(255,120,90)")}>
-                    {esDomicilio(o) ? "Nadie abrió" : "Nadie vino"}
-                  </button>
-                </div>
-              </Card>
-            ))}
-          </Columna>
-        </div>
-
-        {cerrados.length > 0 && (
-          <details>
-            <summary style={sx("cursor:pointer;font-size:13px;color:rgba(246,241,233,.55)")}>Cerrados hoy ({cerrados.length})</summary>
-            <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,330px),1fr));gap:12px;margin-top:12px;opacity:.55")}>
-              {cerrados.map((o) => (
-                <Card key={o.id} o={o} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onReembolsar={abrirDevolucion} />
-              ))}
-            </div>
-          </details>
-        )}
-      </main>
+          {cerrados.length > 0 && (
+            <details style={sx("margin-top:26px")}>
+              <summary style={sx("cursor:pointer;font-size:13px;letter-spacing:.04em;color:rgba(246,241,233,.5)")}>Cerrados hoy ({cerrados.length})</summary>
+              <div style={sx("display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,272px),1fr));gap:14px;margin-top:12px;opacity:.6")}>
+                {cerrados.map((o) => (
+                  <Ticket key={o.id} o={o} estado="cerrado" ahora={ahora} rgb={L.rgb} onPrint={() => imprimirTicket(o, L.name)} onReembolsar={abrirDevolucion} />
+                ))}
+              </div>
+            </details>
+          )}
+        </main>
       )}
 
       {devolucion && (
@@ -434,6 +589,20 @@ export default function CocinaPage() {
           onConfirm={hacerDevolucion}
         />
       )}
+
+      {/* Una acción que no se pudo hacer: se queda a la vista hasta tocarla */}
+      {aviso && (
+        <div
+          key={aviso.id}
+          role="alert"
+          onClick={() => setAviso(null)}
+          style={sx("position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:80;width:max-content;max-width:min(560px,92vw);display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:14px;background:#2a120c;border:1px solid rgb(255 100 80 / .75);box-shadow:0 18px 50px -12px rgba(0,0,0,.85);font-size:14.5px;font-weight:700;line-height:1.4;color:#ffd9cf;cursor:pointer;animation:ltb-menu-in .2s")}
+        >
+          <span style={sx("font-size:20px;line-height:1")}>⚠️</span>
+          <span style={sx("flex:1")}>{aviso.texto}</span>
+          <span style={sx("opacity:.6;font-size:13px")}>✕</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -442,96 +611,154 @@ export default function CocinaPage() {
 // interno es el mismo ("lista"), lo que cambia es cómo se llama en el panel.
 const esDomicilio = (o) => o.entrega === "domicilio";
 
-// Columna kanban: Nuevos → En cocina → Listas / En reparto.
-function Columna({ icono, titulo, n, tono, pulso, vacio, children }) {
+const ETIQUETA_CERRADO = { entregado: "Entregado", rechazado: "Rechazado", no_recogido: "No recogido" };
+
+const botonAccion = (tono) =>
+  sx(`width:100%;min-height:50px;font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.04em;padding:10px 12px;border-radius:12px;border:0;cursor:pointer;background:rgb(${tono});color:#0a0806`);
+const botonSecundario = sx("width:100%;min-height:38px;font-size:13px;font-weight:700;letter-spacing:.03em;padding:6px 14px;border-radius:11px;border:1px solid rgba(255,120,90,.35);background:transparent;color:rgb(255,140,110);cursor:pointer");
+
+// Cuánto falta para la hora de listo, o cuánto se ha pasado.
+function cuentaAtras(readyIso, ahora) {
+  const min = Math.round((new Date(readyIso).getTime() - ahora) / 60000);
+  if (min > 0) return { texto: `faltan ${min}′`, tarde: false };
+  if (min === 0) return { texto: "¡ya!", tarde: false };
+  return { texto: `+${-min}′ tarde`, tarde: true };
+}
+
+// Filtro de la barra superior, con su contador.
+function Chip({ activo, onClick, n, tono, pulso, children }) {
   return (
-    <section style={sx("display:flex;flex-direction:column;gap:12px;min-width:0")}>
-      <header style={{ ...sx("display:flex;align-items:center;gap:11px;padding:13px 17px;border-radius:14px"), background: `rgb(${tono} / .1)`, border: `1px solid rgb(${tono} / .4)`, animation: pulso ? "ltb-pulse 1.6s infinite" : "none" }}>
-        <span style={sx("font-size:19px;line-height:1")}>{icono}</span>
-        <h2 style={sx("margin:0;flex:1;font-family:'Anton',sans-serif;font-weight:400;font-size:18px;letter-spacing:.05em;text-transform:uppercase")}>{titulo}</h2>
-        <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:16px;line-height:1;padding:5px 13px;border-radius:100px"), background: `rgb(${tono})`, color: "#0a0806" }}>{n}</span>
-      </header>
-      {n === 0 ? <p style={sx("margin:2px 4px;font-size:13px;color:rgba(246,241,233,.4)")}>{vacio}</p> : children}
-    </section>
+    <button
+      onClick={onClick}
+      aria-pressed={activo}
+      style={{
+        ...sx("display:inline-flex;align-items:center;gap:7px;height:40px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.04em;text-transform:uppercase;padding:0 7px 0 13px;border-radius:100px;cursor:pointer;white-space:nowrap"),
+        border: `1px solid rgb(${tono} / ${activo ? 1 : 0.35})`,
+        background: activo ? `rgb(${tono})` : `rgb(${tono} / .08)`,
+        color: activo ? "#0a0806" : "#f6f1e9",
+        animation: pulso && !activo ? "ltb-pulse 1.6s infinite" : "none",
+      }}
+    >
+      {children}
+      <span style={{ ...sx("min-width:26px;padding:4px 8px;border-radius:100px;font-size:13px;line-height:1;text-align:center"), background: activo ? "rgba(10,8,6,.85)" : `rgb(${tono})`, color: activo ? `rgb(${tono})` : "#0a0806" }}>
+        {n}
+      </span>
+    </button>
   );
 }
 
-function Card({ o, rgb, destacado, onPrint, onCancelar, onReembolsar, children }) {
+// Aviso compacto dentro de un ticket (domicilio, pagado, alerta…).
+function Aviso({ tono, children }) {
+  return (
+    <div style={{ ...sx("font-size:12.5px;font-weight:700;line-height:1.4;padding:6px 10px;border-radius:9px"), border: `1px solid rgb(${tono} / .5)`, background: `rgb(${tono} / .1)`, color: `rgb(${tono})` }}>
+      {children}
+    </div>
+  );
+}
+
+// Ticket de cocina: cabecera de color con el estado y el cronómetro, lo que hay
+// que preparar en grande, y la acción principal siempre abajo.
+function Ticket({ o, estado, ahora, rgb, onPrint, onCancelar, onReembolsar, children }) {
   const [menu, setMenu] = useState(false);
-  const hora = new Date(o.created_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
-  const ready = o.ready_at ? new Date(o.ready_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }) : null;
+  const cuenta = estado === "cocina" && o.ready_at ? cuentaAtras(o.ready_at, ahora) : null;
+  const tono = cuenta?.tarde ? TONO.tarde : TONO[estado];
   const edad = haceCuanto(o.created_at);
+  const etiqueta =
+    estado === "nuevo" ? "Nuevo"
+      : estado === "cocina" ? "En cocina"
+      : estado === "lista" ? (esDomicilio(o) ? "En reparto" : "Lista")
+      : estado === "programado" ? "Programado"
+      : ETIQUETA_CERRADO[o.status] || o.status;
+  const reloj =
+    estado === "programado" ? `para las ${horaMadrid(o.programado_para)}`
+      : cuenta ? cuenta.texto
+      : estado === "cerrado" ? horaMadrid(o.created_at)
+      : edad === "ahora" ? "ahora" : `hace ${edad}`;
   const cancelable = onCancelar && ["nuevo", "aceptado", "lista"].includes(o.status);
   const devolvible = onReembolsar && ["pagado", "reembolso_parcial"].includes(o.pago_estado);
   const itemMenu = sx("display:block;width:100%;text-align:left;font-size:13.5px;font-weight:600;padding:11px 14px;border:0;background:transparent;color:#f6f1e9;cursor:pointer;border-radius:9px");
+  const herramienta = sx("display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 12px;font-size:13px;border-radius:10px;border:1px solid rgba(246,241,233,.2);background:transparent;color:#f6f1e9;cursor:pointer");
+
   return (
-    <div style={{ ...sx("border-radius:18px;padding:17px;display:flex;flex-direction:column;gap:10px;background:#100c08;animation:ltb-rise .35s both"), border: destacado ? `2px solid rgb(${rgb})` : "1px solid rgba(246,241,233,.12)", boxShadow: destacado ? `0 10px 40px -12px rgb(${rgb} / .5)` : "none" }}>
-      <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px")}>
-        <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:32px;line-height:1"), color: `rgb(${rgb})` }}>#{o.code}</span>
-        <div style={sx("display:flex;flex-direction:column;align-items:flex-end;gap:4px")}>
-          <span style={sx(`font-size:11px;font-weight:800;letter-spacing:.05em;padding:4px 11px;border-radius:100px;background:rgba(246,241,233,.09);color:rgba(246,241,233,${edad === "ahora" ? ".95" : ".7"})`)}>
-            ⏱ {edad === "ahora" ? "AHORA" : `hace ${edad}`}
+    <article
+      style={{
+        ...sx("position:relative;display:flex;flex-direction:column;border-radius:16px;background:#15110c;animation:ltb-menu-in .3s"),
+        zIndex: menu ? 20 : "auto",
+        boxShadow: estado === "nuevo" ? `0 0 0 2px rgb(${tono}), 0 14px 40px -16px rgb(${tono} / .7)` : "0 0 0 1px rgba(246,241,233,.08)",
+      }}
+    >
+      {/* Cabecera: estado, cronómetro y número */}
+      <header style={{ ...sx("border-radius:16px 16px 0 0;padding:9px 14px 10px;color:#0a0806"), background: `rgb(${tono})` }}>
+        <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.08em;text-transform:uppercase")}>
+          <span>{etiqueta}</span>
+          <span style={sx("font-size:14px")}>⏱ {reloj}</span>
+        </div>
+        <div style={sx("display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:2px")}>
+          <span style={sx("font-family:'Anton',sans-serif;font-size:34px;line-height:1")}>#{o.code}</span>
+          <span style={sx("font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;text-align:right")}>
+            {esDomicilio(o) ? "🛵 Domicilio" : "🥡 Recoger"}
+            {o.ready_at && estado !== "cerrado" ? ` · ${horaMadrid(o.ready_at)}` : ""}
           </span>
-          <span style={sx("font-size:11.5px;color:rgba(246,241,233,.5)")}>{hora}{ready ? ` · lista ~${ready}` : ""}</span>
         </div>
-      </div>
-      <div style={sx("font-size:14px")}>
-        <strong>{o.nombre}</strong> · <a href={`tel:${o.telefono}`} style={sx("color:rgba(246,241,233,.8)")}>{o.telefono}</a>
-      </div>
-      {o.programado_para && (
-        <div style={sx("font-size:14px;font-weight:800;letter-spacing:.03em;text-align:center;padding:9px 12px;border-radius:10px;border:1px solid rgb(180 165 255 / .6);background:rgb(180 165 255 / .12);color:rgb(190,178,255)")}>
-          ⏰ PARA LAS {horaMadrid(o.programado_para)}
+      </header>
+
+      <div style={sx("display:flex;flex-direction:column;gap:8px;padding:12px 14px")}>
+        {/* Avisos */}
+        {esDomicilio(o) && o.direccion && <Aviso tono="255 140 80">📍 {o.direccion}</Aviso>}
+        {o.programado_para && estado !== "programado" && <Aviso tono={TONO.programado}>⏰ Para las {horaMadrid(o.programado_para)}</Aviso>}
+        {o.pago_estado === "pagado" && <Aviso tono={TONO.lista}>💳 Pagado online — no cobrar</Aviso>}
+        {o.pago_estado === "reembolso_parcial" && <Aviso tono="255 190 110">↩️ Devuelto {fmtEUR(o.reembolsado_cents || 0)} de {fmtEUR(o.total_cents)}</Aviso>}
+        {o.pago_estado === "reembolsado" && <Aviso tono="200 192 182">↩️ Importe reembolsado al cliente</Aviso>}
+        {o.alerta && <Aviso tono="255 170 90">⚠️ {o.alerta}</Aviso>}
+
+        {/* Lo que hay que preparar */}
+        <div style={sx("display:flex;flex-direction:column;gap:8px;padding-top:2px")}>
+          {(o.items || []).map((it, i) => {
+            const extras = it.extras || [];
+            const tieneDetalle = it.upgrade || it.pan || extras.length > 0 || it.nota;
+            return (
+              <div key={i}>
+                <div style={sx("display:flex;gap:9px;align-items:center;font-size:16px;font-weight:800;line-height:1.25")}>
+                  <span style={{ ...sx("flex:none;display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 5px;border-radius:8px;font-family:'Anton',sans-serif;font-size:16px;line-height:1;color:#0a0806"), background: `rgb(${rgb})` }}>{it.qty}</span>
+                  <span>
+                    {it.name}
+                    {it.variant ? <span style={sx("font-weight:600;color:rgba(246,241,233,.6)")}> · {it.variant}</span> : null}
+                  </span>
+                </div>
+                {tieneDetalle && (
+                  <div style={sx("padding-left:35px;margin-top:2px;display:flex;flex-direction:column;gap:1px;font-size:13px;line-height:1.35;color:rgba(246,241,233,.68)")}>
+                    {it.upgrade && <span>+ {it.upgrade}</span>}
+                    {it.pan && <span>🍞 {it.pan}</span>}
+                    {extras.map((x) => <span key={x}>+ {x}</span>)}
+                    {it.nota && <span style={{ fontWeight: 800, color: `rgb(${TONO.cocina})` }}>✎ {it.nota}</span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {o.nota && (
+            <div style={{ ...sx("font-size:13.5px;font-weight:800;line-height:1.4;padding:7px 10px;border-radius:9px;background:rgba(255,176,46,.1)"), color: `rgb(${TONO.cocina})` }}>
+              📝 {o.nota}
+            </div>
+          )}
         </div>
-      )}
-      {o.entrega === "domicilio" && (
-        <div style={sx("font-size:13px;font-weight:700;line-height:1.45;padding:9px 12px;border-radius:10px;border:1px solid rgb(var(--emb) / .55);background:rgb(var(--emb) / .1);color:rgb(var(--emb))")}>
-          🛵 {o.status === "lista" ? "EN REPARTO" : "A DOMICILIO"} — {o.direccion}
-        </div>
-      )}
-      {o.pago_estado === "pagado" && (
-        <div style={sx("font-size:13px;font-weight:800;letter-spacing:.05em;text-align:center;padding:9px 12px;border-radius:10px;border:1px solid rgb(120 220 130 / .6);background:rgb(120 220 130 / .12);color:rgb(120,220,130)")}>
-          💳 PAGADO ONLINE — NO COBRAR
-        </div>
-      )}
-      {o.pago_estado === "reembolso_parcial" && (
-        <div style={sx("font-size:12.5px;font-weight:800;text-align:center;padding:8px 12px;border-radius:10px;border:1px solid rgb(255 180 90 / .55);background:rgb(255 180 90 / .1);color:rgb(255,190,110)")}>
-          ↩️ Devuelto {fmtEUR(o.reembolsado_cents || 0)} de {fmtEUR(o.total_cents)}
-        </div>
-      )}
-      {o.pago_estado === "reembolsado" && (
-        <div style={sx("font-size:12.5px;font-weight:700;text-align:center;padding:8px 12px;border-radius:10px;border:1px solid rgba(246,241,233,.25);color:rgba(246,241,233,.7)")}>
-          ↩️ Importe reembolsado al cliente
-        </div>
-      )}
-      {o.alerta && (
-        <div style={sx("font-size:12.5px;font-weight:700;line-height:1.45;padding:9px 12px;border-radius:10px;border:1px solid rgba(255,140,40,.55);background:rgba(255,140,40,.1);color:rgb(255,170,90)")}>
-          ⚠️ {o.alerta}
-        </div>
-      )}
-      <div style={sx("display:flex;flex-direction:column;gap:6px;border-top:1px dashed rgba(246,241,233,.15);padding-top:8px")}>
-        {(o.items || []).map((it, i) => (
-          <div key={i} style={sx("font-size:14px;line-height:1.4")}>
-            <strong>{it.qty}×</strong> {it.name}{it.variant ? ` (${it.variant})` : ""}
-            {it.upgrade && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.65);padding-left:20px")}>+ {it.upgrade}</div>}
-            {it.pan && <div style={sx("font-size:12.5px;color:rgba(246,241,233,.65);padding-left:20px")}>🍞 {it.pan}</div>}
-            {(it.extras || []).map((x) => <div key={x} style={sx("font-size:12.5px;color:rgba(246,241,233,.65);padding-left:20px")}>+ {x}</div>)}
-            {it.nota && <div style={{ ...sx("font-size:12.5px;padding-left:20px;font-weight:700"), color: `rgb(${rgb})` }}>✎ {it.nota}</div>}
-          </div>
-        ))}
-        {o.nota && <div style={{ ...sx("font-size:13px;font-weight:700;margin-top:2px"), color: `rgb(${rgb})` }}>📝 {o.nota}</div>}
-      </div>
-      <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px")}>
-        <span style={sx("font-family:'Anton',sans-serif;font-size:19px")}>{fmtEUR(o.total_cents)}</span>
-        <span style={sx("display:inline-flex;gap:8px;align-items:center")}>
-          <button onClick={onPrint} style={sx("font-size:13px;padding:9px 14px;border-radius:10px;border:1px solid rgba(246,241,233,.25);background:transparent;color:#f6f1e9;cursor:pointer")}>🖨 Ticket</button>
+
+        {/* Cliente, total y herramientas (ticket impreso y menú ⋯) en una línea */}
+        <div style={sx("display:flex;align-items:center;gap:8px;padding-top:8px;border-top:1px dashed rgba(246,241,233,.14);font-size:13px;color:rgba(246,241,233,.7)")}>
+          <span style={sx("flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.25")}>
+            <strong style={sx("color:#f6f1e9;overflow:hidden;text-overflow:ellipsis;white-space:nowrap")}>{o.nombre}</strong>
+            <a href={`tel:${o.telefono}`} style={sx("color:inherit;font-size:12px;white-space:nowrap")}>📞 {o.telefono}</a>
+          </span>
+          <span style={sx("font-family:'Anton',sans-serif;font-size:16px;color:#f6f1e9;white-space:nowrap")}>{fmtEUR(o.total_cents)}</span>
+          <button onClick={onPrint} title="Imprimir ticket" aria-label="Imprimir ticket" style={{ ...herramienta, width: 36, padding: 0, fontSize: 15 }}>🖨</button>
           {(cancelable || devolvible) && (
-            <span style={{ ...sx("position:relative;display:inline-flex"), zIndex: menu ? 30 : "auto" }}>
-              <button onClick={() => setMenu((m) => !m)} aria-label="Más opciones" aria-expanded={menu} style={sx(`font-size:17px;line-height:1;width:38px;height:38px;border-radius:10px;border:1px solid ${menu ? "rgb(246 241 233 / .5)" : "rgba(246,241,233,.25)"};background:${menu ? "rgba(246,241,233,.1)" : "transparent"};color:#f6f1e9;cursor:pointer`)}>⋯</button>
+            <span style={sx("position:relative;display:inline-flex")}>
+              <button onClick={() => setMenu((m) => !m)} aria-label="Más opciones" aria-expanded={menu} style={{ ...herramienta, width: 36, padding: 0, fontSize: 17, background: menu ? "rgba(246,241,233,.1)" : "transparent" }}>⋯</button>
               {menu && (
                 <>
                   {/* fondo invisible: cierra el menú al tocar fuera */}
                   <span onClick={() => setMenu(false)} style={sx("position:fixed;inset:0;z-index:1")} />
-                  <span style={sx("position:absolute;right:0;bottom:calc(100% + 6px);z-index:2;min-width:230px;padding:6px;border-radius:14px;border:1px solid rgba(246,241,233,.18);background:#1a140e;box-shadow:0 14px 40px -10px rgba(0,0,0,.7);display:flex;flex-direction:column;gap:2px")}>
+                  <span style={sx("position:absolute;right:0;bottom:calc(100% + 6px);z-index:2;min-width:240px;padding:6px;border-radius:14px;border:1px solid rgba(246,241,233,.18);background:#1d1610;box-shadow:0 14px 40px -10px rgba(0,0,0,.7);display:flex;flex-direction:column;gap:2px")}>
                     {cancelable && (
                       <button onClick={() => { setMenu(false); onCancelar(o); }} style={{ ...itemMenu, color: "rgb(255,120,90)" }}>
                         ✕ Cancelar pedido{o.pago_estado === "pagado" ? " (devuelve el dinero)" : ""}
@@ -547,10 +774,19 @@ function Card({ o, rgb, destacado, onPrint, onCancelar, onReembolsar, children }
               )}
             </span>
           )}
-        </span>
+        </div>
       </div>
-      {children}
-    </div>
+
+      {/* Pie: la acción principal, siempre abajo y alineada entre tickets */}
+      {children && (
+        <footer style={sx("margin-top:auto;display:flex;flex-direction:column;gap:7px;padding:0 12px 12px")}>
+          <div style={{ ...sx("display:flex;flex-direction:column;gap:7px;transition:opacity .2s"), opacity: o._guardando ? 0.45 : 1, pointerEvents: o._guardando ? "none" : "auto" }}>
+            {children}
+          </div>
+          {o._guardando && <div style={sx("font-size:11.5px;text-align:center;color:rgba(246,241,233,.55)")}>Guardando…</div>}
+        </footer>
+      )}
+    </article>
   );
 }
 

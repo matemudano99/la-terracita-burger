@@ -11,8 +11,20 @@ La web tiene un sistema de pedidos propio, sin comisiones:
   en cocina → en reparto → entregado**: donde uno de recogida dice «Lista para
   recoger», el de domicilio dice «Sale a reparto», y la tarjeta pasa a «🛵 EN
   REPARTO». El estado guardado es el mismo (`lista`): solo cambia el nombre
-  según el tipo de entrega, también en /admin y en la pantalla del cliente. Sección **⏰ Programados** para los pedidos con hora futura
-  (pasan solos a Nuevos con alarma cuando faltan ≤30 min). El cliente ve el
+  según el tipo de entrega, también en /admin y en la pantalla del cliente.
+  Pensado para **tablet en horizontal**: cada pedido es un ticket con una
+  cabecera de color por estado (rojo nuevo, ámbar en cocina, verde lista,
+  violeta programado) y su cronómetro — en cocina, cuánto falta para la hora
+  de listo, y la cabecera se pone roja con «+X′ tarde» si se pasa. Los tickets
+  van en filas por orden de urgencia y la acción principal siempre abajo. La
+  barra superior filtra por estado con su contador; los **⏰ Programados** son
+  los pedidos con hora futura
+  (pasan solos a Nuevos con alarma cuando faltan ≤30 min). Al tocar un botón el
+  ticket cambia **al instante**, sin esperar al servidor; si el servidor lo
+  rechaza, vuelve a su estado y sale un aviso que no se borra solo. La alarma
+  viene **activada por defecto** (el 🔔 la silencia y se recuerda); como Chrome
+  no deja sonar nada hasta el primer toque, si la tablet recarga sola aparece
+  una franja «Toca aquí para activar el sonido». El cliente ve el
   estado en su móvil en tiempo real. El botón **● Abierto / ⏸ Cerrado** de la
   barra superior cierra y reabre el local al instante si hay cualquier problema
   (mientras está cerrado no entra ningún pedido, tampoco programado, y el
