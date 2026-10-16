@@ -352,14 +352,17 @@ function Historial({ orders }) {
 
   const exportCSV = () => {
     const dec = (c) => (c / 100).toFixed(2).replace(".", ",");
-    const filas = [["Fecha", "Hora", "Nº", "Local", "Cliente", "Teléfono", "Estado", "Cobro", "Total €", "Devuelto €", "Neto €", "Artículos"]];
+    // Productos − Promo + Envío = Total, para que la cuenta se pueda seguir.
+    const filas = [["Fecha", "Hora", "Nº", "Local", "Cliente", "Teléfono", "Estado", "Cobro", "Productos €", "Promo web €", "Envío €", "Total €", "Devuelto €", "Neto €", "Artículos"]];
     for (const o of filtrados) {
+      const productos = (o.items || []).reduce((s, it) => s + (it.lineCents || 0), 0);
       filas.push([
         fechaDe(o.created_at), horaDe(o.created_at), o.code, LOCALES[o.local]?.name || o.local,
         o.nombre, o.telefono, estadoDe(o).label,
         esOnline(o) ? "Online" : "En el local",
+        dec(productos), dec(o.promo_cents || 0), dec(o.envio_cents || 0),
         dec(o.total_cents), dec(devueltoDe(o)), dec(o.total_cents - devueltoDe(o)),
-        (o.items || []).map((it) => `${it.qty}x ${it.name}${it.variant ? ` ${it.variant}` : ""}`).join(" | "),
+        (o.items || []).map((it) => `${it.qty}x ${it.name}${it.variant ? ` ${it.variant}` : ""} (${dec(it.lineCents || 0)})`).join(" | "),
       ]);
     }
     const csv = filas.map((f) => f.map((c) => `"${String(c).replaceAll('"', '""')}"`).join(";")).join("\n");
@@ -408,18 +411,8 @@ function Historial({ orders }) {
                     📞 <a href={`tel:${o.telefono}`} style={sx("color:#f6f1e9")}>{o.telefono}</a>
                     {o.ready_at && <> · lista ~{horaDe(o.ready_at)}</>}
                   </div>
-                  <div style={sx("display:flex;flex-direction:column;gap:6px;margin-top:10px")}>
-                    {(o.items || []).map((it, i) => (
-                      <div key={i} style={sx("font-size:13.5px;line-height:1.45")}>
-                        <strong>{it.qty}×</strong> {it.name}{it.variant ? ` (${it.variant})` : ""} <span style={sx("color:rgba(246,241,233,.5)")}>· {fmtEUR(it.lineCents)}</span>
-                        {it.upgrade && <div style={sx("font-size:12px;color:rgba(246,241,233,.6);padding-left:18px")}>+ {it.upgrade}</div>}
-                        {it.pan && <div style={sx("font-size:12px;color:rgba(246,241,233,.6);padding-left:18px")}>🍞 {it.pan}</div>}
-                        {(it.extras || []).map((x) => <div key={x} style={sx("font-size:12px;color:rgba(246,241,233,.6);padding-left:18px")}>+ {x}</div>)}
-                        {it.nota && <div style={sx("font-size:12px;color:rgb(var(--acc));padding-left:18px")}>✎ {it.nota}</div>}
-                      </div>
-                    ))}
-                  </div>
                   {o.nota && <div style={sx("margin-top:10px;font-size:13px;color:rgb(var(--acc))")}>📝 {o.nota}</div>}
+                  <Desglose o={o} />
                 </div>
               )}
             </div>
@@ -432,6 +425,60 @@ function Historial({ orders }) {
           Ver más ({filtrados.length - limite} pedido{filtrados.length - limite === 1 ? "" : "s"} más)
         </button>
       )}
+    </div>
+  );
+}
+
+// ── Desglose de un pedido ────────────────────────────────────────────────────
+// De dónde sale el total: cada producto con lo que costó, la promo web, el
+// envío y lo devuelto. Sin esto, "9,90 + 10,90 + 1,50" no daba los 17,35 € que
+// se cobraron y parecía un error (era el 50 % de la segunda hamburguesa).
+function Desglose({ o }) {
+  const items = o.items || [];
+  const productos = items.reduce((s, it) => s + (it.lineCents || 0), 0);
+  const promo = o.promo_cents || 0;
+  const envio = o.envio_cents || 0;
+  const devuelto = devueltoDe(o);
+  // Pedidos de antes de guardar la promo aparte: si no cuadra, se enseña la
+  // diferencia como descuento en vez de esconderla.
+  const sinExplicar = productos - promo + envio - o.total_cents;
+
+  const fila = (etiqueta, valor, opts = {}) => (
+    <div style={{ ...sx("display:flex;justify-content:space-between;gap:14px;font-size:13.5px;line-height:1.5"), color: opts.color || "rgba(246,241,233,.75)", fontWeight: opts.fuerte ? 700 : 400 }}>
+      <span>{etiqueta}</span>
+      <span style={sx("white-space:nowrap;font-variant-numeric:tabular-nums")}>{valor}</span>
+    </div>
+  );
+  const sub = (txt, color) => <div style={{ ...sx("font-size:12px;padding-left:22px;line-height:1.45"), color: color || "rgba(246,241,233,.55)" }}>{txt}</div>;
+
+  return (
+    <div style={sx("margin-top:12px;max-width:520px;display:flex;flex-direction:column;gap:6px")}>
+      {items.map((it, i) => (
+        <div key={i}>
+          <div style={sx("display:flex;justify-content:space-between;gap:14px;font-size:13.5px;line-height:1.45")}>
+            <span>
+              <strong>{it.qty}×</strong> {it.name}{it.variant ? ` (${it.variant})` : ""}
+              {it.qty > 1 && it.unitCents ? <span style={sx("color:rgba(246,241,233,.45)")}> · {fmtEUR(it.unitCents)} c/u</span> : null}
+              {it.descuento ? <span style={sx("color:rgb(var(--emb));font-weight:700")}> · oferta −{it.descuento} %</span> : null}
+            </span>
+            <span style={sx("white-space:nowrap;font-variant-numeric:tabular-nums")}>{fmtEUR(it.lineCents || 0)}</span>
+          </div>
+          {it.upgrade && sub(`+ ${it.upgrade}`)}
+          {it.pan && sub(`🍞 ${it.pan}`)}
+          {(it.extras || []).map((x) => <div key={x}>{sub(`+ ${x}`)}</div>)}
+          {it.nota && sub(`✎ ${it.nota}`, "rgb(var(--acc))")}
+        </div>
+      ))}
+
+      <div style={sx("margin-top:4px;padding-top:8px;border-top:1px solid rgba(246,241,233,.12);display:flex;flex-direction:column;gap:3px")}>
+        {(promo > 0 || envio > 0 || sinExplicar !== 0) && fila("Productos", fmtEUR(productos))}
+        {promo > 0 && fila("🔥 Promo web · 50 % en la 2ª hamburguesa", `− ${fmtEUR(promo)}`, { color: "rgb(var(--emb))" })}
+        {sinExplicar > 0 && fila("Descuento aplicado", `− ${fmtEUR(sinExplicar)}`, { color: "rgb(var(--emb))" })}
+        {envio > 0 && fila("🛵 Envío a domicilio", `+ ${fmtEUR(envio)}`)}
+        {fila(devuelto > 0 ? "Cobrado" : "Total cobrado", fmtEUR(o.total_cents), { fuerte: true, color: "#f6f1e9" })}
+        {devuelto > 0 && fila("↩️ Devuelto al cliente", `− ${fmtEUR(devuelto)}`, { color: "rgb(255,140,110)" })}
+        {devuelto > 0 && fila("Neto", fmtEUR(o.total_cents - devuelto), { fuerte: true, color: "#f6f1e9" })}
+      </div>
     </div>
   );
 }
@@ -802,7 +849,7 @@ function ProductoModal({ datos, categorias, onCerrar, onGuardar }) {
     if (nuevo) {
       cuerpo.variantes = variantes
         .filter((v) => aCentimos(v.precio) !== null)
-        .map((v, i) => ({ id: v.label ? v.label.toLowerCase() : "u", label: v.label.trim(), cents: aCentimos(v.precio) }));
+        .map((v) => ({ id: v.label ? v.label.toLowerCase() : "u", label: v.label.trim(), cents: aCentimos(v.precio) }));
     }
     onGuardar(cuerpo, nuevo ? `"${cuerpo.nombre}" añadido a la carta.` : `"${cuerpo.nombre}" actualizado.`);
   };
