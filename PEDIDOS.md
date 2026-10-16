@@ -87,8 +87,15 @@ enviar un pedido muestra "no está configurado, llámanos".
 2. Dale rol de admin con el SQL que hay comentado al final de
    `supabase/schema.sql` (cámbiale el email).
 3. Entra en `https://laterracitaburger.com/admin` con ese email y contraseña.
-4. En la pestaña **Equipo**, crea una cuenta por empleado (o una por local).
-   Si le asignas un local, solo verá los pedidos de ese local.
+4. En la pestaña **Equipo**, crea una cuenta por persona (o una por local).
+   Solo el **primer** admin se crea desde Supabase: a partir de ahí, cualquier
+   admin crea cuentas de **empleado o de admin**, cambia nombre, rol y local
+   (✎ Editar), pone contraseñas nuevas (🔑) y elimina cuentas. Cada cuenta
+   enseña su acceso, su último inicio de sesión y su fecha de alta.
+   Un empleado con local asignado solo ve los pedidos de ese local.
+   Protecciones: nadie puede cambiarse el rol ni borrarse a sí mismo, y
+   siempre queda al menos un admin. Las contraseñas no se pueden ver: si
+   alguien olvida la suya, se le pone una nueva.
 
 ## 4. Montar el panel en cada local
 

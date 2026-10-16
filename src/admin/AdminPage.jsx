@@ -1075,12 +1075,85 @@ function Banco() {
 }
 
 // ── Equipo ───────────────────────────────────────────────────────────────────
+// Cuentas de acceso: quién entra, con qué rol y a qué local, y desde cuándo.
+// Las contraseñas no se pueden ver (Supabase las guarda cifradas): solo se
+// pueden poner nuevas.
+
+const ROL_INFO = {
+  admin: { label: "Admin", tono: "255 197 49", texto: "Todo /admin (ventas, banco, carta, equipo, ajustes) y /cocina." },
+  empleado: { label: "Empleado", tono: "120 220 130", texto: "Solo /cocina. Con local asignado, solo ve ese local." },
+};
+
+// "hace 3 días", "hoy a las 21:28", "nunca"
+function cuando(iso) {
+  if (!iso) return "nunca";
+  const d = new Date(iso);
+  const dias = Math.floor((Date.now() - d.getTime()) / 86400000);
+  const hora = d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
+  if (dias < 1 && new Date().toDateString() === d.toDateString()) return `hoy a las ${hora}`;
+  if (dias < 2) return `ayer a las ${hora}`;
+  if (dias < 30) return `hace ${dias} días`;
+  return d.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/Madrid" });
+}
+
+const fechaCuenta = (iso) =>
+  iso ? new Date(iso).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric", timeZone: "Europe/Madrid" }) : "—";
+
+function RolChip({ rol, local }) {
+  const info = ROL_INFO[rol] || { label: rol || "Sin rol", tono: "200 192 182" };
+  return (
+    <span style={{ ...sx("display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:100px;white-space:nowrap"), color: `rgb(${info.tono})`, border: `1px solid rgb(${info.tono} / .5)`, background: `rgb(${info.tono} / .08)` }}>
+      {info.label}
+      {rol === "empleado" && <span style={sx("font-weight:600;letter-spacing:.03em;opacity:.85")}>· {local ? LOCALES[local]?.name || local : "los dos locales"}</span>}
+    </span>
+  );
+}
+
+// Selector de rol + local, compartido por el alta y la edición.
+function RolYLocal({ rol, local, onChange, bloqueado }) {
+  return (
+    <>
+      <div>
+        <span style={labelStyle}>Rol</span>
+        <div style={sx("display:grid;grid-template-columns:1fr 1fr;gap:8px")}>
+          {Object.entries(ROL_INFO).map(([id, info]) => {
+            const activo = rol === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                disabled={bloqueado}
+                onClick={() => onChange({ rol: id, local: id === "admin" ? "" : local })}
+                style={{ ...sx("text-align:left;padding:10px 12px;border-radius:12px;cursor:pointer;font-family:inherit;color:#f6f1e9"), opacity: bloqueado && !activo ? 0.4 : 1, cursor: bloqueado ? "not-allowed" : "pointer", border: `1px solid ${activo ? `rgb(${info.tono})` : "rgba(246,241,233,.16)"}`, background: activo ? `rgb(${info.tono} / .12)` : "transparent" }}
+              >
+                <div style={{ ...sx("font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase"), color: activo ? `rgb(${info.tono})` : "#f6f1e9" }}>{info.label}</div>
+                <div style={sx("font-size:11.5px;line-height:1.4;color:rgba(246,241,233,.55);margin-top:3px")}>{info.texto}</div>
+              </button>
+            );
+          })}
+        </div>
+        {bloqueado && <div style={sx("font-size:11.5px;color:rgba(246,241,233,.45);margin-top:6px")}>No puedes cambiarte el rol a ti mismo.</div>}
+      </div>
+      {rol === "empleado" && (
+        <div>
+          <span style={labelStyle}>Local</span>
+          <select value={local} onChange={(e) => onChange({ rol, local: e.target.value })} style={{ ...inputStyle, appearance: "auto" }}>
+            <option value="">Los dos locales</option>
+            {Object.values(LOCALES).map((o) => <option key={o.id} value={o.id}>Solo {o.name}</option>)}
+          </select>
+        </div>
+      )}
+    </>
+  );
+}
+
 function Equipo({ user }) {
   const [usuarios, setUsuarios] = useState(null);
   const [error, setError] = useState(null);
   const [ok, setOk] = useState(null);
-  const [form, setForm] = useState({ email: "", nombre: "", password: "", local: "" });
+  const [form, setForm] = useState({ email: "", nombre: "", password: "", rol: "empleado", local: "" });
   const [creando, setCreando] = useState(false);
+  const [editando, setEditando] = useState(null); // id de la cuenta abierta
 
   const cargar = useCallback(async () => {
     setError(null);
@@ -1096,101 +1169,183 @@ function Equipo({ user }) {
   }, []);
   useEffect(() => { cargar(); }, [cargar]);
 
-  const crear = async () => {
-    setCreando(true); setError(null); setOk(null);
+  const llamar = async (opciones, exito) => {
+    setError(null); setOk(null);
     try {
-      const res = await authFetch("/api/usuarios", {
-        method: "POST",
+      const res = await authFetch("/api/usuarios" + (opciones.query || ""), {
+        method: opciones.method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, local: form.local || null }),
+        body: opciones.body ? JSON.stringify(opciones.body) : undefined,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
-      setOk(`Cuenta creada para ${data.user.nombre}.`);
-      setForm({ email: "", nombre: "", password: "", local: "" });
-      cargar();
-    } catch (e) { setError(e.message); }
+      setOk(exito);
+      await cargar();
+      return true;
+    } catch (e) {
+      setError(e.message);
+      return false;
+    }
+  };
+
+  const crear = async () => {
+    if (form.rol === "admin" && !window.confirm(`¿Crear a ${form.nombre} como ADMINISTRADOR?\n\nTendrá acceso a todo: ventas, precios, devoluciones y gestión del equipo.`)) return;
+    setCreando(true);
+    const hecho = await llamar(
+      { method: "POST", body: { ...form, local: form.local || null } },
+      `Cuenta creada para ${form.nombre}. Ya puede entrar con su email y la contraseña que le has puesto.`
+    );
+    if (hecho) setForm({ email: "", nombre: "", password: "", rol: "empleado", local: "" });
     setCreando(false);
   };
 
-  const borrar = async (u) => {
-    if (!window.confirm(`¿Eliminar la cuenta de ${u.nombre} (${u.email})?`)) return;
-    setError(null); setOk(null);
-    try {
-      const res = await authFetch(`/api/usuarios?id=${encodeURIComponent(u.id)}`, { method: "DELETE" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
-      cargar();
-    } catch (e) { setError(e.message); }
+  const guardar = async (u, cambios) => {
+    if (cambios.rol === "admin" && u.rol !== "admin" && !window.confirm(`¿Dar a ${u.nombre} el rol de ADMINISTRADOR?\n\nTendrá acceso a todo: ventas, precios, devoluciones y gestión del equipo.`)) return false;
+    const hecho = await llamar({ method: "PATCH", body: { id: u.id, ...cambios, local: cambios.local || null } }, `Cambios de ${cambios.nombre || u.nombre} guardados.`);
+    if (hecho) setEditando(null);
+    return hecho;
   };
 
-  const cambiarPass = async (u) => {
+  const cambiarPass = (u) => {
     const password = window.prompt(`Nueva contraseña para ${u.nombre} (mínimo 8 caracteres):`);
     if (!password) return;
-    setError(null); setOk(null);
-    try {
-      const res = await authFetch("/api/usuarios", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: u.id, password }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
-      setOk(`Contraseña de ${u.nombre} actualizada.`);
-    } catch (e) { setError(e.message); }
+    llamar({ method: "PATCH", body: { id: u.id, password } }, `Contraseña de ${u.nombre} cambiada. Díselo por un canal privado.`);
+  };
+
+  const borrar = (u) => {
+    if (!window.confirm(`¿Eliminar la cuenta de ${u.nombre} (${u.email})?\n\nDejará de poder entrar al momento. No se puede deshacer.`)) return;
+    llamar({ method: "DELETE", query: `?id=${encodeURIComponent(u.id)}` }, `Cuenta de ${u.nombre} eliminada.`);
   };
 
   if (usuarios === null) return <Cargando />;
 
+  const nAdmins = usuarios.filter((u) => u.rol === "admin").length;
+  const resumen = [
+    { n: usuarios.length, t: usuarios.length === 1 ? "cuenta" : "cuentas" },
+    { n: nAdmins, t: nAdmins === 1 ? "admin" : "admins" },
+    { n: usuarios.length - nAdmins, t: usuarios.length - nAdmins === 1 ? "empleado" : "empleados" },
+  ];
+  const sinCocina = Object.values(LOCALES).filter((l) => !usuarios.some((u) => u.rol === "empleado" && (u.local === l.id || !u.local)));
+  const puedeCrear = form.email && form.nombre.trim().length >= 2 && form.password.length >= 8 && !creando;
+
   return (
-    <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;align-items:start")}>
-      <div style={card}>
-        <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:16px")}>Cuentas del equipo</div>
-        {error && <p role="alert" style={sx("margin:0 0 12px;font-size:13px;color:rgb(255,120,90)")}>⚠️ {error}</p>}
-        {ok && <p style={sx("margin:0 0 12px;font-size:13px;color:rgb(120,220,130)")}>✓ {ok}</p>}
+    <div style={sx("display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start")}>
+      <div style={{ ...card, flex: "2 1 520px", minWidth: 0 }}>
+        <div style={sx("display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:14px")}>
+          <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Cuentas de acceso</div>
+          <div style={sx("font-size:12.5px;color:rgba(246,241,233,.55)")}>
+            {resumen.map((r, i) => <span key={i}>{i > 0 && " · "}<strong style={sx("color:#f6f1e9")}>{r.n}</strong> {r.t}</span>)}
+          </div>
+        </div>
+        {error && <div role="alert" style={sx("margin:0 0 12px;padding:10px 14px;border-radius:10px;border:1px solid rgba(255,100,80,.45);background:rgba(255,100,80,.08);font-size:13px;color:rgb(255,150,125)")}>⚠️ {error}</div>}
+        {ok && <div style={sx("margin:0 0 12px;padding:10px 14px;border-radius:10px;border:1px solid rgb(120 220 130 / .4);background:rgb(120 220 130 / .07);font-size:13px;color:rgb(140,225,150)")}>✓ {ok}</div>}
+
         <div style={sx("display:flex;flex-direction:column;gap:10px")}>
           {usuarios.map((u) => (
-            <div key={u.id} style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 14px;border-radius:12px;background:#0a0806;border:1px solid rgba(246,241,233,.1)")}>
-              <div style={sx("flex:1;min-width:150px")}>
-                <div style={sx("font-weight:700;font-size:14px")}>{u.nombre} {u.id === user.id && <span style={sx("font-size:11px;color:rgba(246,241,233,.45)")}>(tú)</span>}</div>
-                <div style={sx("font-size:12px;color:rgba(246,241,233,.55)")}>{u.email}</div>
-              </div>
-              <span style={sx(`font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:100px;border:1px solid ${u.rol === "admin" ? "rgb(var(--acc))" : "rgba(246,241,233,.3)"};color:${u.rol === "admin" ? "rgb(var(--acc))" : "rgba(246,241,233,.7)"}`)}>
-                {u.rol === "admin" ? "Admin" : `Empleado${u.local ? ` · ${LOCALES[u.local]?.name || u.local}` : ""}`}
-              </span>
-              {u.id !== user.id && (
-                <span style={sx("display:inline-flex;gap:6px")}>
-                  <button onClick={() => cambiarPass(u)} title="Cambiar contraseña" style={sx("font-size:12px;padding:7px 10px;border-radius:9px;border:1px solid rgba(246,241,233,.2);background:transparent;color:#f6f1e9;cursor:pointer")}>🔑</button>
-                  {u.rol !== "admin" && <button onClick={() => borrar(u)} title="Eliminar cuenta" style={sx("font-size:12px;padding:7px 10px;border-radius:9px;border:1px solid rgba(255,100,80,.4);background:transparent;color:rgb(255,120,90);cursor:pointer")}>🗑</button>}
-                </span>
-              )}
-            </div>
+            <FichaCuenta
+              key={u.id}
+              u={u}
+              esYo={u.id === user.id}
+              abierta={editando === u.id}
+              onAbrir={() => setEditando(editando === u.id ? null : u.id)}
+              onGuardar={(c) => guardar(u, c)}
+              onPass={() => cambiarPass(u)}
+              onBorrar={() => borrar(u)}
+              unicoAdmin={u.rol === "admin" && nAdmins <= 1}
+            />
           ))}
           {usuarios.length === 0 && !error && <p style={sx("margin:0;font-size:13px;color:rgba(246,241,233,.45)")}>Todavía no hay cuentas.</p>}
         </div>
+
+        {sinCocina.length > 0 && (
+          <p style={sx("margin:14px 0 0;font-size:12px;line-height:1.5;color:rgba(246,241,233,.5)")}>
+            ℹ️ {sinCocina.map((l) => l.name).join(" y ")} no {sinCocina.length === 1 ? "tiene" : "tienen"} ninguna cuenta de cocina: hace falta una para su tablet.
+          </p>
+        )}
       </div>
 
-      <div style={card}>
-        <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:16px")}>Nuevo empleado</div>
+      <div style={{ ...card, flex: "1 1 320px", minWidth: 0 }}>
+        <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:16px")}>Nueva cuenta</div>
         <div style={sx("display:flex;flex-direction:column;gap:12px")}>
-          <div><span style={labelStyle}>Nombre</span><input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} style={inputStyle} /></div>
-          <div><span style={labelStyle}>Email (su usuario)</span><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={inputStyle} /></div>
-          <div><span style={labelStyle}>Contraseña (mín. 8)</span><input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete="new-password" style={inputStyle} /></div>
-          <div>
-            <span style={labelStyle}>Local (opcional — si se asigna, solo verá ese local)</span>
-            <select value={form.local} onChange={(e) => setForm({ ...form, local: e.target.value })} style={{ ...inputStyle, appearance: "auto" }}>
-              <option value="">Ambos locales</option>
-              {Object.values(LOCALES).map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-            </select>
-          </div>
-          <button onClick={crear} disabled={creando || !form.email || !form.nombre || form.password.length < 8} style={{ ...btnAcc, opacity: creando || !form.email || !form.nombre || form.password.length < 8 ? 0.45 : 1 }}>
-            {creando ? "CREANDO…" : "CREAR CUENTA"}
+          <div><span style={labelStyle}>Nombre</span><input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Juan, Cocina Teatinos…" style={inputStyle} /></div>
+          <div><span style={labelStyle}>Email (será su usuario)</span><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} autoComplete="off" style={inputStyle} /></div>
+          <div><span style={labelStyle}>Contraseña (mín. 8 caracteres)</span><input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} autoComplete="new-password" style={inputStyle} /></div>
+          <RolYLocal rol={form.rol} local={form.local} onChange={(c) => setForm({ ...form, ...c })} />
+          <button onClick={crear} disabled={!puedeCrear} style={{ ...btnAcc, opacity: puedeCrear ? 1 : 0.45 }}>
+            {creando ? "CREANDO…" : form.rol === "admin" ? "CREAR ADMINISTRADOR" : "CREAR CUENTA"}
           </button>
-          <p style={sx("margin:0;font-size:11.5px;line-height:1.5;color:rgba(246,241,233,.45)")}>
-            Los empleados entran en /cocina con su email y contraseña. Las cuentas de administrador se crean desde el panel de Supabase (ver PEDIDOS.md).
-          </p>
+        </div>
+
+        <div style={sx("margin-top:18px;padding-top:14px;border-top:1px dashed rgba(246,241,233,.14);font-size:11.5px;line-height:1.6;color:rgba(246,241,233,.5)")}>
+          <div style={sx("font-weight:700;color:rgba(246,241,233,.7);margin-bottom:4px")}>Bueno saber</div>
+          · Entran en <b>/cocina</b> o <b>/admin</b> con su email y contraseña.<br />
+          · Las contraseñas no se pueden ver ni recuperar: si alguien la olvida, ponle una nueva con 🔑.<br />
+          · Cuando alguien deje de trabajar con vosotros, elimina su cuenta ese mismo día.<br />
+          · Siempre tiene que quedar al menos un administrador.
         </div>
       </div>
+    </div>
+  );
+}
+
+// Una cuenta: datos a la vista y, al abrirla, su edición.
+function FichaCuenta({ u, esYo, abierta, onAbrir, onGuardar, onPass, onBorrar, unicoAdmin }) {
+  const [f, setF] = useState({ nombre: u.nombre, rol: u.rol, local: u.local || "" });
+  const [guardando, setGuardando] = useState(false);
+  useEffect(() => { if (abierta) setF({ nombre: u.nombre, rol: u.rol, local: u.local || "" }); }, [abierta, u.nombre, u.rol, u.local]);
+
+  const cambiado = f.nombre.trim() !== u.nombre || f.rol !== u.rol || (f.local || "") !== (u.local || "");
+  const herramienta = sx("font-size:12.5px;padding:8px 12px;border-radius:9px;border:1px solid rgba(246,241,233,.2);background:transparent;color:#f6f1e9;cursor:pointer;white-space:nowrap");
+  const dato = (titulo, valor) => (
+    <div style={sx("min-width:0")}>
+      <div style={sx("font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(246,241,233,.4)")}>{titulo}</div>
+      <div style={sx("font-size:13px;color:rgba(246,241,233,.85);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis")}>{valor}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ ...sx("border-radius:14px;background:#0a0806;overflow:hidden"), border: `1px solid ${abierta ? "rgb(var(--acc) / .55)" : "rgba(246,241,233,.1)"}` }}>
+      <div style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:13px 15px")}>
+        <div style={{ ...sx("flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:50%;font-family:'Anton',sans-serif;font-size:16px;color:#0a0806"), background: `rgb(${(ROL_INFO[u.rol] || {}).tono || "200 192 182"})` }}>
+          {(u.nombre || u.email || "?").trim().charAt(0).toUpperCase()}
+        </div>
+        <div style={sx("flex:1;min-width:170px")}>
+          <div style={sx("font-weight:700;font-size:14.5px")}>
+            {u.nombre} {esYo && <span style={sx("font-size:11px;font-weight:600;color:rgba(246,241,233,.45)")}>(tú)</span>}
+          </div>
+          <div style={sx("font-size:12.5px;color:rgba(246,241,233,.55)")}>{u.email}</div>
+        </div>
+        <RolChip rol={u.rol} local={u.local} />
+        <div style={sx("display:flex;gap:6px;margin-left:auto")}>
+          <button onClick={onAbrir} style={{ ...herramienta, borderColor: abierta ? "rgb(var(--acc) / .6)" : "rgba(246,241,233,.2)" }}>{abierta ? "Cerrar" : "✎ Editar"}</button>
+          <button onClick={onPass} title="Poner una contraseña nueva" style={herramienta}>🔑</button>
+          {!esYo && <button onClick={onBorrar} disabled={unicoAdmin} title={unicoAdmin ? "Es el único administrador" : "Eliminar cuenta"} style={{ ...herramienta, borderColor: "rgba(255,100,80,.4)", color: "rgb(255,125,100)", opacity: unicoAdmin ? 0.35 : 1, cursor: unicoAdmin ? "not-allowed" : "pointer" }}>🗑</button>}
+        </div>
+      </div>
+
+      <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px 16px;padding:0 15px 13px 67px")}>
+        {dato("Acceso", ROL_INFO[u.rol]?.texto ? (u.rol === "admin" ? "/admin y /cocina" : "/cocina") : "—")}
+        {dato("Último acceso", cuando(u.ultimoAcceso))}
+        {dato("Cuenta creada", fechaCuenta(u.creada))}
+      </div>
+
+      {abierta && (
+        <div style={sx("display:flex;flex-direction:column;gap:12px;padding:14px 15px 15px;border-top:1px dashed rgba(246,241,233,.14);background:rgba(246,241,233,.02)")}>
+          <div><span style={labelStyle}>Nombre</span><input value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} style={inputStyle} /></div>
+          <RolYLocal rol={f.rol} local={f.local} onChange={(c) => setF({ ...f, ...c })} bloqueado={esYo} />
+          <div style={sx("display:flex;gap:8px;justify-content:flex-end")}>
+            <button onClick={onAbrir} style={btnGhost}>Cancelar</button>
+            <button
+              onClick={async () => { setGuardando(true); await onGuardar({ nombre: f.nombre.trim(), rol: f.rol, local: f.local }); setGuardando(false); }}
+              disabled={!cambiado || guardando || f.nombre.trim().length < 2}
+              style={{ ...btnAcc, opacity: cambiado && !guardando && f.nombre.trim().length >= 2 ? 1 : 0.4 }}
+            >
+              {guardando ? "GUARDANDO…" : "GUARDAR CAMBIOS"}
+            </button>
+          </div>
+          <div style={sx("font-size:11.5px;color:rgba(246,241,233,.45)")}>El email no se puede cambiar: si cambia, crea una cuenta nueva y elimina esta.</div>
+        </div>
+      )}
     </div>
   );
 }
