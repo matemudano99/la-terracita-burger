@@ -1231,10 +1231,19 @@ function Equipo({ user }) {
     return hecho;
   };
 
-  const cambiarPass = (u) => {
-    const password = window.prompt(`Nueva contraseña para ${u.nombre} (mínimo 8 caracteres):`);
-    if (!password) return;
-    llamar({ method: "PATCH", body: { id: u.id, password } }, `Contraseña de ${u.nombre} cambiada. Díselo por un canal privado.`);
+  // Cuenta a la que se le está poniendo contraseña (abre el formulario).
+  const [cambiandoPass, setCambiandoPass] = useState(null);
+  const cambiarPass = (u) => setCambiandoPass(u);
+  const guardarPass = async (u, password) => {
+    const propia = u.id === user.id;
+    const hecho = await llamar(
+      { method: "PATCH", body: { id: u.id, password } },
+      propia
+        ? "Tu contraseña está cambiada. La próxima vez que entres, usa la nueva."
+        : `Contraseña de ${u.nombre} cambiada. Díselo por un canal privado.`
+    );
+    if (hecho) setCambiandoPass(null);
+    return hecho;
   };
 
   const borrar = (u) => {
@@ -1312,6 +1321,94 @@ function Equipo({ user }) {
           · Cuando alguien deje de trabajar con vosotros, elimina su cuenta ese mismo día.<br />
           · Siempre tiene que quedar al menos un administrador.
         </div>
+      </div>
+
+      {cambiandoPass && (
+        <ModalPass
+          u={cambiandoPass}
+          propia={cambiandoPass.id === user.id}
+          unicoAdmin={cambiandoPass.rol === "admin" && nAdmins <= 1}
+          onCerrar={() => setCambiandoPass(null)}
+          onGuardar={(password) => guardarPass(cambiandoPass, password)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Poner una contraseña nueva. Se escribe DOS veces y sin autocorrección: con el
+// prompt() del navegador, una errata (o el móvil poniendo la primera letra en
+// mayúscula) dejaba la cuenta con una contraseña que nadie conocía.
+function ModalPass({ u, propia, unicoAdmin, onCerrar, onGuardar }) {
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [ver, setVer] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+
+  const problema =
+    p1.length > 0 && p1.length < 8 ? "Mínimo 8 caracteres."
+      : p1 !== p1.trim() ? "No puede empezar ni terminar con un espacio."
+      : p2.length > 0 && p1 !== p2 ? "Las dos contraseñas no coinciden."
+      : null;
+  const valida = p1.length >= 8 && p1 === p1.trim() && p1 === p2;
+
+  const campo = (valor, set, etiqueta, enfocar) => (
+    <div>
+      <span style={labelStyle}>{etiqueta}</span>
+      <input
+        type={ver ? "text" : "password"}
+        value={valor}
+        onChange={(e) => set(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && valida && !guardando) enviar(); }}
+        autoFocus={enfocar}
+        autoComplete="new-password"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        style={inputStyle}
+      />
+    </div>
+  );
+
+  const enviar = async () => {
+    setGuardando(true);
+    await onGuardar(p1);
+    setGuardando(false);
+  };
+
+  return (
+    <div onClick={onCerrar} style={sx("position:fixed;inset:0;z-index:60;background:rgba(6,4,3,.8);backdrop-filter:blur(4px);display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto")}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...card, width: "min(100%,440px)", marginTop: "8vh" }}>
+        <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px")}>
+          <span style={sx("font-family:'Anton',sans-serif;font-size:20px;text-transform:uppercase")}>{propia ? "Tu contraseña" : "Contraseña nueva"}</span>
+          <button onClick={onCerrar} style={btnGhost}>✕</button>
+        </div>
+        <p style={sx("margin:0 0 16px;font-size:13px;color:rgba(246,241,233,.6)")}>{u.nombre} · {u.email}</p>
+
+        {propia && unicoAdmin && (
+          <div style={sx("margin-bottom:14px;padding:11px 14px;border-radius:11px;border:1px solid rgb(255 176 46 / .5);background:rgb(255 176 46 / .08);font-size:12.5px;line-height:1.5;color:rgb(255,205,130)")}>
+            Eres el único administrador: si la olvidas, nadie puede ponerte otra desde el panel. Guárdala en un gestor de contraseñas antes de cerrar sesión.
+          </div>
+        )}
+
+        <form onSubmit={(e) => { e.preventDefault(); if (valida && !guardando) enviar(); }} style={sx("display:flex;flex-direction:column;gap:12px")}>
+          {/* El navegador asocia la contraseña a este usuario para ofrecer guardarla */}
+          <input type="text" name="username" value={u.email} readOnly autoComplete="username" hidden />
+          {campo(p1, setP1, "Nueva contraseña (mín. 8 caracteres)", true)}
+          {campo(p2, setP2, "Repítela")}
+          <label style={sx("display:flex;align-items:center;gap:8px;font-size:13px;color:rgba(246,241,233,.7);cursor:pointer")}>
+            <input type="checkbox" checked={ver} onChange={(e) => setVer(e.target.checked)} />
+            Mostrar lo que escribo
+          </label>
+          {problema && <div role="alert" style={sx("font-size:13px;color:rgb(255,140,110)")}>⚠️ {problema}</div>}
+          {valida && <div style={sx("font-size:13px;color:rgb(140,225,150)")}>✓ Coinciden</div>}
+          <div style={sx("display:flex;gap:10px;justify-content:flex-end;margin-top:4px")}>
+            <button type="button" onClick={onCerrar} style={btnGhost}>Cancelar</button>
+            <button type="submit" disabled={!valida || guardando} style={{ ...btnAcc, opacity: valida && !guardando ? 1 : 0.4 }}>
+              {guardando ? "GUARDANDO…" : "CAMBIAR CONTRASEÑA"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

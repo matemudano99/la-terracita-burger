@@ -57,6 +57,7 @@ export default async function handler(req, res) {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: "Escribe un email válido." });
       if (nombre.length < 2) return res.status(400).json({ error: "Escribe el nombre de la persona." });
       if (password.length < 8) return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
+      if (password !== password.trim()) return res.status(400).json({ error: "La contraseña no puede empezar ni terminar con un espacio." });
       if (local && !LOCALES[local]) return res.status(400).json({ error: "Local no válido." });
 
       const creado = await supaAdmin("admin/users", {
@@ -83,6 +84,7 @@ export default async function handler(req, res) {
       if (b.password != null && b.password !== "") {
         const password = String(b.password);
         if (password.length < 8) return res.status(400).json({ error: "La contraseña debe tener al menos 8 caracteres." });
+        if (password !== password.trim()) return res.status(400).json({ error: "La contraseña no puede empezar ni terminar con un espacio." });
         cambios.password = password;
       }
       if (b.nombre != null) {
