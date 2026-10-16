@@ -7,7 +7,7 @@
 import { requireUser } from "./_auth.js";
 import { getCarta, setCartaItem, getProductos, productosListos, storeReady } from "./_store.js";
 import { LOCALES } from "../src/locales.js";
-import { MENU, fusionarCarta } from "../src/menu.js";
+import { fusionarCarta } from "../src/menu.js";
 
 export default async function handler(req, res) {
   try {

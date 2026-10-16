@@ -40,9 +40,23 @@ La web tiene un sistema de pedidos propio, sin comisiones:
   en Supabase. Los precios se recalculan siempre en el servidor.
 
 **Acceso del equipo**: cuentas individuales con email y contraseña (Supabase
-Auth — contraseñas cifradas, tokens que caducan y se renuevan solos). Dos
-roles: **admin** (todo) y **empleado** (solo /cocina; opcionalmente limitado a
-un local). Nadie puede registrarse por su cuenta: el admin crea las cuentas.
+Auth — contraseñas cifradas, tokens que caducan y se renuevan solos). Tres
+roles:
+
+| | Admin | Gerencia | Empleado |
+|---|---|---|---|
+| Ventas, historial, CSV, banco | ✓ | ✓ ver | — |
+| Carta, precios, ofertas, productos | ✓ editar | ✓ solo ver | agotados, desde /cocina |
+| Ajustes (pausar un local) | ✓ | ✓ solo ver | desde /cocina |
+| Equipo (cuentas) | ✓ | — | — |
+| Panel de cocina | ✓ | — | ✓ (y solo su local, si tiene) |
+
+La **gerencia** es para dueños y administración: lo ve todo menos el equipo y
+no puede cambiar nada. Se impone en el servidor, no solo en pantalla: cada
+endpoint dice qué roles acepta y, si no lo dice, solo admin y empleado (lista
+en `ROLES_EQUIPO` de `api/_auth.js`). Nadie puede registrarse por su cuenta:
+el admin crea las cuentas. En desarrollo hay `gerencia`/`gerencia` para
+probarlo.
 
 La sesión vive en el navegador y **la comparten todas las pestañas** del
 aparato, así que cerrarla afecta a todas. Por eso `src/authClient.js` solo la

@@ -4,7 +4,11 @@
 // - Cada petición del panel llega con "Authorization: Bearer <jwt>" y se
 //   verifica contra Supabase (también detecta sesiones revocadas).
 // - El rol vive en app_metadata (solo modificable con la clave service_role,
-//   nunca por el propio usuario): { rol: "admin" | "empleado", local?: "..." }
+//   nunca por el propio usuario): { rol: "admin" | "gerencia" | "empleado", local?: "..." }
+//     · admin    → todo, incluida la gestión del equipo.
+//     · gerencia → ve ventas, historial, banco, carta y ajustes, pero no puede
+//                  cambiar nada (dueños, administración).
+//     · empleado → solo el panel de cocina (y, si tiene local, solo ese).
 // - En desarrollo sin Supabase: usuario "dev" / contraseña "dev" (rol admin).
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -12,12 +16,17 @@ const SUPA_URL = process.env.SUPABASE_URL;
 const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 export const authReady = Boolean(SUPA_URL && SUPA_KEY);
+
+// Roles que pueden entrar a algún panel. Cada endpoint dice cuáles acepta y,
+// si no lo dice, solo admin y empleado (la gerencia nunca escribe nada).
+export const ROLES_EQUIPO = ["admin", "gerencia", "empleado"];
 export const devAuth = !authReady && !process.env.VERCEL;
 
 // Cuentas de prueba SOLO en desarrollo local (sin Supabase, nunca en Vercel).
 export const DEV_USERS = {
   "dev-admin": { id: "dev-admin", email: "admin@dev", nombre: "Admin (dev)", rol: "admin", local: null },
   "dev-cocina": { id: "dev-cocina", email: "cocina@dev", nombre: "Cocina (dev)", rol: "empleado", local: null },
+  "dev-gerencia": { id: "dev-gerencia", email: "gerencia@dev", nombre: "Gerencia (dev)", rol: "gerencia", local: null },
 };
 
 export function toUser(u) {
@@ -48,7 +57,7 @@ export async function getUser(req) {
     });
     if (!res.ok) return null;
     const user = toUser(await res.json());
-    return user.rol === "admin" || user.rol === "empleado" ? user : null;
+    return ROLES_EQUIPO.includes(user.rol) ? user : null;
   } catch {
     return null;
   }

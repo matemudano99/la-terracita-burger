@@ -262,7 +262,7 @@ async function consultar(req, res) {
 
   // Historial para administración (rango de fechas, filtro por local)
   if (q.historial) {
-    const user = await requireUser(req, res, ["admin"]);
+    const user = await requireUser(req, res, ["admin", "gerencia"]);
     if (!user) return;
     const hasta = q.hasta ? new Date(q.hasta) : new Date();
     const desde = q.desde ? new Date(q.desde) : new Date(Date.now() - 7 * 24 * 3600 * 1000);

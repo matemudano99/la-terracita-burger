@@ -86,7 +86,7 @@ export default function AdminPage() {
   if (!sesion) {
     return <LoginBox titulo="Administración" subtitulo="Acceso solo para administración." onOk={setSesion} />;
   }
-  if (sesion.user?.rol !== "admin") {
+  if (sesion.user?.rol !== "admin" && sesion.user?.rol !== "gerencia") {
     return (
       <div style={sx("min-height:100vh;display:grid;place-items:center;padding:24px;text-align:center")}>
         <div>
@@ -136,12 +136,15 @@ function Panel({ user, salir }) {
 
   useEffect(() => { setOrders(null); cargar(); }, [cargar]);
 
+  // La gerencia lo ve todo menos el equipo, y no puede cambiar nada: el
+  // servidor lo rechazaría igual, aquí solo se le ahorran botones inútiles.
+  const soloLectura = user.rol !== "admin";
   const TABS = [
     { id: "resumen", label: "📊 Resumen" },
     { id: "historial", label: "📋 Historial" },
     { id: "carta", label: "🍔 Carta" },
     { id: "banco", label: "🏦 Banco" },
-    { id: "equipo", label: "👥 Equipo" },
+    ...(soloLectura ? [] : [{ id: "equipo", label: "👥 Equipo" }]),
     { id: "ajustes", label: "⚙️ Ajustes" },
   ];
   const conFiltros = tab === "resumen" || tab === "historial";
@@ -161,11 +164,11 @@ function Panel({ user, salir }) {
           <LtbMark size={22} style={{ color: "#f6f1e9" }} />
           <div>
             <div style={sx("font-family:'Anton',sans-serif;font-size:16px;letter-spacing:.06em;line-height:1")}>ADMINISTRACIÓN</div>
-            <div style={sx("font-size:11px;color:rgba(246,241,233,.5)")}>{user.nombre}</div>
+            <div style={sx("font-size:11px;color:rgba(246,241,233,.5)")}>{user.nombre}{soloLectura ? " · gerencia (solo consulta)" : ""}</div>
           </div>
         </div>
         <div style={sx("display:flex;align-items:center;gap:10px")}>
-          <a href="/cocina" style={btnGhost}>🍳 Cocina</a>
+          {!soloLectura && <a href="/cocina" style={btnGhost}>🍳 Cocina</a>}
           <button onClick={salir} style={btnGhost}>Salir</button>
         </div>
       </header>
@@ -222,10 +225,10 @@ function Panel({ user, salir }) {
 
         {tab === "resumen" && <Resumen orders={orders} localF={localF} />}
         {tab === "historial" && <Historial orders={orders} />}
-        {tab === "carta" && <Carta />}
+        {tab === "carta" && <Carta soloLectura={soloLectura} />}
         {tab === "banco" && <Banco />}
-        {tab === "equipo" && <Equipo user={user} />}
-        {tab === "ajustes" && <Ajustes />}
+        {tab === "equipo" && !soloLectura && <Equipo user={user} />}
+        {tab === "ajustes" && <Ajustes soloLectura={soloLectura} />}
       </main>
     </div>
   );
@@ -538,7 +541,7 @@ const GRUPOS_SUELTOS = [
   { id: "upgrades", label: "Acompañamientos", lista: UPGRADES, prefijo: ID_UPGRADE },
 ];
 
-function Carta() {
+function Carta({ soloLectura = false }) {
   const [precios, setPrecios] = useState(null);
   const [productos, setProductos] = useState([]);
   const [cartaLocal, setCartaLocal] = useState({});
@@ -638,7 +641,7 @@ function Carta() {
             {g.label}
           </button>
         ))}
-        {categoria && (
+        {categoria && !soloLectura && (
           <button onClick={() => setEditando({ nuevo: true, categoria: categoria.id })} style={{ ...btnAcc, marginLeft: "auto" }}>+ Nuevo producto</button>
         )}
       </div>
@@ -646,6 +649,7 @@ function Carta() {
       {categoria && categoria.items.map((item) => (
         <ProductoCard
           key={item.id}
+          soloLectura={soloLectura}
           item={item}
           precios={precios}
           cartaLocal={cartaLocal}
@@ -662,14 +666,18 @@ function Carta() {
           {sueltos.lista.map((x) => (
             <div key={x.id} style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:11px 20px;border-top:1px solid rgba(246,241,233,.09)")}>
               <span style={sx("flex:1;min-width:min(100%,180px);font-size:14px")}>{x.label}</span>
-              <PrecioInput
-                itemId={sueltos.prefijo(x.id)}
-                variantId="u"
-                base={x.cents}
-                precios={precios}
-                nombre={x.label}
-                onGuardar={guardarPrecio}
-              />
+              {soloLectura ? (
+                <PrecioFijo cents={precioDe(precios, sueltos.prefijo(x.id), "u", x.cents)} base={x.cents} />
+              ) : (
+                <PrecioInput
+                  itemId={sueltos.prefijo(x.id)}
+                  variantId="u"
+                  base={x.cents}
+                  precios={precios}
+                  nombre={x.label}
+                  onGuardar={guardarPrecio}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -682,7 +690,7 @@ function Carta() {
             {ocultos.map((p) => (
               <div key={p.id} style={sx("display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13.5px")}>
                 <span style={sx("color:rgba(246,241,233,.7)")}>{p.nombre}</span>
-                <button onClick={() => recuperar(p)} style={btnGhost}>Recuperar</button>
+                {!soloLectura && <button onClick={() => recuperar(p)} style={btnGhost}>Recuperar</button>}
               </div>
             ))}
           </div>
@@ -690,7 +698,9 @@ function Carta() {
       )}
 
       <p style={sx("margin:0;font-size:12px;line-height:1.6;color:rgba(246,241,233,.45)")}>
-        Todo lo que cambies aquí se ve al instante en la web y es lo que cobra el servidor. Los productos de la carta base no se borran: se ocultan, y se recuperan desde arriba.
+        {soloLectura
+          ? "Modo consulta: ves los precios, ofertas y agotados vigentes, pero los cambios los hace un administrador."
+          : "Todo lo que cambies aquí se ve al instante en la web y es lo que cobra el servidor. Los productos de la carta base no se borran: se ocultan, y se recuperan desde arriba."}
       </p>
 
       {editando && (
@@ -713,7 +723,17 @@ function Carta() {
 }
 
 // Tarjeta de un producto: precios por variante, disponibilidad y oferta.
-function ProductoCard({ item, precios, cartaLocal, onPrecio, onLocal, onEditar, onQuitar }) {
+// Precio en modo consulta: el vigente, y el de la carta si se cambió.
+function PrecioFijo({ cents, base }) {
+  return (
+    <span style={sx("display:inline-flex;align-items:baseline;gap:8px;font-variant-numeric:tabular-nums")}>
+      {cents !== base && <span style={sx("font-size:11px;color:rgb(var(--emb))")}>antes {aEuros(base)} €</span>}
+      <strong style={sx("font-size:14px")}>{aEuros(cents)} €</strong>
+    </span>
+  );
+}
+
+function ProductoCard({ item, precios, cartaLocal, onPrecio, onLocal, onEditar, onQuitar, soloLectura = false }) {
   return (
     <div style={card}>
       <div style={sx("display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;margin-bottom:10px")}>
@@ -723,16 +743,20 @@ function ProductoCard({ item, precios, cartaLocal, onPrecio, onLocal, onEditar, 
           {item.nuevo && <span style={sx("font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:100px;border:1px solid rgb(120 220 130 / .5);color:rgb(120,220,130);margin-left:9px")}>creado aquí</span>}
           {item.desc && <div style={sx("font-size:12.5px;line-height:1.5;color:rgba(246,241,233,.55);margin-top:4px")}>{item.desc}</div>}
         </div>
-        <div style={sx("display:flex;gap:8px")}>
-          <button onClick={onEditar} style={{ ...btnGhost, padding: "8px 14px" }}>✎ Editar</button>
-          <button onClick={onQuitar} style={{ ...btnGhost, padding: "8px 14px", color: "rgb(255,140,110)", borderColor: "rgba(255,92,40,.4)" }}>Quitar</button>
-        </div>
+        {!soloLectura && (
+          <div style={sx("display:flex;gap:8px")}>
+            <button onClick={onEditar} style={{ ...btnGhost, padding: "8px 14px" }}>✎ Editar</button>
+            <button onClick={onQuitar} style={{ ...btnGhost, padding: "8px 14px", color: "rgb(255,140,110)", borderColor: "rgba(255,92,40,.4)" }}>Quitar</button>
+          </div>
+        )}
       </div>
 
       {(item.variants || []).map((v) => (
         <div key={v.id} style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(246,241,233,.08)")}>
           <span style={sx("flex:1;min-width:120px;font-size:13.5px;color:rgba(246,241,233,.8)")}>{v.label || "Precio"}</span>
-          <PrecioInput itemId={item.id} variantId={v.id} base={v.cents} precios={precios} nombre={item.name} onGuardar={onPrecio} />
+          {soloLectura
+            ? <PrecioFijo cents={precioDe(precios, item.id, v.id, v.cents)} base={v.cents} />
+            : <PrecioInput itemId={item.id} variantId={v.id} base={v.cents} precios={precios} nombre={item.name} onGuardar={onPrecio} />}
         </div>
       ))}
 
@@ -745,14 +769,14 @@ function ProductoCard({ item, precios, cartaLocal, onPrecio, onLocal, onEditar, 
               <span style={{ ...sx("font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em"), color: `rgb(${LOCALES[id].rgb})` }}>{LOCALES[id].name.split(" ")[0]}</span>
               <button
                 onClick={() => onLocal(id, item.id, { agotado: !agotado })}
-                style={sx(`font-size:11.5px;font-weight:700;padding:7px 12px;border-radius:100px;cursor:pointer;border:1px solid ${agotado ? "rgba(255,92,40,.55)" : "rgba(246,241,233,.16)"};background:${agotado ? "rgba(255,92,40,.12)" : "transparent"};color:${agotado ? "rgb(255,140,110)" : "rgba(246,241,233,.55)"}`)}
+                disabled={soloLectura}
+                style={sx(`font-size:11.5px;font-weight:700;padding:7px 12px;border-radius:100px;cursor:${soloLectura ? "default" : "pointer"};border:1px solid ${agotado ? "rgba(255,92,40,.55)" : "rgba(246,241,233,.16)"};background:${agotado ? "rgba(255,92,40,.12)" : "transparent"};color:${agotado ? "rgb(255,140,110)" : "rgba(246,241,233,.55)"}`)}
               >
                 {agotado ? "✕ Agotado" : "✓ Disponible"}
               </button>
-              <DescuentoInput
-                valor={estado.descuento || 0}
-                onGuardar={(descuento) => onLocal(id, item.id, { descuento })}
-              />
+              {soloLectura
+                ? estado.descuento ? <span style={sx("font-size:12.5px;font-weight:700;color:rgb(var(--emb))")}>oferta −{estado.descuento} %</span> : null
+                : <DescuentoInput valor={estado.descuento || 0} onGuardar={(descuento) => onLocal(id, item.id, { descuento })} />}
             </div>
           );
         })}
@@ -1080,8 +1104,9 @@ function Banco() {
 // pueden poner nuevas.
 
 const ROL_INFO = {
-  admin: { label: "Admin", tono: "255 197 49", texto: "Todo /admin (ventas, banco, carta, equipo, ajustes) y /cocina." },
-  empleado: { label: "Empleado", tono: "120 220 130", texto: "Solo /cocina. Con local asignado, solo ve ese local." },
+  admin: { label: "Admin", tono: "255 197 49", acceso: "/admin y /cocina, todo", texto: "Todo, incluida la gestión del equipo. Solo para quien mantiene la web." },
+  gerencia: { label: "Gerencia", tono: "150 190 255", acceso: "/admin, solo consulta", texto: "Ve ventas, historial, banco, carta y ajustes. No puede cambiar nada ni ver el equipo." },
+  empleado: { label: "Empleado", tono: "120 220 130", acceso: "/cocina", texto: "Solo el panel de cocina. Con local asignado, solo ve ese local." },
 };
 
 // "hace 3 días", "hoy a las 21:28", "nunca"
@@ -1115,7 +1140,7 @@ function RolYLocal({ rol, local, onChange, bloqueado }) {
     <>
       <div>
         <span style={labelStyle}>Rol</span>
-        <div style={sx("display:grid;grid-template-columns:1fr 1fr;gap:8px")}>
+        <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px")}>
           {Object.entries(ROL_INFO).map(([id, info]) => {
             const activo = rol === id;
             return (
@@ -1123,7 +1148,7 @@ function RolYLocal({ rol, local, onChange, bloqueado }) {
                 key={id}
                 type="button"
                 disabled={bloqueado}
-                onClick={() => onChange({ rol: id, local: id === "admin" ? "" : local })}
+                onClick={() => onChange({ rol: id, local: id === "empleado" ? local : "" })}
                 style={{ ...sx("text-align:left;padding:10px 12px;border-radius:12px;cursor:pointer;font-family:inherit;color:#f6f1e9"), opacity: bloqueado && !activo ? 0.4 : 1, cursor: bloqueado ? "not-allowed" : "pointer", border: `1px solid ${activo ? `rgb(${info.tono})` : "rgba(246,241,233,.16)"}`, background: activo ? `rgb(${info.tono} / .12)` : "transparent" }}
               >
                 <div style={{ ...sx("font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase"), color: activo ? `rgb(${info.tono})` : "#f6f1e9" }}>{info.label}</div>
@@ -1220,10 +1245,13 @@ function Equipo({ user }) {
   if (usuarios === null) return <Cargando />;
 
   const nAdmins = usuarios.filter((u) => u.rol === "admin").length;
+  const nGerencia = usuarios.filter((u) => u.rol === "gerencia").length;
+  const nEmpleados = usuarios.filter((u) => u.rol === "empleado").length;
   const resumen = [
     { n: usuarios.length, t: usuarios.length === 1 ? "cuenta" : "cuentas" },
     { n: nAdmins, t: nAdmins === 1 ? "admin" : "admins" },
-    { n: usuarios.length - nAdmins, t: usuarios.length - nAdmins === 1 ? "empleado" : "empleados" },
+    ...(nGerencia ? [{ n: nGerencia, t: "gerencia" }] : []),
+    { n: nEmpleados, t: nEmpleados === 1 ? "empleado" : "empleados" },
   ];
   const sinCocina = Object.values(LOCALES).filter((l) => !usuarios.some((u) => u.rol === "empleado" && (u.local === l.id || !u.local)));
   const puedeCrear = form.email && form.nombre.trim().length >= 2 && form.password.length >= 8 && !creando;
@@ -1279,6 +1307,7 @@ function Equipo({ user }) {
         <div style={sx("margin-top:18px;padding-top:14px;border-top:1px dashed rgba(246,241,233,.14);font-size:11.5px;line-height:1.6;color:rgba(246,241,233,.5)")}>
           <div style={sx("font-weight:700;color:rgba(246,241,233,.7);margin-bottom:4px")}>Bueno saber</div>
           · Entran en <b>/cocina</b> o <b>/admin</b> con su email y contraseña.<br />
+          · Para dueños y administración, usa <b>Gerencia</b>: lo ven todo sin poder romper nada.<br />
           · Las contraseñas no se pueden ver ni recuperar: si alguien la olvida, ponle una nueva con 🔑.<br />
           · Cuando alguien deje de trabajar con vosotros, elimina su cuenta ese mismo día.<br />
           · Siempre tiene que quedar al menos un administrador.
@@ -1324,7 +1353,7 @@ function FichaCuenta({ u, esYo, abierta, onAbrir, onGuardar, onPass, onBorrar, u
       </div>
 
       <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px 16px;padding:0 15px 13px 67px")}>
-        {dato("Acceso", ROL_INFO[u.rol]?.texto ? (u.rol === "admin" ? "/admin y /cocina" : "/cocina") : "—")}
+        {dato("Acceso", ROL_INFO[u.rol]?.acceso || "—")}
         {dato("Último acceso", cuando(u.ultimoAcceso))}
         {dato("Cuenta creada", fechaCuenta(u.creada))}
       </div>
@@ -1351,7 +1380,7 @@ function FichaCuenta({ u, esYo, abierta, onAbrir, onGuardar, onPass, onBorrar, u
 }
 
 // ── Ajustes ──────────────────────────────────────────────────────────────────
-function Ajustes() {
+function Ajustes({ soloLectura = false }) {
   const [ajustes, setAjustes] = useState(null);
   const [error, setError] = useState(null);
   const [guardando, setGuardando] = useState(null);
@@ -1387,7 +1416,7 @@ function Ajustes() {
       {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>⚠️ {error}</div>}
       <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px")}>
         {Object.values(LOCALES).map((o) => (
-          <AjusteLocal key={o.id} loc={o} ajuste={ajustes[o.id] || { pausado: false, motivo: "" }} guardando={guardando === o.id} onSave={guardar} />
+          <AjusteLocal key={o.id} loc={o} ajuste={ajustes[o.id] || { pausado: false, motivo: "" }} guardando={guardando === o.id} onSave={guardar} soloLectura={soloLectura} />
         ))}
       </div>
       <p style={sx("margin:0;font-size:12.5px;line-height:1.6;color:rgba(246,241,233,.5)")}>
@@ -1399,7 +1428,7 @@ function Ajustes() {
   );
 }
 
-function AjusteLocal({ loc, ajuste, guardando, onSave }) {
+function AjusteLocal({ loc, ajuste, guardando, onSave, soloLectura = false }) {
   const [pausado, setPausado] = useState(ajuste.pausado);
   const [motivo, setMotivo] = useState(ajuste.motivo || "");
   const cambio = pausado !== ajuste.pausado || motivo !== (ajuste.motivo || "");
@@ -1417,6 +1446,12 @@ function AjusteLocal({ loc, ajuste, guardando, onSave }) {
         <p style={sx("margin:-6px 0 12px;font-size:12.5px;color:rgba(246,241,233,.55)")}>Cerrado desde las {horaDe(ajuste.desde)}.</p>
       )}
 
+      {soloLectura ? (
+        <p style={sx("margin:0;font-size:13px;line-height:1.5;color:rgba(246,241,233,.6)")}>
+          {ajuste.pausado ? (ajuste.motivo ? `Motivo que ve el cliente: «${ajuste.motivo}»` : "Pausado sin motivo.") : "La web acepta pedidos online de este local."}
+        </p>
+      ) : (
+      <>
       <label style={sx("display:flex;align-items:center;gap:10px;font-size:14.5px;cursor:pointer;margin-bottom:12px")}>
         <input type="checkbox" checked={pausado} onChange={(e) => setPausado(e.target.checked)} style={sx("width:18px;height:18px;accent-color:rgb(255,100,80)")} />
         Pausar pedidos online en este local
@@ -1432,6 +1467,8 @@ function AjusteLocal({ loc, ajuste, guardando, onSave }) {
       <button onClick={() => onSave(loc.id, pausado, motivo)} disabled={!cambio || guardando} style={{ ...btnAcc, opacity: !cambio || guardando ? 0.45 : 1 }}>
         {guardando ? "GUARDANDO…" : "GUARDAR"}
       </button>
+      </>
+      )}
     </div>
   );
 }

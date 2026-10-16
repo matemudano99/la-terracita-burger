@@ -356,6 +356,22 @@ export default function CocinaPage() {
     );
   }
 
+  if (sesion.user?.rol === "gerencia") {
+    return (
+      <div style={sx("min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center")}>
+        <div style={sx("width:min(420px,100%);border:1px solid rgba(246,241,233,.14);border-radius:20px;background:#0d0a07;padding:32px")}>
+          <LtbMark size={30} style={{ color: "#f6f1e9" }} />
+          <p style={sx("margin:14px 0 6px;font-size:15px;color:rgba(246,241,233,.8)")}>Tu cuenta es de gerencia.</p>
+          <p style={sx("margin:0 0 20px;font-size:13.5px;line-height:1.5;color:rgba(246,241,233,.55)")}>El panel de cocina es para el equipo del local. Las ventas, el historial y el banco los tienes en administración.</p>
+          <div style={sx("display:flex;gap:10px;justify-content:center;flex-wrap:wrap")}>
+            <a href="/admin" style={{ ...btn(`rgb(${LOCALES.rincon.rgb})`), textDecoration: "none" }}>Ir a administración</a>
+            <button onClick={salir} style={btn("transparent", "rgba(246,241,233,.7)")}>Salir</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!L) {
     return (
       <div style={sx("min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px")}>

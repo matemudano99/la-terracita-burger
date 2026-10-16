@@ -27,8 +27,11 @@ function editables(menu = MENU) {
 
 export default async function handler(req, res) {
   try {
-    const user = await requireUser(req, res, ["admin"]);
+    const user = await requireUser(req, res, ["admin", "gerencia"]);
     if (!user) return;
+    if (req.method !== "GET" && user.rol !== "admin") {
+      return res.status(403).json({ error: "Tu cuenta solo puede consultar: los cambios los hace un administrador." });
+    }
     if (!storeReady) return res.status(503).json({ error: "Falta configurar Supabase." });
 
     const listo = await preciosListos();

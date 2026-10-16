@@ -14,7 +14,7 @@
 import { requireUser, supaAdmin, toUser, devAuth } from "./_auth.js";
 import { LOCALES } from "../src/locales.js";
 
-const ROLES = ["admin", "empleado"];
+const ROLES = ["admin", "gerencia", "empleado"];
 
 // Lo que el panel necesita de cada cuenta, además de lo de toUser().
 const ficha = (u) => ({

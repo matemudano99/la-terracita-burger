@@ -5,7 +5,7 @@
 // Delega en Supabase Auth (bcrypt + limitación de intentos incluidos).
 // En desarrollo sin Supabase: dev / dev (rol admin).
 // ─────────────────────────────────────────────────────────────────────────────
-import { authReady, devAuth, toUser, DEV_USERS } from "./_auth.js";
+import { authReady, devAuth, toUser, DEV_USERS, ROLES_EQUIPO } from "./_auth.js";
 
 const SUPA_URL = process.env.SUPABASE_URL;
 const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -24,10 +24,11 @@ export default async function handler(req, res) {
       if (b.action === "refresh") token = DEV_USERS[b.refresh] ? b.refresh : null;
       else if ((b.usuario === "admin" || b.usuario === "dev") && b.password === b.usuario) token = "dev-admin";
       else if (b.usuario === "cocina" && b.password === "cocina") token = "dev-cocina";
+      else if (b.usuario === "gerencia" && b.password === "gerencia") token = "dev-gerencia";
       if (token) {
         return res.status(200).json({ token, refresh: token, user: DEV_USERS[token] });
       }
-      return res.status(401).json({ error: "Usuario o contraseña incorrectos. (En desarrollo: admin/admin o cocina/cocina)" });
+      return res.status(401).json({ error: "Usuario o contraseña incorrectos. (En desarrollo: admin/admin, gerencia/gerencia o cocina/cocina)" });
     }
     if (!authReady) {
       return res.status(503).json({ error: "El acceso del equipo no está configurado todavía (falta Supabase)." });
@@ -72,7 +73,7 @@ export default async function handler(req, res) {
     }
 
     const user = toUser(data.user || {});
-    if (user.rol !== "admin" && user.rol !== "empleado") {
+    if (!ROLES_EQUIPO.includes(user.rol)) {
       return res.status(403).json({ error: "Esta cuenta no tiene acceso al panel. Habla con el administrador." });
     }
     return res.status(200).json({ token: data.access_token, refresh: data.refresh_token, user });
