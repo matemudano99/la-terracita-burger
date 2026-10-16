@@ -978,9 +978,36 @@ const METODO_LIQ = { card: "Tarjeta", bizum: "Bizum" };
 // Importe con signo explícito, para que las columnas se lean como una suma.
 const conSigno = (c) => (c ? `${c < 0 ? "−" : "+"} ${fmtEUR(Math.abs(c))}` : "—");
 
+// Periodos del filtro, por fecha de liquidación. null = sin límite.
+const FILTROS_BANCO = [
+  { id: "total", label: "Total" },
+  { id: "mes", label: "Este mes" },
+  { id: "mesAnterior", label: "Mes anterior" },
+  { id: "3meses", label: "Últimos 3 meses" },
+  { id: "anio", label: "Este año" },
+  { id: "fechas", label: "Fechas" },
+];
+
+function rangoBanco(id, fechas) {
+  const hoy = new Date();
+  const inicioMes = (desplazamiento) => new Date(hoy.getFullYear(), hoy.getMonth() + desplazamiento, 1).getTime();
+  if (id === "mes") return { desde: inicioMes(0), hasta: inicioMes(1) };
+  if (id === "mesAnterior") return { desde: inicioMes(-1), hasta: inicioMes(0) };
+  if (id === "3meses") return { desde: inicioMes(-2), hasta: inicioMes(1) };
+  if (id === "anio") return { desde: new Date(hoy.getFullYear(), 0, 1).getTime(), hasta: new Date(hoy.getFullYear() + 1, 0, 1).getTime() };
+  if (id === "fechas") {
+    const desde = new Date(`${fechas.desde}T00:00:00`).getTime();
+    const hasta = new Date(`${fechas.hasta}T00:00:00`).getTime() + DIA;
+    return Number.isFinite(desde) && Number.isFinite(hasta) ? { desde, hasta } : null;
+  }
+  return null;
+}
+
 function Banco() {
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState(null);
+  const [filtro, setFiltro] = useState("total");
+  const [fechas, setFechas] = useState(() => ({ desde: isoDia(new Date(Date.now() - 30 * DIA)), hasta: isoDia(new Date()) }));
 
   const cargar = useCallback(async () => {
     setError(null);
@@ -998,30 +1025,45 @@ function Banco() {
 
   if (datos === null) return <Cargando />;
 
-  const liq = datos.settlements || [];
-  const facturas = datos.invoices || [];
-  const cerradas = liq.filter((s) => s.status === "COMPLETED");
-  const abiertas = liq.filter((s) => s.status === "PENDING" || s.status === "SUSPENDED");
+  const todas = datos.settlements || [];
+  const todasFacturas = datos.invoices || [];
+  const esCerrada = (s) => s.status === "COMPLETED";
+  const esAbierta = (s) => s.status === "PENDING" || s.status === "SUSPENDED";
   const suma = (lista, campo) => lista.reduce((a, s) => a + (s[campo] || 0), 0);
 
-  // Liquidaciones cerradas: lo que ya ha pasado por el banco.
+  // Lo que depende del periodo elegido: liquidaciones por su fecha de pago y
+  // facturas por su fecha de emisión (las dos en segundos).
+  const rango = rangoBanco(filtro, fechas);
+  const dentro = (seg) => !rango || (seg * 1000 >= rango.desde && seg * 1000 < rango.hasta);
+  const liq = todas.filter((s) => dentro(s.scheduledAt));
+  const facturas = todasFacturas.filter((f) => dentro(f.createdAt));
+  const cerradas = liq.filter(esCerrada);
+
   const bruto = suma(cerradas, "grossVolume");
   const comisiones = suma(cerradas, "acquirerFees");
   const retenido = suma(cerradas, "reservedAmount");
   const liberado = suma(cerradas, "releasedAmount");
   const transferido = suma(cerradas, "netVolume");
-  // Reserva que sigue en MONEI: la retenida menos la ya liberada. Coincide con
-  // la que traen las liquidaciones abiertas.
-  const enReserva = -(retenido + liberado);
-  const reservaPorMetodo = abiertas.filter((s) => s.reservedAmount > 0);
-  const brutoAbierto = suma(abiertas, "grossVolume");
   const facturado = facturas.reduce((a, f) => a + (f.totalAmount || 0), 0);
 
-  // Comprobación contra los pedidos de la web.
+  // Lo que es de hoy, sea cual sea el periodo: la reserva que sigue en MONEI
+  // (retenida menos liberada en todas las cerradas, igual a la que traen las
+  // abiertas) y la comprobación con la web, que solo cuadra sobre el total.
+  const cerradasTodas = todas.filter(esCerrada);
+  const abiertasTodas = todas.filter(esAbierta);
+  const enReserva = -(suma(cerradasTodas, "reservedAmount") + suma(cerradasTodas, "releasedAmount"));
+  const reservaPorMetodo = abiertasTodas.filter((s) => s.reservedAmount > 0);
+  const brutoAbierto = suma(abiertasTodas, "grossVolume");
   const web = datos.web;
   const webNeto = web ? web.cobrado - web.devuelto : null;
-  const brutoMonei = bruto + brutoAbierto;
+  const brutoMonei = suma(cerradasTodas, "grossVolume") + brutoAbierto;
   const diferencia = webNeto == null ? null : webNeto - brutoMonei;
+
+  const fmtRango = (r) => {
+    if (!r) return "";
+    const f = (ms) => new Date(ms).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
+    return `${f(r.desde)} – ${f(r.hasta - DIA)}`;
+  };
 
   const titulo = (t) => <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:10px")}>{t}</div>;
   const fila = (etiqueta, valor, opts = {}) => (
@@ -1047,12 +1089,31 @@ function Banco() {
         </div>
       )}
 
-      {liq.length > 0 && (
+      {todas.length > 0 && (
+        <div style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:8px")}>
+          {FILTROS_BANCO.map((f) => (
+            <button key={f.id} onClick={() => setFiltro(f.id)} style={sx(`font-size:13px;font-weight:600;padding:9px 16px;border-radius:100px;cursor:pointer;border:1px solid ${filtro === f.id ? "rgb(var(--acc))" : "rgba(246,241,233,.16)"};background:${filtro === f.id ? "rgb(var(--acc) / .14)" : "transparent"};color:${filtro === f.id ? "rgb(var(--acc))" : "rgba(246,241,233,.75)"}`)}>
+              {f.label}
+            </button>
+          ))}
+          {filtro === "fechas" && (
+            <span style={sx("display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px;margin-left:4px")}>
+              <input type="date" value={fechas.desde} max={fechas.hasta} onChange={(e) => setFechas((v) => ({ ...v, desde: e.target.value }))} style={{ ...inputStyle, width: "auto", padding: "8px 11px", colorScheme: "dark" }} />
+              <span style={sx("font-size:13px;color:rgba(246,241,233,.5)")}>a</span>
+              <input type="date" value={fechas.hasta} min={fechas.desde} onChange={(e) => setFechas((v) => ({ ...v, hasta: e.target.value }))} style={{ ...inputStyle, width: "auto", padding: "8px 11px", colorScheme: "dark" }} />
+            </span>
+          )}
+          {rango && <span style={sx("font-size:12.5px;color:rgba(246,241,233,.5);margin-left:4px")}>{fmtRango(rango)}</span>}
+        </div>
+      )}
+
+      {todas.length > 0 && (
         <div style={sx("display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start")}>
           {/* De lo cobrado al banco */}
           <div style={{ ...card, flex: "1 1 340px" }}>
             {titulo("De MONEI al banco")}
-            {fila("Bruto liquidado", fmtEUR(bruto), { nota: `${cerradas.length} liquidaciones` })}
+            {cerradas.length === 0 && <p style={sx("margin:0 0 6px;font-size:12.5px;color:rgba(246,241,233,.5)")}>Ninguna liquidación transferida en este periodo.</p>}
+            {fila("Bruto liquidado", fmtEUR(bruto), { nota: `${cerradas.length} ${cerradas.length === 1 ? "liquidación" : "liquidaciones"}` })}
             {fila("Comisiones descontadas", conSigno(comisiones), { color: "rgb(255,140,110)" })}
             {fila("Reserva retenida", conSigno(retenido), { color: "rgb(255,140,110)" })}
             {fila("Reserva liberada", conSigno(liberado), { color: "rgb(140,225,150)" })}
@@ -1067,7 +1128,7 @@ function Banco() {
             {reservaPorMetodo.map((s) => fila(METODO_LIQ[s.payMethod] || s.payMethod, fmtEUR(s.reservedAmount), { nota: `se libera al cerrar la liquidación del ${fechaCorta(s.scheduledAt)}` }))}
             {brutoAbierto > 0 && fila("Cobros aún sin liquidar", fmtEUR(brutoAbierto))}
 
-            <div style={sx("margin-top:16px")}>{titulo("Comprobación")}</div>
+            <div style={sx("margin-top:16px")}>{titulo("Comprobación (total)")}</div>
             {web ? (
               <>
                 {fila("Cobrado en la web", fmtEUR(webNeto), { nota: `${web.cobros} cobros, sin ${fmtEUR(web.devuelto)} devueltos` })}
@@ -1081,7 +1142,7 @@ function Banco() {
         </div>
       )}
 
-      {liq.length > 0 && (
+      {todas.length > 0 && (
         <div style={{ ...card, padding: 0, overflow: "hidden" }}>
           <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 20px 10px")}>
             <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Liquidaciones</div>
@@ -1101,6 +1162,9 @@ function Banco() {
                 </tr>
               </thead>
               <tbody>
+                {liq.length === 0 && (
+                  <tr><td colSpan={7} style={sx("padding:16px 20px;font-size:13px;color:rgba(246,241,233,.5)")}>No hay liquidaciones en este periodo.</td></tr>
+                )}
                 {liq.map((s) => {
                   const e = ESTADO_LIQ[s.status] || { label: s.status, color: "150 160 150" };
                   const abierta = s.status !== "COMPLETED";
