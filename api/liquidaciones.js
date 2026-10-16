@@ -7,6 +7,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { requireUser } from "./_auth.js";
 import { moneiReady, liquidaciones } from "./_monei.js";
+import { totalesCobrados, storeReady } from "./_store.js";
 
 export default async function handler(req, res) {
   if (req.method !== "GET") {
@@ -22,8 +23,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ ready: false, settlements: [], invoices: [] });
   }
   try {
-    const { settlements, invoices } = await liquidaciones();
-    return res.status(200).json({ ready: true, settlements, invoices });
+    const [{ settlements, invoices }, web] = await Promise.all([
+      liquidaciones(),
+      storeReady ? totalesCobrados().catch(() => null) : null,
+    ]);
+    return res.status(200).json({ ready: true, settlements, invoices, web });
   } catch (err) {
     console.error("[api/liquidaciones]", err);
     return res.status(502).json({ error: "No hemos podido consultar las liquidaciones de MONEI. Inténtalo en un momento." });

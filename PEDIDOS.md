@@ -276,10 +276,11 @@ expone pagos, pero su **API GraphQL** (`https://graphql.monei.com`, misma clave
 Lo consulta `/api/liquidaciones` **desde el servidor** — la clave nunca llega
 al navegador — y solo para el rol admin.
 
-Por cada liquidación se ve **bruto → comisiones de adquirencia → reserva →
-neto transferido**, y arriba tres cifras: lo ya recibido en el banco, lo
-retenido ahora mismo y las comisiones totales (las descontadas de las
-liquidaciones más las facturadas aparte por recibo domiciliado).
+Por cada liquidación: **neto = bruto − comisiones − retenido + liberado**,
+que es la cuenta de MONEI y lo que llega al banco. Arriba, el total de lo
+transferido, las comisiones facturadas aparte por recibo, la reserva que
+sigue retenida (por método de pago) y una comprobación: lo cobrado en la web,
+descontadas las devoluciones, contra el volumen bruto de MONEI.
 
 Dos cosas que conviene saber, confirmadas por el soporte de MONEI:
 

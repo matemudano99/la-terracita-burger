@@ -37,7 +37,7 @@ const RANGOS = [
   { id: "30d", label: "30 días" },
   { id: "90d", label: "90 días" },
   { id: "365d", label: "1 año" },
-  { id: "fechas", label: "📅 Fechas" },
+  { id: "fechas", label: "Fechas" },
 ];
 
 const DIAS_RANGO = { "7d": 7, "30d": 30, "90d": 90, "365d": 365 };
@@ -106,7 +106,7 @@ export default function AdminPage() {
 function Panel({ user, salir }) {
   const [tab, setTab] = useState("resumen");
   const [rango, setRango] = useState("hoy");
-  // Rango a medida (pestaña 📅 Fechas): arranca en el último mes.
+  // Rango a medida (botón Fechas): arranca en el último mes.
   const [fechas, setFechas] = useState(() => ({ desde: isoDia(new Date(Date.now() - 30 * DIA)), hasta: isoDia(new Date()) }));
   const [localF, setLocalF] = useState("");
   const [orders, setOrders] = useState(null);
@@ -140,12 +140,12 @@ function Panel({ user, salir }) {
   // servidor lo rechazaría igual, aquí solo se le ahorran botones inútiles.
   const soloLectura = user.rol !== "admin";
   const TABS = [
-    { id: "resumen", label: "📊 Resumen" },
-    { id: "historial", label: "📋 Historial" },
-    { id: "carta", label: "🍔 Carta" },
-    { id: "banco", label: "🏦 Banco" },
-    ...(soloLectura ? [] : [{ id: "equipo", label: "👥 Equipo" }]),
-    { id: "ajustes", label: "⚙️ Ajustes" },
+    { id: "resumen", label: "Resumen" },
+    { id: "historial", label: "Historial" },
+    { id: "carta", label: "Carta" },
+    { id: "banco", label: "Banco" },
+    ...(soloLectura ? [] : [{ id: "equipo", label: "Equipo" }]),
+    { id: "ajustes", label: "Ajustes" },
   ];
   const conFiltros = tab === "resumen" || tab === "historial";
   // ¿El rango elegido entra en la zona ya anonimizada por el borrado RGPD?
@@ -168,7 +168,7 @@ function Panel({ user, salir }) {
           </div>
         </div>
         <div style={sx("display:flex;align-items:center;gap:10px")}>
-          {!soloLectura && <a href="/cocina" style={btnGhost}>🍳 Cocina</a>}
+          {!soloLectura && <a href="/cocina" style={btnGhost}>Cocina</a>}
           <button onClick={salir} style={btnGhost}>Salir</button>
         </div>
       </header>
@@ -217,11 +217,11 @@ function Panel({ user, salir }) {
 
         {antiguos && (
           <p style={sx("margin:-8px 0 0;font-size:12.5px;line-height:1.5;color:rgba(246,241,233,.45)")}>
-            ℹ️ De los pedidos de hace más de 30 días se conservan fecha, local, estado e importe; el nombre, el teléfono y el detalle pueden salir anonimizados (RGPD).
+            De los pedidos de hace más de 30 días se conservan fecha, local, estado e importe; el nombre, el teléfono y el detalle pueden salir anonimizados (RGPD).
           </p>
         )}
 
-        {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>⚠️ {error}</div>}
+        {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>{error}</div>}
 
         {tab === "resumen" && <Resumen orders={orders} localF={localF} />}
         {tab === "historial" && <Historial orders={orders} />}
@@ -381,9 +381,9 @@ function Historial({ orders }) {
       <Cuadre orders={orders} />
 
       <div style={sx("display:flex;flex-wrap:wrap;gap:10px;align-items:center")}>
-        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="🔍 Buscar por nº, nombre o teléfono…" style={{ ...inputStyle, maxWidth: 340 }} />
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nº, nombre o teléfono" style={{ ...inputStyle, maxWidth: 340 }} />
         <span style={sx("font-size:12.5px;color:rgba(246,241,233,.5)")}>{filtrados.length} pedido{filtrados.length === 1 ? "" : "s"}</span>
-        <button onClick={exportCSV} disabled={filtrados.length === 0} style={{ ...btnGhost, marginLeft: "auto", opacity: filtrados.length ? 1 : 0.4 }}>⬇ Exportar CSV</button>
+        <button onClick={exportCSV} disabled={filtrados.length === 0} style={{ ...btnGhost, marginLeft: "auto", opacity: filtrados.length ? 1 : 0.4 }}>Exportar CSV</button>
       </div>
 
       {filtrados.length === 0 && <p style={sx("margin:16px 0;font-size:13.5px;color:rgba(246,241,233,.45)")}>No hay pedidos en este periodo.</p>}
@@ -400,21 +400,21 @@ function Historial({ orders }) {
                 <span style={{ ...sx("font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 11px;border-radius:100px"), color: `rgb(${e.color})`, border: `1px solid rgb(${e.color} / .5)`, background: `rgb(${e.color} / .1)` }}>{e.label}</span>
                 <span style={{ ...sx("font-size:12px;font-weight:700;text-transform:uppercase"), color: `rgb(${LOCALES[o.local]?.rgb || "255 197 49"})` }}>{LOCALES[o.local]?.name || o.local}</span>
                 <span style={sx("flex:1")}>{o.nombre}</span>
-                {o.programado_para && <span title={`Programado: ${horaDe(o.programado_para)}`} style={sx("font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;border:1px solid rgb(180 165 255 / .5);color:rgb(190,178,255)")}>⏰</span>}
-                {o.entrega === "domicilio" && <span title="A domicilio" style={sx("font-size:11px;padding:3px 9px;border-radius:100px;border:1px solid rgb(var(--emb) / .5);color:rgb(var(--emb))")}>🛵</span>}
-                {o.pago_estado === "pagado" && <span title="Pagado online" style={sx("font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;border:1px solid rgb(120 220 130 / .5);color:rgb(120,220,130)")}>💳</span>}
-                {o.pago_estado === "reembolso_parcial" && <span title={`Devuelto ${fmtEUR(o.reembolsado_cents || 0)}`} style={sx("font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;border:1px solid rgb(255 180 90 / .5);color:rgb(255,190,110)")}>↩️</span>}
-                {o.pago_estado === "reembolsado" && <span title="Reembolsado" style={sx("font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;border:1px solid rgba(246,241,233,.3);color:rgba(246,241,233,.7)")}>↩️</span>}
+                {o.programado_para && <span title={`Programado para las ${horaDe(o.programado_para)}`} style={sx("font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:100px;border:1px solid rgb(180 165 255 / .5);color:rgb(190,178,255)")}>Programado</span>}
+                {o.entrega === "domicilio" && <span style={sx("font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:100px;border:1px solid rgb(var(--emb) / .5);color:rgb(var(--emb))")}>Domicilio</span>}
+                {o.pago_estado === "pagado" && <span style={sx("font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:100px;border:1px solid rgb(120 220 130 / .5);color:rgb(120,220,130)")}>Pagado</span>}
+                {o.pago_estado === "reembolso_parcial" && <span title={`Devuelto ${fmtEUR(o.reembolsado_cents || 0)}`} style={sx("font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:100px;border:1px solid rgb(255 180 90 / .5);color:rgb(255,190,110)")}>Devuelto parcial</span>}
+                {o.pago_estado === "reembolsado" && <span style={sx("font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:100px;border:1px solid rgba(246,241,233,.3);color:rgba(246,241,233,.7)")}>Devuelto</span>}
                 <strong style={sx("font-family:'Anton',sans-serif;font-size:17px")}>{fmtEUR(o.total_cents)}</strong>
                 <span style={sx("color:rgba(246,241,233,.4)")}>{open ? "▲" : "▼"}</span>
               </button>
               {open && (
                 <div style={sx("padding:0 18px 16px;border-top:1px dashed rgba(246,241,233,.14)")}>
                   <div style={sx("padding-top:12px;font-size:13.5px;color:rgba(246,241,233,.75)")}>
-                    📞 <a href={`tel:${o.telefono}`} style={sx("color:#f6f1e9")}>{o.telefono}</a>
+                    Tel. <a href={`tel:${o.telefono}`} style={sx("color:#f6f1e9")}>{o.telefono}</a>
                     {o.ready_at && <> · lista ~{horaDe(o.ready_at)}</>}
                   </div>
-                  {o.nota && <div style={sx("margin-top:10px;font-size:13px;color:rgb(var(--acc))")}>📝 {o.nota}</div>}
+                  {o.nota && <div style={sx("margin-top:10px;font-size:13px;color:rgb(var(--acc))")}>Nota: {o.nota}</div>}
                   <Desglose o={o} />
                 </div>
               )}
@@ -467,19 +467,19 @@ function Desglose({ o }) {
             <span style={sx("white-space:nowrap;font-variant-numeric:tabular-nums")}>{fmtEUR(it.lineCents || 0)}</span>
           </div>
           {it.upgrade && sub(`+ ${it.upgrade}`)}
-          {it.pan && sub(`🍞 ${it.pan}`)}
+          {it.pan && sub(`Pan: ${it.pan}`)}
           {(it.extras || []).map((x) => <div key={x}>{sub(`+ ${x}`)}</div>)}
-          {it.nota && sub(`✎ ${it.nota}`, "rgb(var(--acc))")}
+          {it.nota && sub(`Nota: ${it.nota}`, "rgb(var(--acc))")}
         </div>
       ))}
 
       <div style={sx("margin-top:4px;padding-top:8px;border-top:1px solid rgba(246,241,233,.12);display:flex;flex-direction:column;gap:3px")}>
         {(promo > 0 || envio > 0 || sinExplicar !== 0) && fila("Productos", fmtEUR(productos))}
-        {promo > 0 && fila("🔥 Promo web · 50 % en la 2ª hamburguesa", `− ${fmtEUR(promo)}`, { color: "rgb(var(--emb))" })}
+        {promo > 0 && fila("Promo web (50 % en la 2ª hamburguesa)", `− ${fmtEUR(promo)}`, { color: "rgb(var(--emb))" })}
         {sinExplicar > 0 && fila("Descuento aplicado", `− ${fmtEUR(sinExplicar)}`, { color: "rgb(var(--emb))" })}
-        {envio > 0 && fila("🛵 Envío a domicilio", `+ ${fmtEUR(envio)}`)}
+        {envio > 0 && fila("Envío a domicilio", `+ ${fmtEUR(envio)}`)}
         {fila(devuelto > 0 ? "Cobrado" : "Total cobrado", fmtEUR(o.total_cents), { fuerte: true, color: "#f6f1e9" })}
-        {devuelto > 0 && fila("↩️ Devuelto al cliente", `− ${fmtEUR(devuelto)}`, { color: "rgb(255,140,110)" })}
+        {devuelto > 0 && fila("Devuelto al cliente", `− ${fmtEUR(devuelto)}`, { color: "rgb(255,140,110)" })}
         {devuelto > 0 && fila("Neto", fmtEUR(o.total_cents - devuelto), { fuerte: true, color: "#f6f1e9" })}
       </div>
     </div>
@@ -632,8 +632,8 @@ function Carta({ soloLectura = false }) {
 
   return (
     <div style={sx("display:flex;flex-direction:column;gap:16px")}>
-      {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px;line-height:1.5")}>⚠️ {error}</div>}
-      {aviso && <div style={sx("padding:12px 16px;border-radius:12px;border:1px solid rgb(120 220 130 / .4);background:rgb(120 220 130 / .08);font-size:13.5px")}>✓ {aviso}</div>}
+      {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px;line-height:1.5")}>{error}</div>}
+      {aviso && <div style={sx("padding:12px 16px;border-radius:12px;border:1px solid rgb(120 220 130 / .4);background:rgb(120 220 130 / .08);font-size:13.5px")}>{aviso}</div>}
 
       <div style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:8px")}>
         {[...categorias.map((c) => ({ id: c.id, label: c.label })), ...GRUPOS_SUELTOS.map((g) => ({ id: g.id, label: g.label }))].map((g) => (
@@ -960,18 +960,23 @@ function ProductoModal({ datos, categorias, onCerrar, onGuardar }) {
 }
 
 // ── Banco ────────────────────────────────────────────────────────────────────
-// Lo que MONEI transfiere de verdad: bruto, comisiones de adquirencia, reserva
-// retenida y neto. Aquí no se estima nada — son los datos de su API.
+// Liquidaciones y facturas tal como las da la API de MONEI. Por liquidación:
+// neto = bruto + comisiones (negativas) + retenido (negativo) + liberado.
+// En una liquidación abierta MONEI aún no ha retenido nada y trae en
+// reservedAmount, en positivo, la reserva anterior que liberará al cerrarla.
 const fechaCorta = (t) => (t ? new Date(t * 1000).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "2-digit" }) : "—");
 
 const ESTADO_LIQ = {
   COMPLETED: { label: "Transferida", color: "120 220 130" },
   PENDING: { label: "Pendiente", color: "255 197 49" },
-  SUSPENDED: { label: "Suspendida", color: "150 160 150" },
+  SUSPENDED: { label: "Pendiente", color: "255 197 49" },
   FAILED: { label: "Fallida", color: "255 100 80" },
 };
 
 const METODO_LIQ = { card: "Tarjeta", bizum: "Bizum" };
+
+// Importe con signo explícito, para que las columnas se lean como una suma.
+const conSigno = (c) => (c ? `${c < 0 ? "−" : "+"} ${fmtEUR(Math.abs(c))}` : "—");
 
 function Banco() {
   const [datos, setDatos] = useState(null);
@@ -995,29 +1000,46 @@ function Banco() {
 
   const liq = datos.settlements || [];
   const facturas = datos.invoices || [];
-  const transferidas = liq.filter((s) => s.status === "COMPLETED");
-  const recibido = transferidas.reduce((a, s) => a + (s.netVolume || 0), 0);
-  // Saldo vivo de la reserva: se guarda en negativo cuando se retiene y vuelve
-  // en positivo al liberarse, así que el saldo se corrige solo con cada
-  // liquidación nueva (MONEI mantiene retenido el 10 % de la última).
-  const retenido = Math.max(0, transferidas.reduce((a, s) => a - (s.reservedAmount || 0) - (s.releasedAmount || 0), 0));
-  const comisionesLiq = liq.reduce((a, s) => a + Math.abs(s.acquirerFees || 0), 0);
-  const comisionesFact = facturas.reduce((a, f) => a + (f.totalAmount || 0), 0);
+  const cerradas = liq.filter((s) => s.status === "COMPLETED");
+  const abiertas = liq.filter((s) => s.status === "PENDING" || s.status === "SUSPENDED");
+  const suma = (lista, campo) => lista.reduce((a, s) => a + (s[campo] || 0), 0);
 
-  const kpi = (titulo, valor, extra) => (
-    <div style={card}>
-      <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:8px")}>{titulo}</div>
-      <div style={sx("font-family:'Anton',sans-serif;font-size:30px;line-height:1;color:rgb(var(--acc))")}>{valor}</div>
-      {extra && <div style={sx("font-size:12px;color:rgba(246,241,233,.5);margin-top:6px")}>{extra}</div>}
+  // Liquidaciones cerradas: lo que ya ha pasado por el banco.
+  const bruto = suma(cerradas, "grossVolume");
+  const comisiones = suma(cerradas, "acquirerFees");
+  const retenido = suma(cerradas, "reservedAmount");
+  const liberado = suma(cerradas, "releasedAmount");
+  const transferido = suma(cerradas, "netVolume");
+  // Reserva que sigue en MONEI: la retenida menos la ya liberada. Coincide con
+  // la que traen las liquidaciones abiertas.
+  const enReserva = -(retenido + liberado);
+  const reservaPorMetodo = abiertas.filter((s) => s.reservedAmount > 0);
+  const brutoAbierto = suma(abiertas, "grossVolume");
+  const facturado = facturas.reduce((a, f) => a + (f.totalAmount || 0), 0);
+
+  // Comprobación contra los pedidos de la web.
+  const web = datos.web;
+  const webNeto = web ? web.cobrado - web.devuelto : null;
+  const brutoMonei = bruto + brutoAbierto;
+  const diferencia = webNeto == null ? null : webNeto - brutoMonei;
+
+  const titulo = (t) => <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:10px")}>{t}</div>;
+  const fila = (etiqueta, valor, opts = {}) => (
+    <div style={{ ...sx("display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:6px 0;font-size:13.5px"), borderTop: opts.linea ? "1px solid rgba(246,241,233,.14)" : "none", fontWeight: opts.fuerte ? 700 : 400, color: opts.fuerte ? "#f6f1e9" : "rgba(246,241,233,.78)" }}>
+      <span>
+        {etiqueta}
+        {opts.nota && <span style={sx("font-size:11.5px;font-weight:400;color:rgba(246,241,233,.42);margin-left:8px")}>{opts.nota}</span>}
+      </span>
+      <span style={{ ...sx("white-space:nowrap;font-variant-numeric:tabular-nums"), color: opts.color }}>{valor}</span>
     </div>
   );
 
-  const celda = sx("padding:11px 10px;white-space:nowrap");
+  const celda = sx("padding:10px 10px;white-space:nowrap;font-variant-numeric:tabular-nums");
   const cabecera = sx("padding:8px 10px;font-weight:600");
 
   return (
     <div style={sx("display:flex;flex-direction:column;gap:16px")}>
-      {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>⚠️ {error}</div>}
+      {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>{error}</div>}
 
       {!datos.ready && !error && (
         <div style={sx("padding:16px 20px;border-radius:14px;border:1px dashed rgba(246,241,233,.25);font-size:14px;line-height:1.5;color:rgba(246,241,233,.7)")}>
@@ -1026,70 +1048,104 @@ function Banco() {
       )}
 
       {liq.length > 0 && (
-        <>
-          <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:14px")}>
-            {kpi("En el banco", fmtEUR(recibido), `${transferidas.length} liquidación${transferidas.length === 1 ? "" : "es"} transferida${transferidas.length === 1 ? "" : "s"}`)}
-            {kpi("Retenido", fmtEUR(retenido), "reserva del 10 %, se libera en la siguiente")}
-            {kpi("Comisiones", fmtEUR(comisionesLiq + comisionesFact), `${fmtEUR(comisionesLiq)} descontadas · ${fmtEUR(comisionesFact)} facturadas`)}
+        <div style={sx("display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start")}>
+          {/* De lo cobrado al banco */}
+          <div style={{ ...card, flex: "1 1 340px" }}>
+            {titulo("De MONEI al banco")}
+            {fila("Bruto liquidado", fmtEUR(bruto), { nota: `${cerradas.length} liquidaciones` })}
+            {fila("Comisiones descontadas", conSigno(comisiones), { color: "rgb(255,140,110)" })}
+            {fila("Reserva retenida", conSigno(retenido), { color: "rgb(255,140,110)" })}
+            {fila("Reserva liberada", conSigno(liberado), { color: "rgb(140,225,150)" })}
+            {fila("Transferido al banco", fmtEUR(transferido), { linea: true, fuerte: true, color: "rgb(var(--acc))" })}
+            {fila("Comisiones facturadas", conSigno(-facturado), { nota: "recibo domiciliado aparte", color: "rgb(255,140,110)" })}
+            {fila("Neto en cuenta", fmtEUR(transferido - facturado), { linea: true, fuerte: true })}
           </div>
 
-          <div style={{ ...card, padding: 0, overflow: "hidden" }}>
-            <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 20px 10px")}>
-              <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Liquidaciones</div>
-              <button onClick={cargar} title="Actualizar" style={btnGhost}>↻</button>
-            </div>
-            <div style={sx("overflow-x:auto")}>
-              <table style={sx("width:100%;border-collapse:collapse;font-size:13.5px;min-width:660px")}>
-                <thead>
-                  <tr style={sx("text-align:right;color:rgba(246,241,233,.5);font-size:11px;letter-spacing:.1em;text-transform:uppercase")}>
-                    <th style={{ ...cabecera, textAlign: "left", paddingLeft: 20 }}>Fecha</th>
-                    <th style={{ ...cabecera, textAlign: "left" }}>Periodo</th>
-                    <th style={cabecera}>Bruto</th>
-                    <th style={cabecera}>Comisiones</th>
-                    <th style={cabecera}>Reserva</th>
-                    <th style={{ ...cabecera, paddingRight: 20 }}>Neto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {liq.map((s) => {
-                    const e = ESTADO_LIQ[s.status] || { label: s.status, color: "150 160 150" };
-                    return (
-                      <tr key={s.id} style={sx("border-top:1px solid rgba(246,241,233,.1);text-align:right")}>
-                        <td style={{ ...celda, textAlign: "left", paddingLeft: 20 }}>
-                          {fechaCorta(s.scheduledAt)}
-                          <div style={sx("display:flex;align-items:center;gap:6px;margin-top:3px")}>
-                            <span style={{ ...sx("font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:100px"), color: `rgb(${e.color})`, border: `1px solid rgb(${e.color} / .5)` }}>{e.label}</span>
-                            <span style={sx("font-size:11px;color:rgba(246,241,233,.45)")}>{METODO_LIQ[s.payMethod] || s.payMethod}</span>
-                          </div>
-                        </td>
-                        <td style={{ ...celda, textAlign: "left", color: "rgba(246,241,233,.6)", fontSize: "12.5px" }}>{fechaCorta(s.periodStartAt)} – {fechaCorta(s.periodEndAt)}</td>
-                        <td style={celda}>{fmtEUR(s.grossVolume || 0)}</td>
-                        <td style={{ ...celda, color: "rgb(255,140,110)" }}>{s.acquirerFees ? `− ${fmtEUR(Math.abs(s.acquirerFees))}` : "—"}</td>
-                        <td style={{ ...celda, color: "rgba(246,241,233,.6)" }}>{s.reservedAmount ? `${s.reservedAmount < 0 ? "− " : "+ "}${fmtEUR(Math.abs(s.reservedAmount))}` : "—"}</td>
-                        <td style={{ ...celda, paddingRight: 20, fontFamily: "'Anton',sans-serif", fontSize: "17px", color: (s.netVolume || 0) < 0 ? "rgb(255,140,110)" : "rgb(var(--acc))" }}>{fmtEUR(s.netVolume || 0)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p style={sx("margin:0;padding:12px 20px 16px;font-size:11.5px;line-height:1.55;color:rgba(246,241,233,.45)")}>
-              La reserva del 10 % se libera con la liquidación siguiente, que retiene a su vez el 10 % de la suya: en todo momento solo queda retenido el 10 % de la última. Las comisiones facturadas se cobran aparte, por recibo domiciliado.
-            </p>
+          <div style={{ ...card, flex: "1 1 300px" }}>
+            {titulo("Pendiente de recibir")}
+            {fila("Reserva retenida ahora", fmtEUR(enReserva), { fuerte: true })}
+            {reservaPorMetodo.map((s) => fila(METODO_LIQ[s.payMethod] || s.payMethod, fmtEUR(s.reservedAmount), { nota: `se libera al cerrar la liquidación del ${fechaCorta(s.scheduledAt)}` }))}
+            {brutoAbierto > 0 && fila("Cobros aún sin liquidar", fmtEUR(brutoAbierto))}
+
+            <div style={sx("margin-top:16px")}>{titulo("Comprobación")}</div>
+            {web ? (
+              <>
+                {fila("Cobrado en la web", fmtEUR(webNeto), { nota: `${web.cobros} cobros, sin ${fmtEUR(web.devuelto)} devueltos` })}
+                {fila("Volumen en MONEI", fmtEUR(brutoMonei))}
+                {fila(diferencia === 0 ? "Coinciden" : "Diferencia", diferencia === 0 ? "0,00 €" : conSigno(diferencia), { linea: true, fuerte: true, color: diferencia === 0 ? "rgb(140,225,150)" : "rgb(255,140,110)" })}
+              </>
+            ) : (
+              <p style={sx("margin:0;font-size:12.5px;color:rgba(246,241,233,.5)")}>Sin datos de pedidos para comparar.</p>
+            )}
           </div>
-        </>
+        </div>
+      )}
+
+      {liq.length > 0 && (
+        <div style={{ ...card, padding: 0, overflow: "hidden" }}>
+          <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 20px 10px")}>
+            <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>Liquidaciones</div>
+            <button onClick={cargar} title="Actualizar" style={btnGhost}>Actualizar</button>
+          </div>
+          <div style={sx("overflow-x:auto")}>
+            <table style={sx("width:100%;border-collapse:collapse;font-size:13.5px;min-width:760px")}>
+              <thead>
+                <tr style={sx("text-align:right;color:rgba(246,241,233,.5);font-size:11px;letter-spacing:.1em;text-transform:uppercase")}>
+                  <th style={{ ...cabecera, textAlign: "left", paddingLeft: 20 }}>Fecha</th>
+                  <th style={{ ...cabecera, textAlign: "left" }}>Periodo</th>
+                  <th style={cabecera}>Bruto</th>
+                  <th style={cabecera}>Comisiones</th>
+                  <th style={cabecera}>Retenido</th>
+                  <th style={cabecera}>Liberado</th>
+                  <th style={{ ...cabecera, paddingRight: 20 }}>Neto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {liq.map((s) => {
+                  const e = ESTADO_LIQ[s.status] || { label: s.status, color: "150 160 150" };
+                  const abierta = s.status !== "COMPLETED";
+                  return (
+                    <tr key={s.id} style={sx("border-top:1px solid rgba(246,241,233,.1);text-align:right")}>
+                      <td style={{ ...celda, textAlign: "left", paddingLeft: 20 }}>
+                        {fechaCorta(s.scheduledAt)}
+                        <div style={sx("display:flex;align-items:center;gap:6px;margin-top:3px")}>
+                          <span style={{ ...sx("font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:100px"), color: `rgb(${e.color})`, border: `1px solid rgb(${e.color} / .5)` }}>{e.label}</span>
+                          <span style={sx("font-size:11px;color:rgba(246,241,233,.45)")}>{METODO_LIQ[s.payMethod] || s.payMethod}</span>
+                        </div>
+                      </td>
+                      <td style={{ ...celda, textAlign: "left", color: "rgba(246,241,233,.6)", fontSize: "12.5px" }}>{fechaCorta(s.periodStartAt)} – {fechaCorta(s.periodEndAt)}</td>
+                      <td style={celda}>{fmtEUR(s.grossVolume || 0)}</td>
+                      <td style={{ ...celda, color: "rgb(255,140,110)" }}>{conSigno(s.acquirerFees)}</td>
+                      <td style={{ ...celda, color: "rgb(255,140,110)" }}>{abierta ? <span style={sx("color:rgba(246,241,233,.4)")}>al cerrar</span> : conSigno(s.reservedAmount)}</td>
+                      <td style={{ ...celda, color: "rgb(140,225,150)" }}>
+                        {abierta ? (s.reservedAmount ? <>{conSigno(s.reservedAmount)}<div style={sx("font-size:10.5px;color:rgba(246,241,233,.4)")}>al cerrar</div></> : "—") : conSigno(s.releasedAmount)}
+                      </td>
+                      <td style={{ ...celda, paddingRight: 20, fontFamily: "'Anton',sans-serif", fontSize: "17px", color: abierta ? "rgba(246,241,233,.55)" : "rgb(var(--acc))" }}>
+                        {(s.netVolume || 0) < 0 ? conSigno(s.netVolume) : fmtEUR(s.netVolume || 0)}
+                        {abierta && <div style={sx("font-family:inherit;font-size:10.5px;letter-spacing:.04em;color:rgba(246,241,233,.4)")}>saldo provisional</div>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p style={sx("margin:0;padding:12px 20px 16px;font-size:12px;line-height:1.55;color:rgba(246,241,233,.5)")}>
+            Neto = bruto − comisiones − retenido + liberado. MONEI retiene el 10 % de cada liquidación y lo libera en la siguiente del mismo método de pago. En las liquidaciones pendientes el neto es el saldo que muestra MONEI hasta ese momento.
+          </p>
+        </div>
       )}
 
       {facturas.length > 0 && (
         <div style={card}>
-          <div style={sx("font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55);margin-bottom:6px")}>Facturas de comisiones</div>
+          {titulo(`Facturas de comisiones · ${fmtEUR(facturado)}`)}
           {facturas.map((f) => (
-            <div key={f.number} style={sx("display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:9px 0;border-top:1px solid rgba(246,241,233,.08);font-size:13.5px")}>
+            <div key={f.number} style={sx("display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:8px 0;border-top:1px solid rgba(246,241,233,.08);font-size:13.5px")}>
               <span>
                 {f.number}
-                <span style={sx("font-size:11.5px;color:rgba(246,241,233,.45);margin-left:8px")}>{fechaCorta(f.createdAt)}</span>
+                <span style={sx("font-size:11.5px;color:rgba(246,241,233,.45);margin-left:10px")}>{fechaCorta(f.createdAt)}</span>
               </span>
-              <strong style={sx("white-space:nowrap")}>{fmtEUR(f.totalAmount || 0)}</strong>
+              <strong style={sx("white-space:nowrap;font-variant-numeric:tabular-nums")}>{fmtEUR(f.totalAmount || 0)}</strong>
             </div>
           ))}
         </div>

@@ -95,6 +95,26 @@ const HISTORIAL_PAGINA = 1000;
 const HISTORIAL_MAX = 20000;
 
 // Historial para el panel de administración (rango de fechas, opcional local).
+// Todo lo cobrado online desde el principio y lo devuelto, para comprobarlo
+// contra el volumen de MONEI. Un reembolso total anterior a la columna
+// acumuladora deja reembolsado_cents a 0: ahí manda pago_estado.
+export async function totalesCobrados() {
+  const estados = ["pagado", "reembolsado", "reembolso_parcial"];
+  let filas;
+  if (usingSupabase) {
+    filas = await supa(`${TABLE}?select=total_cents,reembolsado_cents,pago_estado&pago_estado=in.(${estados.join(",")})&limit=20000`);
+  } else {
+    filas = [...mem.values()].filter((o) => estados.includes(o.pago_estado));
+  }
+  let cobrado = 0;
+  let devuelto = 0;
+  for (const o of filas) {
+    cobrado += o.total_cents || 0;
+    devuelto += o.pago_estado === "reembolsado" ? Math.max(o.reembolsado_cents || 0, o.total_cents || 0) : o.reembolsado_cents || 0;
+  }
+  return { cobros: filas.length, cobrado, devuelto };
+}
+
 export async function listHistorial({ desde, hasta, local }) {
   if (usingSupabase) {
     let base = `${TABLE}?created_at=gte.${encodeURIComponent(desde)}&created_at=lte.${encodeURIComponent(hasta)}&order=created_at.desc`;
