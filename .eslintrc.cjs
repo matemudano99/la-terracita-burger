@@ -21,8 +21,8 @@ module.exports = {
   },
   overrides: [
     {
-      // Código que corre en Node (config de Vite y funciones serverless)
-      files: ['vite.config.js', 'api/**/*.js'],
+      // Código que corre en Node (config de Vite, funciones serverless y scripts)
+      files: ['vite.config.js', 'api/**/*.js', 'scripts/**/*.mjs'],
       env: { node: true },
     },
   ],

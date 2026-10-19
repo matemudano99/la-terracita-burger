@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
-import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, precioDe, fusionarCarta, ID_EXTRA, ID_PAN, ID_UPGRADE, PROMO, promoDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
+import { MENU, UPGRADES, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, precioDe, fusionarCarta, cartaDeLocal, ID_EXTRA, ID_PAN, ID_UPGRADE, PROMO, promoDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
 import { LOCALES, estadoLocal, estadoReparto, repartoResumen, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
 import { useI18n } from "../i18n";
 import { menuPedir, tEtiqueta, precioEn, nombreItem } from "../menuI18n";
 import LangSwitcher from "../LangSwitcher";
 import LtbMark from "../LtbMark";
 import PedirSplash, { debeMostrarSplash } from "./PedirSplash";
+import { PLATAFORMAS } from "../plataformas";
+import { fotoDe } from "../fotosCarta";
+import BurbujaFoto, { BotonFoto } from "../BurbujaFoto";
+import { useBurbujaFoto } from "../useBurbujaFoto";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /pedir — pedidos online con pago seguro por adelantado. El cliente recoge en
@@ -37,7 +41,10 @@ export default function PedirPage() {
   const { t, idioma } = useI18n();
   const fmtP = (c) => (idioma === "en" ? precioEn(fmtEUR(c)) : fmtEUR(c)); // precio en el formato del idioma
   const [loc, setLoc] = useState(() => {
-    const saved = localStorage.getItem(LS_LOCAL);
+    const deUrl = new URLSearchParams(window.location.search).get("local");
+    if (LOCALES[deUrl]) return deUrl;
+    let saved = null;
+    try { saved = localStorage.getItem(LS_LOCAL); } catch { /* sin almacenamiento */ }
     return LOCALES[saved] ? saved : null;
   });
   const [cat, setCat] = useState(MENU[0].id);
@@ -96,6 +103,9 @@ export default function PedirPage() {
   const [precios, setPrecios] = useState({}); // precios cambiados desde /admin
   const [productos, setProductos] = useState([]); // altas y cambios de /admin
   const menuEfectivo = useMemo(() => fusionarCarta(productos), [productos]);
+  // Solo los productos que hay en el local elegido.
+  const menuLocal = useMemo(() => cartaDeLocal(menuEfectivo, loc), [menuEfectivo, loc]);
+  const burbuja = useBurbujaFoto();
   const [pagos, setPagos] = useState(true); // ¿pago online disponible?
   const [programar, setProgramar] = useState(false); // ¿se pueden programar pedidos?
   useEffect(() => {
@@ -126,12 +136,15 @@ export default function PedirPage() {
 
   // Reparto propio del local elegido (Teatinos no tiene: solo plataformas).
   const reparto = L?.delivery?.activo ? L.delivery : null;
+  // Un local sin pedidos web (Teatinos) no enseña la carta para pedir ni el
+  // carrito: enseña el teléfono y las apps.
+  const conPedidoWeb = !L || L.pedidosWeb === true;
 
   // Carta efectiva (la del código + lo editado en /admin): la usan el catálogo,
   // los precios del carrito y la promoción.
-  const lineasPrecio = cart.map((l) => pricedOf(l, carta, precios, menuEfectivo)).filter(Boolean);
+  const lineasPrecio = cart.map((l) => pricedOf(l, carta, precios, menuLocal)).filter(Boolean);
   const brutoCents = lineasPrecio.reduce((s, p) => s + p.lineCents, 0);
-  const promoCents = promoDescuento(lineasPrecio, menuEfectivo);
+  const promoCents = promoDescuento(lineasPrecio, menuLocal);
   const totalCents = brutoCents - promoCents;
   const totalQty = cart.reduce((s, l) => s + l.qty, 0);
 
@@ -163,15 +176,16 @@ export default function PedirPage() {
     document.title = idioma === "en" ? "Order online — La Terracita Burger" : "Pedir online — La Terracita Burger";
   }, [idioma]);
 
+  // Las categorías "solo carta" (p. ej. Extras) no se muestran en /pedir:
+  // sus conceptos se eligen dentro de cada producto.
+  // (Antes del return del seguimiento: un hook después de un return rompe la
+  // página al pulsar "Hacer otro pedido".)
+  const CATS_PEDIR = useMemo(() => menuPedir(idioma, menuLocal).filter((c) => !c.soloCarta), [idioma, menuLocal]);
+  const categoria = CATS_PEDIR.find((c) => c.id === cat) || CATS_PEDIR[0];
+
   if (pedido) {
     return <Seguimiento pedido={pedido} onNuevo={() => { localStorage.removeItem(LS_PEDIDO); setPedido(null); setCart([]); }} />;
   }
-
-
-  // Las categorías "solo carta" (p. ej. Extras) no se muestran en /pedir:
-  // sus conceptos se eligen dentro de cada producto.
-  const CATS_PEDIR = useMemo(() => menuPedir(idioma, menuEfectivo).filter((c) => !c.soloCarta), [idioma, menuEfectivo]);
-  const categoria = CATS_PEDIR.find((c) => c.id === cat) || CATS_PEDIR[0];
 
   return (
     <div style={sx("min-height:100vh;padding-bottom:110px")}>
@@ -186,16 +200,17 @@ export default function PedirPage() {
         </a>
         <div style={sx("display:flex;align-items:center;gap:10px")}>
         <LangSwitcher size="sm" />
-        <button onClick={() => totalQty > 0 && setDrawer(true)} aria-label={t("pedir.verCarrito")} style={{ ...sx("display:inline-flex;align-items:center;gap:10px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:11px 22px;border-radius:100px;border:0;cursor:pointer;transition:all .25s"), background: totalQty > 0 ? `rgb(${rgb})` : "rgba(246,241,233,.12)", color: totalQty > 0 ? "#0a0806" : "rgba(246,241,233,.55)" }}>
+        {conPedidoWeb && <button onClick={() => totalQty > 0 && setDrawer(true)} aria-label={t("pedir.verCarrito")} style={{ ...sx("display:inline-flex;align-items:center;gap:10px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:11px 22px;border-radius:100px;border:0;cursor:pointer;transition:all .25s"), background: totalQty > 0 ? `rgb(${rgb})` : "rgba(246,241,233,.12)", color: totalQty > 0 ? "#0a0806" : "rgba(246,241,233,.55)" }}>
           🛒 {totalQty > 0 ? `${totalQty} · ${fmtP(totalCents)}` : t("pedir.carritoVacio")}
-        </button>
+        </button>}
         </div>
       </nav>
 
       <main style={sx("max-width:1100px;margin:0 auto;padding:110px 5vw 0")}>
         <div style={sx("font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--acc-lt);margin-bottom:10px;animation:ltb-rise .55s both")}>{t(reparto ? "pedir.kickerDom" : "pedir.kicker")}</div>
         <h1 style={sx("margin:0 0 6px;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(38px,7vw,80px);line-height:.9;text-transform:uppercase;animation:ltb-rise .6s .08s both")}>{t("pedir.h1a")} <span style={{ ...sx("text-shadow:0 0 30px rgb(var(--acc) / .5)"), color: `rgb(${rgb})` }}>{t("pedir.h1b")}</span></h1>
-        <p style={sx("margin:0 0 26px;font-size:15px;line-height:1.55;color:rgba(246,241,233,.62);max-width:560px;animation:ltb-rise .6s .16s both")}>{t(reparto ? "pedir.claimDom" : "pedir.claim")}</p>
+        {/* El claim habla del pago online: no vale para un local sin pedidos web. */}
+        <p style={{ ...sx("margin:0 0 26px;font-size:15px;line-height:1.55;color:rgba(246,241,233,.62);max-width:560px;animation:ltb-rise .6s .16s both"), visibility: conPedidoWeb ? "visible" : "hidden" }}>{t(reparto ? "pedir.claimDom" : "pedir.claim")}</p>
 
         {/* Selector de local */}
         <div style={sx("display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;animation:ltb-rise .6s .24s both")}>
@@ -212,7 +227,9 @@ export default function PedirPage() {
           </div>
         )}
 
-        {loc && (
+        {loc && !conPedidoWeb && <SinPedidoWeb L={L} />}
+
+        {loc && conPedidoWeb && (
           <>
             <div style={{ ...sx("display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;padding:16px 20px;border-radius:16px;margin-bottom:30px;background:#0d0a07"), border: `1px solid ${estado.abierto ? `rgb(${rgb} / .5)` : "rgba(246,241,233,.15)"}` }}>
               <div style={sx("display:flex;align-items:center;gap:11px;min-width:min(100%,230px)")}>
@@ -270,13 +287,15 @@ export default function PedirPage() {
                 const descuento = estadoItem?.descuento || 0;
                 const desdeBase = item.orderable === false ? null : Math.min(...item.variants.map((v) => precioDe(precios, item.id, v.id, v.cents)));
                 const desde = desdeBase != null ? conDescuento(desdeBase, descuento) : null;
+                const foto = fotoDe(item.id);
                 return (
-                  <div key={item.id} style={{ ...sx(`position:relative;background:#100c08;border:1px solid ${descuento && !agotado ? "rgb(var(--emb) / .5)" : "rgba(246,241,233,.1)"};border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px;animation:ltb-rise .4s both;transition:transform .25s,border-color .25s`), animationDelay: `${i * 0.03}s`, opacity: agotado ? 0.5 : 1 }}>
+                  <div key={item.id} {...burbuja.fila(item.id, foto, item.name)} style={{ ...sx(`position:relative;background:#100c08;border:1px solid ${descuento && !agotado ? "rgb(var(--emb) / .5)" : "rgba(246,241,233,.1)"};border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:8px;animation:ltb-rise .4s both;transition:transform .25s,border-color .25s`), animationDelay: `${i * 0.03}s`, opacity: agotado ? 0.5 : 1 }}>
                     <div style={sx("display:flex;align-items:flex-start;justify-content:space-between;gap:10px")}>
                       <h3 style={sx(`margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:21px;text-transform:uppercase;line-height:1;${agotado ? "text-decoration:line-through;color:rgba(246,241,233,.6)" : ""}`)}>{item.name}</h3>
                       <span style={sx("flex:none;display:inline-flex;gap:6px")}>
                         {descuento > 0 && !agotado && <span style={sx("font-size:11px;letter-spacing:.08em;font-weight:800;padding:4px 10px;border-radius:100px;background:rgb(var(--emb));color:#0a0806")}>−{descuento}%</span>}
                         {item.tag && <span style={sx("font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:4px 9px;border-radius:100px;background:rgb(var(--emb) / .16);color:rgb(var(--emb));border:1px solid rgb(var(--emb) / .35)")}>{item.tag}</span>}
+                        {foto && <BotonFoto {...burbuja.boton(item.id, foto, item.name, t("foto.ver", { name: item.name }))} />}
                       </span>
                     </div>
                     <p style={sx("margin:0;font-size:13px;line-height:1.5;color:rgba(246,241,233,.68);flex:1")}>{item.desc}</p>
@@ -311,7 +330,7 @@ export default function PedirPage() {
       </main>
 
       {/* Barra inferior del carrito (móvil y escritorio) */}
-      {totalQty > 0 && !drawer && (
+      {totalQty > 0 && !drawer && conPedidoWeb && (
         <div style={sx("position:fixed;left:0;right:0;bottom:0;z-index:40;padding:14px clamp(16px,4vw,34px);background:rgba(10,8,6,.92);backdrop-filter:blur(10px);border-top:1px solid rgba(246,241,233,.1)")}>
           <button onClick={() => setDrawer(true)} style={{ ...sx("display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;max-width:560px;margin:0 auto;font-family:'Anton',sans-serif;font-size:17px;letter-spacing:.05em;padding:16px 26px;border-radius:100px;border:0;cursor:pointer"), background: `rgb(${rgb})`, color: "#0a0806" }}>
             <span>{t("pedir.verPedido", { n: totalQty })}</span>
@@ -320,8 +339,57 @@ export default function PedirPage() {
         </div>
       )}
 
-      {modalItem && <OpcionesModal {...modalItem} carta={carta} precios={precios} menu={menuEfectivo} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
-      {drawer && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} precios={precios} menu={menuEfectivo} rgb={rgb} estado={estado} pagos={pagos} programar={programar} ahora={ahora} totalCents={totalCents} promoCents={promoCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
+      {burbuja.abierta && <BurbujaFoto key={burbuja.abierta.clave} {...burbuja.abierta} onCerrar={burbuja.cerrar} />}
+      {modalItem && <OpcionesModal {...modalItem} carta={carta} precios={precios} menu={menuLocal} rgb={rgb} onClose={() => setModalItem(null)} onAdd={addLine} />}
+      {drawer && conPedidoWeb && <CartDrawer cart={cart} setQty={setQty} loc={loc} carta={carta} precios={precios} menu={menuLocal} rgb={rgb} estado={estado} pagos={pagos} programar={programar} ahora={ahora} totalCents={totalCents} promoCents={promoCents} onClose={() => setDrawer(false)} onDone={(p) => { setPedido(p); localStorage.setItem(LS_PEDIDO, JSON.stringify(p)); setDrawer(false); }} />}
+    </div>
+  );
+}
+
+// ── Local sin pedidos web: teléfono (lo primero) y apps de reparto ───────────
+function SinPedidoWeb({ L }) {
+  const { t, idioma } = useI18n();
+  return (
+    <div style={{ ...sx("position:relative;overflow:hidden;margin:16px 0 30px;padding:clamp(22px,4vw,34px);border-radius:20px;background:#0d0a07;animation:ltb-rise .45s both"), border: `1px solid rgb(${L.rgb} / .45)` }}>
+      <div style={{ ...sx("position:absolute;top:0;left:0;right:0;height:4px"), background: `rgb(${L.rgb})` }} />
+      <h2 style={{ ...sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:clamp(26px,4.6vw,40px);line-height:1;text-transform:uppercase"), color: `rgb(${L.rgb})` }}>
+        {t("pedir.sinWeb.titulo", { local: L.name })}
+      </h2>
+      <p style={sx("margin:10px 0 22px;max-width:560px;font-size:14.5px;line-height:1.55;color:rgba(246,241,233,.7)")}>{t("pedir.sinWeb.texto")}</p>
+
+      <a
+        href={`tel:${L.tel}`}
+        className="ltb-deliv ltb-deliv--tel"
+        style={{
+          ...sx("display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px;padding:20px 24px;border-radius:16px;text-decoration:none;color:#0a0806;font-family:'Anton',sans-serif;letter-spacing:.04em;text-transform:uppercase"),
+          background: `rgb(${L.rgb})`,
+          ["--brand"]: `rgb(${L.rgb})`,
+        }}
+      >
+        <span style={sx("font-size:20px")}>{t("pedir.sinWeb.llamar")}</span>
+        <span style={sx("font-size:clamp(24px,4vw,32px)")}>{L.phone}</span>
+      </a>
+
+      <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:10px;margin-top:12px")}>
+        {PLATAFORMAS.map((p) => (
+          <a
+            key={p.key}
+            href={L.apps[p.key]}
+            target="_blank"
+            rel="noreferrer"
+            className={`ltb-deliv ${p.cls}`}
+            style={{ ...sx("display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;background:#100c08;border:1px solid rgba(246,241,233,.12);text-decoration:none;color:#f6f1e9"), ["--brand"]: p.brand }}
+          >
+            <span style={{ ...sx("flex:none;display:grid;place-items:center;width:38px;height:38px;border-radius:11px;font-family:'Anton',sans-serif;font-size:19px;line-height:1"), background: p.brand, color: "#0a0806" }}>{p.name[0]}</span>
+            <span style={{ ...sx("font-weight:700;font-size:15px"), color: p.brand }}>{p.name}</span>
+          </a>
+        ))}
+      </div>
+
+      <div style={sx("display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px;margin-top:20px;font-size:13px;line-height:1.6;color:rgba(246,241,233,.6)")}>
+        <span>{t("pedir.horario")} <strong style={sx("color:rgba(246,241,233,.85)")}>{horarioTexto(idioma)}</strong> · {t(L.diasKey)}</span>
+        <a href={`/carta/${L.id}`} style={{ ...sx("font-weight:700;text-decoration:none"), color: `rgb(${L.rgb})` }}>{t("pedir.sinWeb.carta", { local: L.name })} →</a>
+      </div>
     </div>
   );
 }

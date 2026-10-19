@@ -1,6 +1,9 @@
 # Pedidos online — guía de puesta en marcha
 
-La web tiene un sistema de pedidos propio, sin comisiones:
+La web tiene un sistema de pedidos propio, sin comisiones. **Solo lo usa
+Rincón de la Victoria**: Teatinos no tiene pedidos web (`pedidosWeb: false` en
+`src/locales.js`) y la web le enseña el teléfono y las apps en su lugar (ver
+«Locales sin pedidos web» abajo).
 
 - **`/pedir`** — el cliente monta su pedido y **paga online por adelantado**
   (mínimo 9 €). Puede pedir «lo antes posible» o **programarlo** para más tarde,
@@ -289,6 +292,63 @@ Dos cosas que conviene saber, confirmadas por el soporte de MONEI:
   momento solo queda retenido el 10 % de la última.
 - Un cobro devuelto el mismo día **se compensa dentro de su propia
   liquidación** (bruto 0), no se descuenta de las demás.
+
+## Locales sin pedidos web (Teatinos)
+
+Cada local de `src/locales.js` dice si admite pedidos por la web con
+`pedidosWeb`. Con `false` (Teatinos):
+
+- **Portada** (sección A domicilio): no sale «Pide online»; la opción destacada
+  es **llamar**, y debajo Just Eat, Glovo y Uber Eats.
+- **`/pedir`**: el local sigue en el selector, pero al elegirlo se ve el
+  teléfono, las apps, el horario y su carta, sin catálogo ni carrito.
+  `/pedir?local=rincon` entra con Rincón ya elegido.
+- **Servidor**: `/api/orders` rechaza cualquier pedido a ese local, aunque
+  alguien lo envíe a mano.
+- **`/cocina` y `/admin`**: el local no aparece para elegir en cocina, ni en
+  Ajustes (pausas), ni en los agotados/ofertas de la Carta, ni en el aviso de
+  «local sin cuenta de cocina». El **historial y el resumen siguen enseñando
+  los pedidos antiguos** de Teatinos.
+
+Para volver a activarlo basta con poner `pedidosWeb: true` y desplegar.
+
+## Carta de cada local y QR
+
+La carta es la misma página para los dos locales; lo que cambia de uno a otro
+se marca en `src/menu.js` con `locales: ["rincon"]` (o `["teatinos"]`) en el
+producto. Sin el campo, el producto está en los dos.
+
+- **`/carta/teatinos`** y **`/carta/rincon`** enseñan solo los productos de
+  ese local. **`/carta`** enseña todos, con la etiqueta «Solo Rincón» / «Solo
+  Teatinos» donde toca. Arriba hay un selector para cambiar de local.
+- Hoy la diferencia son las bebidas: **Rincón** tiene Corona, Cruzcampo lata y
+  Amstel lata; **Teatinos**, «Cerveza en lata» (2,70 €).
+- El servidor tampoco acepta en un local un producto que no tiene.
+- **QR**: `npm run make:qr` crea `public/carta-qr-<local>.svg|png` y
+  `public/carta-poster-<local>.svg|png`; `npm run make:impresos` crea las
+  tarjetas de mesa `impresos/qr-mesa-<local>-a4|a6.pdf` (la de Teatinos dice
+  «¿Para llevar? Llámanos» con su teléfono) y el flyer de pedidos web, que ya
+  solo nombra Rincón. Los QR antiguos que apuntaban a `/carta` siguen
+  funcionando.
+
+## Fotos de los platos (burbuja)
+
+Al pasar el ratón por un plato (portada, `/carta` y `/pedir`) sale una
+burbuja con su foto; en el móvil, al tocar el plato (se cierra tocando otra
+vez, tocando fuera o al hacer scroll). Los platos con foto llevan un icono de
+cámara, que también la abre con teclado.
+
+- **Añadir o cambiar una foto**: guardar el JPEG como
+  `assets-src/fotos/carta/<id-del-producto>.jpg` (el id de `src/menu.js`, p. ej.
+  `yankee.jpg`) y ejecutar `npm run optimize:images`. El script la reduce a
+  600 px en WebP (≈15–30 KB), la deja en `public/fotos/carta/` y reescribe
+  `src/fotosCarta.js`, que es la lista que lee la web. No hay que tocar código.
+- La **Burger Especial** usa sola la foto del mes (`img` de `src/mesData.js`)
+  y **La Terracita** la de `burger-laterracita.jpg` (alias en el script).
+- **Peso**: no usan Supabase. Van como archivos estáticos de la web, que Vercel
+  sirve desde su CDN con caché de una semana (`?v=` cambia si cambia la foto).
+  La carta entera con foto serían ~2 MB en el repositorio, y cada foto solo se
+  descarga cuando alguien abre su burbuja.
 
 ## Pedido mínimo, programados y reparto propio (oculto)
 

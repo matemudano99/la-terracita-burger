@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { sx } from "../sx";
-import { fmtEUR, EXTRAS, PANES, UPGRADES, precioDe, fusionarCarta, ID_EXTRA, ID_PAN, ID_UPGRADE } from "../menu";
-import { LOCALES } from "../locales";
+import { fmtEUR, EXTRAS, PANES, UPGRADES, precioDe, fusionarCarta, enLocal, ID_EXTRA, ID_PAN, ID_UPGRADE } from "../menu";
+import { LOCALES, LOCALES_WEB } from "../locales";
 import LtbMark from "../LtbMark";
 import LoginBox from "../LoginBox";
 import { getSesion, logout, authFetch } from "../authClient";
@@ -741,6 +741,7 @@ function ProductoCard({ item, precios, cartaLocal, onPrecio, onLocal, onEditar, 
           <span style={sx("font-family:'Anton',sans-serif;font-size:19px;letter-spacing:.02em;text-transform:uppercase")}>{item.name}</span>
           {item.tag && <span style={sx("font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:100px;background:rgb(var(--emb) / .16);color:rgb(var(--emb));margin-left:9px")}>{item.tag}</span>}
           {item.nuevo && <span style={sx("font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:100px;border:1px solid rgb(120 220 130 / .5);color:rgb(120,220,130);margin-left:9px")}>creado aquí</span>}
+          {item.locales && <span style={sx("font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:100px;border:1px solid rgba(246,241,233,.25);color:rgba(246,241,233,.6);margin-left:9px")}>Solo {item.locales.map((id) => LOCALES[id]?.corto || id).join(" y ")}</span>}
           {item.desc && <div style={sx("font-size:12.5px;line-height:1.5;color:rgba(246,241,233,.55);margin-top:4px")}>{item.desc}</div>}
         </div>
         {!soloLectura && (
@@ -761,7 +762,7 @@ function ProductoCard({ item, precios, cartaLocal, onPrecio, onLocal, onEditar, 
       ))}
 
       <div style={sx("display:flex;flex-wrap:wrap;gap:10px 18px;margin-top:12px;padding-top:11px;border-top:1px dashed rgba(246,241,233,.14)")}>
-        {Object.keys(LOCALES).map((id) => {
+        {LOCALES_WEB.filter((l) => enLocal(item, l.id)).map(({ id }) => {
           const estado = cartaLocal[id]?.[item.id] || {};
           const agotado = !!estado.agotado;
           return (
@@ -1284,7 +1285,7 @@ function RolYLocal({ rol, local, onChange, bloqueado }) {
           <span style={labelStyle}>Local</span>
           <select value={local} onChange={(e) => onChange({ rol, local: e.target.value })} style={{ ...inputStyle, appearance: "auto" }}>
             <option value="">Los dos locales</option>
-            {Object.values(LOCALES).map((o) => <option key={o.id} value={o.id}>Solo {o.name}</option>)}
+            {Object.values(LOCALES).filter((o) => o.pedidosWeb || o.id === local).map((o) => <option key={o.id} value={o.id}>Solo {o.name}</option>)}
           </select>
         </div>
       )}
@@ -1382,7 +1383,7 @@ function Equipo({ user }) {
     ...(nGerencia ? [{ n: nGerencia, t: "gerencia" }] : []),
     { n: nEmpleados, t: nEmpleados === 1 ? "empleado" : "empleados" },
   ];
-  const sinCocina = Object.values(LOCALES).filter((l) => !usuarios.some((u) => u.rol === "empleado" && (u.local === l.id || !u.local)));
+  const sinCocina = LOCALES_WEB.filter((l) => !usuarios.some((u) => u.rol === "empleado" && (u.local === l.id || !u.local)));
   const puedeCrear = form.email && form.nombre.trim().length >= 2 && form.password.length >= 8 && !creando;
 
   return (
@@ -1632,7 +1633,7 @@ function Ajustes({ soloLectura = false }) {
     <div style={sx("display:flex;flex-direction:column;gap:14px")}>
       {error && <div role="alert" style={sx("padding:13px 16px;border-radius:12px;border:1px solid rgba(255,92,40,.5);background:rgba(255,92,40,.1);font-size:14px")}>⚠️ {error}</div>}
       <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px")}>
-        {Object.values(LOCALES).map((o) => (
+        {LOCALES_WEB.map((o) => (
           <AjusteLocal key={o.id} loc={o} ajuste={ajustes[o.id] || { pausado: false, motivo: "" }} guardando={guardando === o.id} onSave={guardar} soloLectura={soloLectura} />
         ))}
       </div>

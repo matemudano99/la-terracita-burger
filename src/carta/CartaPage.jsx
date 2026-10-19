@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { sx } from "../sx";
 import { cartaEn } from "../menuI18n";
-import { fusionarCarta } from "../menu";
+import { fusionarCarta, cartaDeLocal } from "../menu";
+import { LOCALES } from "../locales";
 import { useI18n } from "../i18n";
 import LangSwitcher from "../LangSwitcher";
 import { iconoDe, colorDe } from "./identidad";
 import LtbMark from "../LtbMark";
+import BurbujaFoto, { BotonFoto } from "../BurbujaFoto";
+import { useBurbujaFoto } from "../useBurbujaFoto";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /carta — carta digital COMPLETA para ver en el local (se llega por QR).
@@ -14,10 +17,20 @@ import LtbMark from "../LtbMark";
 // src/menu.js (misma fuente que la portada y /pedir) y las traducciones al
 // inglés de src/menuI18n.js. Diseño denso: en móvil se ven muchos platos a la
 // vez, y cada sección se distingue por su color.
+// Con local (/carta/teatinos, /carta/rincon) solo salen los productos de ese
+// local; sin local, todos, y los que solo hay en uno llevan su etiqueta.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export default function CartaPage() {
+export default function CartaPage({ local: localInicial = null }) {
   const { t, idioma } = useI18n();
+  const [local, setLocal] = useState(localInicial);
+  const burbuja = useBurbujaFoto();
+  const L = local ? LOCALES[local] : null;
+  // Cambiar de local cambia la dirección, para que se pueda compartir tal cual.
+  const elegirLocal = (id) => {
+    setLocal(id);
+    window.history.replaceState(null, "", id ? `/carta/${id}` : "/carta");
+  };
   // Precios y productos cambiados desde /admin (si no hay nada, manda src/menu.js).
   const [precios, setPrecios] = useState({});
   const [productos, setProductos] = useState([]);
@@ -27,12 +40,16 @@ export default function CartaPage() {
       .then((d) => { setPrecios(d.precios || {}); setProductos(d.productos || []); })
       .catch(() => {});
   }, []);
-  const CATS = useMemo(() => cartaEn(idioma, precios, fusionarCarta(productos)), [idioma, precios, productos]);
+  const CATS = useMemo(
+    () => cartaEn(idioma, precios, cartaDeLocal(fusionarCarta(productos), local)).filter((c) => c.items.length > 0),
+    [idioma, precios, productos, local]
+  );
   const [activa, setActiva] = useState(CATS[0]?.id);
 
   useEffect(() => {
-    document.title = idioma === "en" ? "Menu — La Terracita Burger" : "Carta — La Terracita Burger";
-  }, [idioma]);
+    const base = idioma === "en" ? "Menu" : "Carta";
+    document.title = `${base}${L ? ` ${L.name}` : ""} — La Terracita Burger`;
+  }, [idioma, L]);
 
   // Resalta en la barra la categoría visible al hacer scroll.
   useEffect(() => {
@@ -75,6 +92,26 @@ export default function CartaPage() {
           {t("carta.titulo1")} <span className="ltb-flicker-text" style={sx("color:rgb(var(--acc));text-shadow:0 0 30px rgb(var(--acc) / .5)")}>{t("carta.titulo2")}</span>
         </h1>
         <p style={sx("margin:10px auto 0;max-width:440px;font-size:12.5px;line-height:1.5;color:rgba(246,241,233,.55)")}>{t("carta.claim")}</p>
+        <div role="group" aria-label={t("carta.local")} style={sx("display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:14px")}>
+          {Object.values(LOCALES).map((o) => {
+            const on = o.id === local;
+            return (
+              <button
+                key={o.id}
+                onClick={() => elegirLocal(on ? null : o.id)}
+                aria-pressed={on}
+                style={{
+                  ...sx("font-family:'Anton',sans-serif;font-size:13px;letter-spacing:.04em;text-transform:uppercase;padding:8px 18px;border-radius:100px;cursor:pointer;transition:all .2s"),
+                  border: on ? "1px solid transparent" : "1px solid rgba(246,241,233,.2)",
+                  background: on ? `rgb(${o.rgb})` : "transparent",
+                  color: on ? "#0a0806" : "#f6f1e9",
+                }}
+              >
+                {o.name}
+              </button>
+            );
+          })}
+        </div>
       </header>
 
       {/* Barra de categorías (sticky) */}
@@ -122,6 +159,7 @@ export default function CartaPage() {
                 {cat.items.map((item, i) => (
                   <div
                     key={item.id || item.name + i}
+                    {...burbuja.fila(item.id, item.foto, item.name)}
                     style={{
                       ...sx("display:flex;align-items:flex-start;gap:11px;padding:11px 13px;border-radius:13px;background:#100c08"),
                       border: "1px solid rgba(246,241,233,.09)",
@@ -131,8 +169,14 @@ export default function CartaPage() {
                     <div style={sx("flex:1;min-width:0")}>
                       <div style={sx("display:flex;align-items:baseline;gap:7px;flex-wrap:wrap")}>
                         <h3 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:17px;letter-spacing:.01em;text-transform:uppercase;line-height:1.15")}>{item.name}</h3>
+                        {item.foto && <BotonFoto {...burbuja.boton(item.id, item.foto, item.name, t("foto.ver", { name: item.name }))} />}
                         {item.tag && (
                           <span style={{ ...sx("flex:none;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;padding:2px 7px;border-radius:100px"), background: `rgb(${col} / .18)`, color: `rgb(${col})`, border: `1px solid rgb(${col} / .45)` }}>{item.tag}</span>
+                        )}
+                        {!local && item.locales && (
+                          <span style={sx("flex:none;font-size:9px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;padding:2px 7px;border-radius:100px;color:rgba(246,241,233,.6);border:1px solid rgba(246,241,233,.25)")}>
+                            {t("carta.soloEn", { local: item.locales.map((id) => LOCALES[id]?.corto || id).join(" · ") })}
+                          </span>
                         )}
                       </div>
                       {item.desc && (
@@ -161,15 +205,23 @@ export default function CartaPage() {
         </p>
 
         <div style={sx("margin:24px 0 0;text-align:center")}>
-          <a href="/pedir" style={sx("display:inline-flex;align-items:center;gap:8px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:14px 30px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none")}>
-            🍔 {t("com.pedirOnline")}
-          </a>
+          {L && !L.pedidosWeb ? (
+            <a href={`tel:${L.tel}`} style={{ ...sx("display:inline-flex;align-items:center;gap:8px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:14px 30px;border-radius:100px;color:#0a0806;text-decoration:none"), background: `rgb(${L.rgb})` }}>
+              📞 {t("carta.llamar", { phone: L.phone })}
+            </a>
+          ) : (
+            <a href={L ? `/pedir?local=${L.id}` : "/pedir"} style={sx("display:inline-flex;align-items:center;gap:8px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:14px 30px;border-radius:100px;background:rgb(var(--acc));color:#0a0806;text-decoration:none")}>
+              🍔 {t("com.pedirOnline")}
+            </a>
+          )}
         </div>
       </main>
 
       <footer style={sx("position:relative;z-index:2;text-align:center;padding:24px 20px 36px;font-size:11.5px;color:rgba(246,241,233,.42)")}>
         {t("carta.footer")}
       </footer>
+
+      {burbuja.abierta && <BurbujaFoto key={burbuja.abierta.clave} {...burbuja.abierta} onCerrar={burbuja.cerrar} />}
     </div>
   );
 }

@@ -26,3 +26,6 @@ dist-ssr
 .vercel
 .env*
 !.env.example
+
+# Impresos generados con npm run make:impresos (PDF para imprimir)
+impresos/

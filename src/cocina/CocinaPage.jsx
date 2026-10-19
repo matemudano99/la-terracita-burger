@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { sx } from "../sx";
 import { MENU, fmtEUR } from "../menu";
-import { LOCALES } from "../locales";
+import { LOCALES, LOCALES_WEB, admitePedidosWeb } from "../locales";
 import LtbMark from "../LtbMark";
 import LoginBox from "../LoginBox";
 import { getSesion, logout, authFetch } from "../authClient";
@@ -92,7 +92,8 @@ export default function CocinaPage() {
     return () => clearInterval(iv);
   }, [cargarAjustes]);
 
-  const L = LOCALES[local];
+  // Un local sin pedidos web (Teatinos) no tiene nada que hacer en cocina.
+  const L = admitePedidosWeb(local) ? LOCALES[local] : null;
   const salir = useCallback(() => { logout(); setSesion(null); setOrders([]); }, []);
 
   // Alarma — tres tonos; se repite mientras haya pedidos "nuevo" sin atender.
@@ -380,7 +381,7 @@ export default function CocinaPage() {
           <h1 style={sx("margin:14px 0 4px;font-family:'Anton',sans-serif;font-weight:400;font-size:28px;text-transform:uppercase")}>Hola, {sesion.user?.nombre?.split(" ")[0]} 👋</h1>
           <p style={sx("margin:0 0 22px;font-size:13.5px;color:rgba(246,241,233,.6)")}>¿En qué local estás hoy?</p>
           <div style={sx("display:flex;gap:10px;justify-content:center;flex-wrap:wrap")}>
-            {Object.values(LOCALES).map((o) => (
+            {LOCALES_WEB.map((o) => (
               <button key={o.id} onClick={() => setLocal(o.id)} style={sx(`font-family:'Anton',sans-serif;font-size:15px;padding:12px 22px;border-radius:100px;cursor:pointer;border:2px solid rgb(${o.rgb});background:transparent;color:#f6f1e9;text-transform:uppercase`)}>
                 {o.name}
               </button>

@@ -102,6 +102,7 @@ const ITEM_EN = {
   "lata-refresco": { name: "Soft drink (can)", desc: "33 cl · to go." },
   "cruzcampo-lata": { name: "Cruzcampo (can)", desc: "33 cl · to go · 18+." },
   "amstel-lata": { name: "Amstel (can)", desc: "33 cl · to go · 18+." },
+  "cerveza-lata": { name: "Canned beer", desc: "33 cl · to go · 18+." },
   "refresco-vaso": { name: "Soft drinks 35 cl", desc: "Full range, in-restaurant." },
   "cerveza-barril": { name: "Draught beer", desc: "Perfectly poured, in-restaurant." },
   "clara-barril": { name: "Shandy (draught)", desc: "With its citrus twist, in-restaurant." },

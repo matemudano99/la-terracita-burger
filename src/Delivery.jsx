@@ -3,6 +3,7 @@ import { sx } from "./sx";
 import { useI18n } from "./i18n";
 import { LOCALES, HORARIO_TEXTO, repartoResumen } from "./locales";
 import { fmtEUR } from "./menu";
+import { PLATAFORMAS } from "./plataformas";
 
 // Datos de escaparate de cada local; lo compartido (dirección, teléfono,
 // horarios, enlaces a las apps) sale de locales.js para no duplicarlo.
@@ -14,18 +15,14 @@ const LOCS = {
 // ¿Algún local reparte por su cuenta? Cambia el claim de la sección.
 const HAY_REPARTO = Object.values(LOCALES).some((l) => l.delivery?.activo);
 
-const PLATFORMS = [
-  { key: "justeat", name: "Just Eat", brand: "#ff8000", cls: "ltb-deliv--je" },
-  { key: "glovo", name: "Glovo", brand: "#ffc244", cls: "ltb-deliv--gl" },
-  { key: "ubereats", name: "Uber Eats", brand: "#06c167", cls: "ltb-deliv--ue" },
-];
-
 export default function Delivery() {
   const { t, idioma } = useI18n();
   const [loc, setLoc] = useState("teatinos");
   const L = LOCS[loc];
   // Reparto propio del local (solo Rincón por ahora) — la config vive en locales.js.
   const reparto = LOCALES[loc]?.delivery?.activo ? LOCALES[loc].delivery : null;
+  // Sin pedidos web (Teatinos), el teléfono pasa a ser la opción destacada.
+  const web = L.pedidosWeb === true;
 
   return (
     <section id="pedidos" className="ltb-cv" style={sx("position:relative;z-index:2;padding:70px 5vw 90px;max-width:1200px;margin:0 auto")}>
@@ -92,8 +89,8 @@ export default function Delivery() {
         </div>
 
         {/* Pedir online — opción destacada: sin comisiones, directo a cocina */}
-        <a
-          href="/pedir"
+        {web && <a
+          href={`/pedir?local=${loc}`}
           className="ltb-deliv ltb-deliv--tel"
           style={{
             ...sx("display:flex;flex-wrap:wrap;align-items:center;gap:16px 20px;margin-bottom:14px;padding:22px 24px;border-radius:16px;border:1px solid rgba(246,241,233,.12);text-decoration:none;color:#0a0806;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s,border-color .3s;animation:ltb-rise .5s both;position:relative"),
@@ -113,27 +110,29 @@ export default function Delivery() {
             </span>
           </span>
           <span style={sx("font-family:'Anton',sans-serif;font-size:clamp(20px,3vw,26px);letter-spacing:.04em")}>PEDIR →</span>
-        </a>
+        </a>}
 
         {/* Llamar por teléfono */}
         <a
           href={`tel:${L.tel}`}
           className="ltb-deliv ltb-deliv--tel"
           style={{
-            ...sx("display:flex;flex-wrap:wrap;align-items:center;gap:16px 20px;margin-bottom:14px;padding:22px 24px;border-radius:16px;background:#100c08;border:1px solid rgba(246,241,233,.12);text-decoration:none;color:#f6f1e9;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s,border-color .3s;animation:ltb-rise .5s both;position:relative"),
+            ...sx("display:flex;flex-wrap:wrap;align-items:center;gap:16px 20px;margin-bottom:14px;padding:22px 24px;border-radius:16px;border:1px solid rgba(246,241,233,.12);text-decoration:none;transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s,border-color .3s;animation:ltb-rise .5s both;position:relative"),
+            background: web ? "#100c08" : `rgb(${L.rgb})`,
+            color: web ? "#f6f1e9" : "#0a0806",
             ["--brand"]: `rgb(${L.rgb})`,
           }}
         >
-          <span className="ltb-tel-ico" style={{ ...sx("position:relative;flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:14px;font-size:26px"), background: `rgb(${L.rgb})` }}>📞</span>
+          <span className="ltb-tel-ico" style={{ ...sx("position:relative;flex:none;display:grid;place-items:center;width:56px;height:56px;border-radius:14px;font-size:26px"), background: web ? `rgb(${L.rgb})` : "rgba(10,8,6,.14)" }}>📞</span>
           <span style={sx("display:flex;flex-direction:column;gap:2px;flex:1;min-width:min(100%,220px)")}>
-            <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase"), color: `rgb(${L.rgb})` }}>{t("deliv.llamanos")}</span>
-            <span style={sx("font-size:13px;color:rgba(246,241,233,.6)")}>{t("deliv.llamanosSub")}</span>
+            <span style={{ ...sx("font-family:'Anton',sans-serif;font-size:20px;letter-spacing:.03em;text-transform:uppercase"), color: web ? `rgb(${L.rgb})` : "#0a0806" }}>{t("deliv.llamanos")}</span>
+            <span style={{ ...sx("font-size:13px;font-weight:600"), color: web ? "rgba(246,241,233,.6)" : "rgba(10,8,6,.72)" }}>{t(web ? "deliv.llamanosSub" : "deliv.llamanosSubRecoger")}</span>
           </span>
           <span style={sx("font-family:'Anton',sans-serif;font-size:clamp(22px,3.5vw,30px);letter-spacing:.04em")}>{L.phone} →</span>
         </a>
 
         <div style={sx("display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:14px;position:relative")}>
-          {PLATFORMS.map((p, idx) => (
+          {PLATAFORMAS.map((p, idx) => (
             <a
               key={p.key}
               href={L.apps[p.key]}

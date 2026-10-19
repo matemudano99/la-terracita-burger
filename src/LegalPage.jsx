@@ -1,13 +1,15 @@
 import { useEffect } from "react";
 import { sx } from "./sx";
 import { SITE } from "./site";
-import { LOCALES } from "./locales";
+import { LOCALES, LOCALES_WEB } from "./locales";
 import { fmtEUR, PEDIDO_MINIMO_CENTS } from "./menu";
 import LtbMark from "./LtbMark";
 
 // Las condiciones citan cifras del reparto: se leen de locales.js para que el
 // texto vinculante no se quede desfasado si cambian el envío o el radio.
 const REPARTO = LOCALES.rincon.delivery?.activo ? LOCALES.rincon.delivery : null;
+// Locales donde se recoge un pedido hecho en la web (Teatinos no tiene pedidos web).
+const RECOGIDA = LOCALES_WEB.map((l) => l.name).join(" o ");
 
 const h2 = sx("margin:44px 0 12px;font-family:'Anton',sans-serif;font-weight:400;font-size:22px;letter-spacing:.02em;text-transform:uppercase;color:#f6f1e9");
 const p = sx("margin:0 0 14px;font-size:15.5px;line-height:1.65;color:rgba(246,241,233,.78)");
@@ -148,7 +150,7 @@ const Condiciones = () => (
     <h2 style={h2}>2. Objeto y ámbito</h2>
     <p style={p}>
       Estas condiciones regulan los pedidos de comida preparada realizados en la sección «Pedir» de este sitio
-      web para su <strong>recogida en el local elegido</strong> (Teatinos o Rincón de la Victoria)
+      web para su <strong>recogida en el local</strong> ({RECOGIDA})
       {REPARTO && <> y, en <strong>Rincón de la Victoria</strong>, para su <strong>entrega a domicilio</strong> dentro
       de la zona de reparto indicada en el apartado 5</>}. Al enviar un pedido aceptas estas condiciones.
     </p>
@@ -182,7 +184,7 @@ const Condiciones = () => (
 
     <h2 style={h2}>5. Entrega</h2>
     <p style={p}>
-      <strong>Recogida en el local</strong> (Teatinos y Rincón de la Victoria): sin gastos de envío. El plazo
+      <strong>Recogida en el local</strong> ({RECOGIDA}): sin gastos de envío. El plazo
       habitual de preparación es de <strong>15 a 40 minutos</strong>; al aceptar tu pedido, el local fija la hora
       estimada de recogida y la ves en la pantalla de seguimiento.
     </p>

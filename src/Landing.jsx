@@ -9,6 +9,9 @@ import Delivery from "./Delivery";
 import LtbMark from "./LtbMark";
 import { cartaEn } from "./menuI18n";
 import { fusionarCarta } from "./menu";
+import { LOCALES } from "./locales";
+import BurbujaFoto, { BotonFoto } from "./BurbujaFoto";
+import { useBurbujaFoto } from "./useBurbujaFoto";
 import { useI18n } from "./i18n";
 
 // Texto con saltos de línea escritos como "<br />" en el diccionario.
@@ -37,6 +40,7 @@ export default function Landing() {
   const CATS = useMemo(() => cartaEn(idioma, precios, fusionarCarta(productos)), [idioma, precios, productos]);
   const [activeCat, setActiveCat] = useState("smash");
   const [hover, setHover] = useState(null);
+  const burbuja = useBurbujaFoto();
 
   const glowRef = useRef(null);
   const c1 = useRef(null);
@@ -187,14 +191,22 @@ export default function Landing() {
           {cat.items.map((item, i) => {
             const hovered = hover === activeCat + i;
             return (
-              <div key={item.name} style={sx(cardStyle(hovered))} onMouseEnter={() => setHover(activeCat + i)} onMouseLeave={() => setHover(null)}>
+              <div key={item.name} {...burbuja.fila(item.id, item.foto, item.name)} style={sx(cardStyle(hovered))} onMouseEnter={() => setHover(activeCat + i)} onMouseLeave={() => setHover(null)}>
                 <div style={sx("display:flex;align-items:flex-start;justify-content:space-between;gap:12px")}>
                   <h3 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:24px;letter-spacing:.01em;text-transform:uppercase;line-height:1")}>{item.name}</h3>
-                  {item.tag && (
-                    <span style={sx("flex:none;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:4px 9px;border-radius:100px;background:rgb(var(--emb) / .16);color:rgb(var(--emb));border:1px solid rgb(var(--emb) / .35)")}>{item.tag}</span>
-                  )}
+                  <span style={sx("flex:none;display:inline-flex;align-items:center;gap:8px")}>
+                    {item.tag && (
+                      <span style={sx("flex:none;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;padding:4px 9px;border-radius:100px;background:rgb(var(--emb) / .16);color:rgb(var(--emb));border:1px solid rgb(var(--emb) / .35)")}>{item.tag}</span>
+                    )}
+                    {item.foto && <BotonFoto {...burbuja.boton(item.id, item.foto, item.name, t("foto.ver", { name: item.name }))} />}
+                  </span>
                 </div>
                 <p style={sx("margin:10px 0 0;font-size:13.5px;line-height:1.5;color:rgba(246,241,233,.72)")}>{item.desc}</p>
+                {item.locales && (
+                  <p style={sx("margin:6px 0 0;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:rgba(246,241,233,.5)")}>
+                    {t("carta.soloEn", { local: item.locales.map((id) => LOCALES[id]?.corto || id).join(" · ") })}
+                  </p>
+                )}
                 <div style={sx("margin-top:16px;padding-top:14px;border-top:1px dashed rgba(246,241,233,.14);display:flex;flex-direction:column;gap:6px")}>
                   {item.rows.map((row, ri) => (
                     <div key={ri} style={sx("display:flex;align-items:baseline;justify-content:space-between;gap:10px")}>
@@ -365,6 +377,8 @@ export default function Landing() {
           <span>Angus Dry Age · 100% Mediterráneo</span>
         </div>
       </footer>
+
+      {burbuja.abierta && <BurbujaFoto key={burbuja.abierta.clave} {...burbuja.abierta} onCerrar={burbuja.cerrar} />}
     </>
   );
 }

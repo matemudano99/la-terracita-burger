@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { randomUUID } from "node:crypto";
 import { priceLine, fmtEUR, itemName, fusionarCarta, promoDescuento, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
-import { LOCALES, estadoLocal, estadoReparto, validarProgramado, distanciaKm } from "../src/locales.js";
+import { LOCALES, admitePedidosWeb, estadoLocal, estadoReparto, validarProgramado, distanciaKm } from "../src/locales.js";
 import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, getPrecios, preciosListos, getProductos, productosListos, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
 import { pagosDisponibles, crearPago, reembolsar } from "./_monei.js";
@@ -68,6 +68,9 @@ async function crear(req, res) {
 
   const loc = LOCALES[b.local];
   if (!loc) return res.status(400).json({ error: "Elige un local válido." });
+  if (!admitePedidosWeb(b.local)) {
+    return res.status(400).json({ error: `En ${loc.name} no se pide por la web: llámanos al ${loc.phone} o pide por Just Eat, Glovo o Uber Eats.` });
+  }
 
   const ahora = new Date();
   const aDomicilio = b.entrega === "domicilio";
@@ -139,7 +142,7 @@ async function crear(req, res) {
     if (carta[l.itemId]?.agotado) {
       return res.status(409).json({ error: `"${itemName(l.itemId, menu)}" se nos ha agotado hoy 😔 — quítalo del carrito y elige otra cosa.` });
     }
-    const priced = priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta, precios, menu });
+    const priced = priceLine({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, carta, precios, menu, local: b.local });
     if (!priced) return res.status(400).json({ error: "Hay un producto no válido en el carrito. Recarga la página e inténtalo de nuevo." });
     priced.nota = String(l.nota || "").trim().slice(0, 140) || null;
     items.push(priced);

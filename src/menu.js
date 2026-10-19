@@ -10,9 +10,12 @@
 //   - soloCarta: true   → (categoría) solo se muestra en la carta de la web;
 //                          en /pedir sus conceptos van dentro de cada producto
 //   - notaHint          → placeholder del campo de notas en /pedir
+//   - locales: [...]    → solo existe en esos locales (ids de src/locales.js);
+//                          sin el campo, está en todos
 // La Burger Especial se lee de src/mesData.js (la hamburguesa del mes).
 // ─────────────────────────────────────────────────────────────────────────────
 import { BURGER_DEL_MES } from "./mesData.js";
+import { fotoDe } from "./fotosCarta.js";
 
 // Acompañamiento — hamburguesas y camperos incluyen patatas fritas.
 export const UPGRADES = [
@@ -177,8 +180,9 @@ export const MENU = [
         { id: "aquarius-limon", label: "Aquarius Limón", cents: 270 },
         { id: "aquarius-naranja", label: "Aquarius Naranja", cents: 270 },
       ] },
-      { id: "cruzcampo-lata", name: "Cruzcampo lata", desc: "33 cl · para llevar · +18.", variants: [{ id: "u", label: "", cents: 270 }] },
-      { id: "amstel-lata", name: "Amstel lata", desc: "33 cl · para llevar · +18.", variants: [{ id: "u", label: "", cents: 300 }] },
+      { id: "cruzcampo-lata", name: "Cruzcampo lata", desc: "33 cl · para llevar · +18.", locales: ["rincon"], variants: [{ id: "u", label: "", cents: 270 }] },
+      { id: "amstel-lata", name: "Amstel lata", desc: "33 cl · para llevar · +18.", locales: ["rincon"], variants: [{ id: "u", label: "", cents: 300 }] },
+      { id: "cerveza-lata", name: "Cerveza en lata", desc: "33 cl · para llevar · +18.", locales: ["teatinos"], variants: [{ id: "u", label: "", cents: 270 }] },
       { id: "refresco-vaso", name: "Refrescos 35 cl", desc: "Variedad completa, en el local.", soloLocal: true, variants: [{ id: "u", label: "", cents: 310 }] },
       { id: "cerveza-barril", name: "Cerveza de barril", desc: "Bien tirada, en el local.", soloLocal: true, variants: [{ id: "canita", label: "Cañita", cents: 210 }, { id: "copa", label: "Copa", cents: 290 }, { id: "jarra", label: "Jarra / Tanque", cents: 370 }] },
       { id: "clara-barril", name: "Clara de barril", desc: "Con su toque de limón, en el local.", soloLocal: true, variants: [{ id: "canita", label: "Cañita", cents: 210 }, { id: "copa", label: "Copa", cents: 290 }, { id: "jarra", label: "Jarra / Tanque", cents: 370 }] },
@@ -188,7 +192,7 @@ export const MENU = [
       { id: "mahou", name: "Mahou", desc: "En el local.", soloLocal: true, variants: [{ id: "u", label: "", cents: 360 }] },
       { id: "mahou-sin-gluten", name: "Mahou sin gluten", desc: "En el local.", soloLocal: true, variants: [{ id: "u", label: "", cents: 360 }] },
       { id: "mahou-sin-alcohol", name: "Mahou sin alcohol", desc: "En el local.", soloLocal: true, variants: [{ id: "u", label: "", cents: 350 }] },
-      { id: "corona", name: "Corona", desc: "Con su gajo de lima, en el local.", soloLocal: true, variants: [{ id: "u", label: "", cents: 400 }] },
+      { id: "corona", name: "Corona", desc: "Con su gajo de lima, en el local.", soloLocal: true, locales: ["rincon"], variants: [{ id: "u", label: "", cents: 400 }] },
       { id: "vino", name: "Copa de vino", desc: "En el local.", soloLocal: true, variants: [{ id: "tinto", label: "Tinto", cents: 300 }, { id: "blanco", label: "Blanco", cents: 300 }] },
       { id: "tinto-verano", name: "Tinto de verano", desc: "En el local.", soloLocal: true, variants: [{ id: "copa", label: "Copa", cents: 350 }, { id: "jarra", label: "Jarra / Tanque", cents: 400 }] },
       { id: "fernet", name: "Fernet", desc: "Para los valientes, en el local.", soloLocal: true, variants: [{ id: "u", label: "", cents: 750 }] },
@@ -315,6 +319,14 @@ export function fusionarCarta(productos) {
   return cats;
 }
 
+// ¿Existe este producto en el local? (sin local se considera que sí)
+export const enLocal = (item, localId) => !localId || !Array.isArray(item.locales) || item.locales.includes(localId);
+
+// Carta de un local: la misma para todos salvo los productos con `locales`.
+// Sin local (p. ej. /carta a secas), la carta entera.
+export const cartaDeLocal = (menu, localId) =>
+  localId ? menu.map((cat) => ({ ...cat, items: cat.items.filter((it) => enLocal(it, localId)) })) : menu;
+
 export const fmtEUR = (cents) =>
   (cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 
@@ -339,6 +351,8 @@ export const displayCats = (precios, menu = MENU) =>
       desc: it.desc,
       descEn: it.descEn,
       tag: it.tag,
+      locales: it.locales,
+      foto: fotoDe(it.id),
       rows: it.orderable === false
         ? [["", it.priceLabel || "Consulta"]]
         : it.variants.map((v) => [v.label, fmtEUR(precioDe(precios, idParaPrecio(it.id), v.id, v.cents))]),
@@ -363,11 +377,12 @@ export const conDescuento = (cents, descuento) =>
 // `carta` es el estado por local (agotados/descuentos) gestionado desde /cocina:
 // un ítem agotado no es pedible y el descuento se aplica al precio base
 // (no a extras ni acompañamientos).
-export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, carta, precios, menu = MENU }) {
+export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, carta, precios, menu = MENU, local }) {
   for (const cat of menu) {
     const it = cat.items.find((i) => i.id === itemId);
     if (!it) continue;
     if (it.orderable === false || it.soloLocal || cat.soloCarta) return null;
+    if (!enLocal(it, local)) return null; // producto que no hay en ese local
 
     const estadoCarta = carta?.[itemId];
     if (estadoCarta?.agotado) return null;

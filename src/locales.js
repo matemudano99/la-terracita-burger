@@ -8,6 +8,7 @@ export const LOCALES = {
   teatinos: {
     id: "teatinos",
     name: "Teatinos",
+    corto: "Teatinos",
     address: "Av. Parménides 1, Local 5 · Málaga",
     tel: "628053065",
     phone: "628 053 065",
@@ -17,7 +18,10 @@ export const LOCALES = {
     diasTexto: "Todos los días excepto martes",
     diasKey: "deliv.dias.teatinos",
     cerradoDias: [2], // 0=domingo … 2=martes
-    // Teatinos NO tiene reparto propio (solo plataformas: Just Eat/Glovo/Uber).
+    // Teatinos no usa los pedidos de la web: se pide por teléfono o por las
+    // apps (Just Eat/Glovo/Uber). La web enseña esas opciones en su lugar y el
+    // servidor rechaza cualquier pedido a este local.
+    pedidosWeb: false,
     delivery: null,
     apps: {
       justeat: "https://www.just-eat.es/restaurants-la-terracita-teatinos-malaga/menu?serviceType=collection&utm_source=google&utm_medium=organic&utm_campaign=foodorder",
@@ -32,6 +36,7 @@ export const LOCALES = {
   rincon: {
     id: "rincon",
     name: "Rincón de la Victoria",
+    corto: "Rincón",
     address: "Av. del Mediterráneo 139 · 29730",
     tel: "622220826",
     phone: "622 220 826",
@@ -41,6 +46,7 @@ export const LOCALES = {
     diasTexto: "Todos los días",
     diasKey: "deliv.dias.todos",
     cerradoDias: [],
+    pedidosWeb: true,
     // Reparto propio. El servidor geocodifica la dirección y exige que esté en
     // el municipio Y dentro del radio (api/orders.js): el radio en línea recta
     // no basta —Chilches queda a 3,9 km y es otro pueblo—.
@@ -62,6 +68,11 @@ export const LOCALES = {
     reviewUrl: "https://www.google.com/maps/search/?api=1&query=La+Terracita+Burger+Rinc%C3%B3n+de+la+Victoria",
   },
 };
+
+// ¿Se puede pedir en la web a este local? Lo usan la web (qué opciones se
+// enseñan) y el servidor (qué pedidos se aceptan).
+export const admitePedidosWeb = (localId) => LOCALES[localId]?.pedidosWeb === true;
+export const LOCALES_WEB = Object.values(LOCALES).filter((l) => l.pedidosWeb === true);
 
 // Turnos en minutos desde medianoche (hora de Madrid): 13:00–16:00 y 20:00–23:30.
 export const TURNOS = [

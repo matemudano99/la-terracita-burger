@@ -140,6 +140,12 @@ body {
 
 @keyframes ltb-pop { from { opacity: 0; transform: scale(.3); } to { opacity: 1; transform: scale(1); } }
 
+/* Burbuja con la foto de un plato (src/BurbujaFoto.jsx) */
+@keyframes ltb-burbuja { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: scale(1); } }
+.ltb-boton-foto { transition: color .2s, border-color .2s, background .2s; }
+.ltb-boton-foto:hover, .ltb-boton-foto[aria-expanded="true"] { color: #0a0806 !important; background: rgb(var(--acc)) !important; border-color: transparent !important; }
+.ltb-boton-foto:focus-visible { outline: 2px solid rgb(var(--acc)); outline-offset: 2px; }
+
 /* ---- Neon ---- */
 @keyframes ltb-neon {
   0%, 100% {
