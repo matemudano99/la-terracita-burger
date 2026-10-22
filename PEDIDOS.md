@@ -319,17 +319,27 @@ se marca en `src/menu.js` con `locales: ["rincon"]` (o `["teatinos"]`) en el
 producto. Sin el campo, el producto está en los dos.
 
 - **`/carta/teatinos`** y **`/carta/rincon`** enseñan solo los productos de
-  ese local. **`/carta`** enseña todos, con la etiqueta «Solo Rincón» / «Solo
-  Teatinos» donde toca. Arriba hay un selector para cambiar de local.
-- Hoy la diferencia son las bebidas: **Rincón** tiene Corona, Cruzcampo lata y
-  Amstel lata; **Teatinos**, «Cerveza en lata» (2,70 €).
-- El servidor tampoco acepta en un local un producto que no tiene.
+  ese local, con su nombre arriba y **sin botón para cambiar de local**: quien
+  escanea el QR de un local solo ve la carta de ese local.
+- Los enlaces de la web (menú y botón de la carta completa en la portada) y
+  **`/carta`** a secas abren la de **Teatinos** (`CARTA_POR_DEFECTO` en
+  `src/locales.js`); la sección Carta de la portada también es la de Teatinos.
+- Diferencias de hoy:
+  - **Rincón**: Corona, Cruzcampo lata, Amstel lata y «Refresco en lata» con
+    sus sabores.
+  - **Teatinos**: «Cerveza en lata» (2,70 €), «Latas de refresco» sin sabores
+    y «Solo delivery» (como su carta impresa) y el cambio a **patatas deluxe**
+    (1,90 €). Los acompañamientos (`UPGRADES`) también admiten `locales`.
+- La frase «Convierte tus patatas en…» de la carta se escribe sola con los
+  acompañamientos y precios del local (`notaPatatas()` en `src/menu.js`).
+- El servidor tampoco acepta en un local un producto o acompañamiento que no
+  tiene.
 - **QR**: `npm run make:qr` crea `public/carta-qr-<local>.svg|png` y
   `public/carta-poster-<local>.svg|png`; `npm run make:impresos` crea las
   tarjetas de mesa `impresos/qr-mesa-<local>-a4|a6.pdf` (la de Teatinos dice
   «¿Para llevar? Llámanos» con su teléfono) y el flyer de pedidos web, que ya
-  solo nombra Rincón. Los QR antiguos que apuntaban a `/carta` siguen
-  funcionando.
+  solo nombra Rincón. Un QR antiguo que apunte a `/carta` abre la de
+  Teatinos: si hay alguno en Rincón, hay que cambiarlo por el suyo.
 
 ## Fotos de los platos (burbuja)
 

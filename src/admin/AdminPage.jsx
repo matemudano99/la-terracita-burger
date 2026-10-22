@@ -665,7 +665,10 @@ function Carta({ soloLectura = false }) {
           <div style={sx("padding:16px 20px 8px;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:rgba(246,241,233,.55)")}>{sueltos.label}</div>
           {sueltos.lista.map((x) => (
             <div key={x.id} style={sx("display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:11px 20px;border-top:1px solid rgba(246,241,233,.09)")}>
-              <span style={sx("flex:1;min-width:min(100%,180px);font-size:14px")}>{x.label}</span>
+              <span style={sx("flex:1;min-width:min(100%,180px);font-size:14px")}>
+                {x.label}
+                {x.locales && <span style={sx("margin-left:9px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;padding:3px 9px;border-radius:100px;border:1px solid rgba(246,241,233,.25);color:rgba(246,241,233,.6)")}>Solo {x.locales.map((id) => LOCALES[id]?.corto || id).join(" y ")}</span>}
+              </span>
               {soloLectura ? (
                 <PrecioFijo cents={precioDe(precios, sueltos.prefijo(x.id), "u", x.cents)} base={x.cents} />
               ) : (

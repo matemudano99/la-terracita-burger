@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Analytics } from "@vercel/analytics/react";
 import Landing from "./Landing";
 import LegalPage, { LEGAL_ROUTES } from "./LegalPage";
-import { LOCALES } from "./locales";
+import { LOCALES, CARTA_POR_DEFECTO } from "./locales";
 
 // Carga diferida: el visitante de la portada no descarga el código de pedidos.
 const PedirPage = lazy(() => import("./pedir/PedirPage"));
@@ -15,11 +15,11 @@ function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/";
   let page;
   if (path === "/pedir") page = <PedirPage />;
-  // /carta enseña la carta entera; /carta/teatinos y /carta/rincon, la de ese
-  // local (es lo que abren los QR de cada local).
+  // /carta/teatinos y /carta/rincon: la carta de ese local (lo que abre el QR
+  // de cada uno). /carta a secas, o un local que no existe, abre la de Teatinos.
   else if (path === "/carta" || path.startsWith("/carta/")) {
     const id = path.slice("/carta/".length);
-    page = <CartaPage local={LOCALES[id] ? id : null} />;
+    page = <CartaPage local={LOCALES[id] ? id : CARTA_POR_DEFECTO} />;
   }
   else if (path === "/cocina") page = <CocinaPage />;
   else if (path === "/admin") page = <AdminPage />;

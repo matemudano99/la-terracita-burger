@@ -74,6 +74,10 @@ export const LOCALES = {
 export const admitePedidosWeb = (localId) => LOCALES[localId]?.pedidosWeb === true;
 export const LOCALES_WEB = Object.values(LOCALES).filter((l) => l.pedidosWeb === true);
 
+// Carta que abren los enlaces de la web (menú, portada) y /carta a secas.
+// Cada QR del local lleva a la suya: /carta/teatinos o /carta/rincon.
+export const CARTA_POR_DEFECTO = "teatinos";
+
 // Turnos en minutos desde medianoche (hora de Madrid): 13:00–16:00 y 20:00–23:30.
 export const TURNOS = [
   [13 * 60, 16 * 60],

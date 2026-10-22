@@ -100,6 +100,7 @@ const ITEM_EN = {
   "agua-sin-gas": { name: "Still water", desc: "33 cl." },
   "agua-con-gas": { name: "Sparkling water", desc: "33 cl." },
   "lata-refresco": { name: "Soft drink (can)", desc: "33 cl · to go." },
+  "latas-refresco": { name: "Canned soft drinks", desc: "Delivery only." },
   "cruzcampo-lata": { name: "Cruzcampo (can)", desc: "33 cl · to go · 18+." },
   "amstel-lata": { name: "Amstel (can)", desc: "33 cl · to go · 18+." },
   "cerveza-lata": { name: "Canned beer", desc: "33 cl · to go · 18+." },
@@ -173,6 +174,7 @@ const OPCION_EN = {
   // Acompañamiento y pan
   "Patatas fritas (incluidas)": "Fries (included)",
   "Cambiar a boniatos fritos": "Swap for sweet potato fries",
+  "Cambiar a patatas deluxe": "Swap for deluxe fries",
   "Patatas con cheddar y bacon": "Cheddar & bacon fries",
   "Pan de patata (incluido)": "Potato bun (included)",
   "Pan sin gluten brioche (posible contaminación cruzada)": "Gluten-free brioche bun (possible cross-contamination)",

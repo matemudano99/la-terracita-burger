@@ -78,13 +78,13 @@ const DICT = {
     es: "Smash burgers de Angus Dry Age · pan de patata · salsas caseras. Precios con IVA.",
     en: "Dry-aged Angus smash burgers · potato bun · homemade sauces. Prices include VAT.",
   },
+  // La segunda frase (cambio de patatas) la añade notaPatatas() de src/menu.js
+  // con los acompañamientos y precios de cada local.
   "carta.nota": {
-    es: "Toda modificación en hamburguesas y camperos se cobra como extra. Convierte tus patatas en boniatos por 1,90 € o en patatas con cheddar y bacon por 2,90 €.",
-    en: "Any change to burgers or camperos is charged as an extra. Swap your fries for sweet potato fries (€1.90) or cheddar & bacon fries (€2.90).",
+    es: "Toda modificación en hamburguesas y camperos se cobra como extra.",
+    en: "Any change to burgers or camperos is charged as an extra.",
   },
-  "carta.local": { es: "Local", en: "Location" },
   "foto.ver": { es: "Ver foto: {name}", en: "See photo: {name}" },
-  "carta.soloEn": { es: "Solo {local}", en: "{local} only" },
   "carta.llamar": { es: "Para llevar: {phone}", en: "Takeaway: {phone}" },
   "carta.alergias": {
     es: "¿Alergias o intolerancias? Pregunta a nuestro equipo.",

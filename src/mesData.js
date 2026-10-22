@@ -9,7 +9,7 @@
 // así que la web nunca se rompe si un mes no los traduces.
 // ─────────────────────────────────────────────────────────────────────────────
 export const BURGER_DEL_MES = {
-  mes: "Septiembre",
+  mes: "Octubre",
   name: "La Victoria",
   tag: "Edición limitada",
   tagEn: "Limited edition",

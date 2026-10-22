@@ -18,10 +18,13 @@ import { BURGER_DEL_MES } from "./mesData.js";
 import { fotoDe } from "./fotosCarta.js";
 
 // Acompañamiento — hamburguesas y camperos incluyen patatas fritas.
+// `corto`/`cortoEn` son para la nota de la carta ("Convierte tus patatas en…");
+// `locales` limita la opción a esos locales, como en los productos.
 export const UPGRADES = [
   { id: "no", label: "Patatas fritas (incluidas)", cents: 0 },
-  { id: "boniato", label: "Cambiar a boniatos fritos", cents: 190 },
-  { id: "cheddar-bacon", label: "Patatas con cheddar y bacon", cents: 290 },
+  { id: "boniato", label: "Cambiar a boniatos fritos", corto: "boniatos", cortoEn: "sweet potato fries", cents: 190 },
+  { id: "deluxe", label: "Cambiar a patatas deluxe", corto: "patatas deluxe", cortoEn: "deluxe fries", cents: 190, locales: ["teatinos"] },
+  { id: "cheddar-bacon", label: "Patatas con cheddar y bacon", corto: "patatas con cheddar y bacon", cortoEn: "cheddar & bacon fries", cents: 290 },
 ];
 
 // Pan — solo hamburguesas.
@@ -171,7 +174,7 @@ export const MENU = [
     items: [
       { id: "agua-sin-gas", name: "Agua sin gas", desc: "33 cl.", variants: [{ id: "u", label: "", cents: 250 }] },
       { id: "agua-con-gas", name: "Agua con gas", desc: "33 cl.", variants: [{ id: "u", label: "", cents: 270 }] },
-      { id: "lata-refresco", name: "Refresco en lata", desc: "33 cl · para llevar.", variants: [
+      { id: "lata-refresco", name: "Refresco en lata", desc: "33 cl · para llevar.", locales: ["rincon"], variants: [
         { id: "coca-cola", label: "Coca-Cola", cents: 270 },
         { id: "coca-cola-zero", label: "Coca-Cola Zero", cents: 270 },
         { id: "fanta-naranja", label: "Fanta Naranja", cents: 270 },
@@ -180,6 +183,8 @@ export const MENU = [
         { id: "aquarius-limon", label: "Aquarius Limón", cents: 270 },
         { id: "aquarius-naranja", label: "Aquarius Naranja", cents: 270 },
       ] },
+      // En Teatinos, tal cual su carta: sin sabores y solo para delivery.
+      { id: "latas-refresco", name: "Latas de refresco", desc: "Solo delivery.", locales: ["teatinos"], variants: [{ id: "u", label: "", cents: 270 }] },
       { id: "cruzcampo-lata", name: "Cruzcampo lata", desc: "33 cl · para llevar · +18.", locales: ["rincon"], variants: [{ id: "u", label: "", cents: 270 }] },
       { id: "amstel-lata", name: "Amstel lata", desc: "33 cl · para llevar · +18.", locales: ["rincon"], variants: [{ id: "u", label: "", cents: 300 }] },
       { id: "cerveza-lata", name: "Cerveza en lata", desc: "33 cl · para llevar · +18.", locales: ["teatinos"], variants: [{ id: "u", label: "", cents: 270 }] },
@@ -327,6 +332,29 @@ export const enLocal = (item, localId) => !localId || !Array.isArray(item.locale
 export const cartaDeLocal = (menu, localId) =>
   localId ? menu.map((cat) => ({ ...cat, items: cat.items.filter((it) => enLocal(it, localId)) })) : menu;
 
+// Acompañamientos que se ofrecen en un local.
+export const upgradesDeLocal = (localId) => UPGRADES.filter((u) => enLocal(u, localId));
+
+// Nota de la carta sobre el cambio de patatas, con los acompañamientos y
+// precios vigentes del local: "Convierte tus patatas en boniatos o patatas
+// deluxe por 1,90 € o en patatas con cheddar y bacon por 2,90 €."
+export function notaPatatas(localId, precios, idioma = "es") {
+  const en = idioma === "en";
+  const porPrecio = new Map();
+  for (const u of upgradesDeLocal(localId)) {
+    if (u.id === "no") continue;
+    const cents = precioDe(precios, ID_UPGRADE(u.id), "u", u.cents);
+    porPrecio.set(cents, [...(porPrecio.get(cents) || []), en ? u.cortoEn : u.corto]);
+  }
+  const partes = [...porPrecio].map(([cents, nombres]) =>
+    en ? `${nombres.join(" or ")} (${fmtEUR(cents).replace(/^(.*) €$/, "€$1").replace(",", ".")})` : `${nombres.join(" o ")} por ${fmtEUR(cents)}`
+  );
+  if (!partes.length) return "";
+  return en
+    ? `Swap your fries for ${partes.join(" or ")}.`
+    : `Convierte tus patatas en ${partes.join(" o en ")}.`;
+}
+
 export const fmtEUR = (cents) =>
   (cents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 
@@ -394,7 +422,7 @@ export function priceLine({ itemId, variantId, upgradeId, extraIds, panId, qty, 
     if (upgradeId && upgradeId !== "no") {
       if (!cat.upgrades) return null;
       upgrade = UPGRADES.find((u) => u.id === upgradeId);
-      if (!upgrade) return null;
+      if (!upgrade || !enLocal(upgrade, local)) return null;
     }
 
     let pan = null;

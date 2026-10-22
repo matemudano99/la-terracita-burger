@@ -8,8 +8,8 @@ import Carousel from "./Carousel";
 import Delivery from "./Delivery";
 import LtbMark from "./LtbMark";
 import { cartaEn } from "./menuI18n";
-import { fusionarCarta } from "./menu";
-import { LOCALES } from "./locales";
+import { fusionarCarta, cartaDeLocal, notaPatatas } from "./menu";
+import { CARTA_POR_DEFECTO } from "./locales";
 import BurbujaFoto, { BotonFoto } from "./BurbujaFoto";
 import { useBurbujaFoto } from "./useBurbujaFoto";
 import { useI18n } from "./i18n";
@@ -37,7 +37,11 @@ export default function Landing() {
   }, []);
   // La carta vive en src/menu.js (única fuente de verdad, compartida con /pedir
   // y el backend); aquí solo se traduce y se da el formato de presentación.
-  const CATS = useMemo(() => cartaEn(idioma, precios, fusionarCarta(productos)), [idioma, precios, productos]);
+  // Es la carta de Teatinos (la que abren por defecto los enlaces de la web).
+  const CATS = useMemo(
+    () => cartaEn(idioma, precios, cartaDeLocal(fusionarCarta(productos), CARTA_POR_DEFECTO)),
+    [idioma, precios, productos]
+  );
   const [activeCat, setActiveCat] = useState("smash");
   const [hover, setHover] = useState(null);
   const burbuja = useBurbujaFoto();
@@ -202,11 +206,6 @@ export default function Landing() {
                   </span>
                 </div>
                 <p style={sx("margin:10px 0 0;font-size:13.5px;line-height:1.5;color:rgba(246,241,233,.72)")}>{item.desc}</p>
-                {item.locales && (
-                  <p style={sx("margin:6px 0 0;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:rgba(246,241,233,.5)")}>
-                    {t("carta.soloEn", { local: item.locales.map((id) => LOCALES[id]?.corto || id).join(" · ") })}
-                  </p>
-                )}
                 <div style={sx("margin-top:16px;padding-top:14px;border-top:1px dashed rgba(246,241,233,.14);display:flex;flex-direction:column;gap:6px")}>
                   {item.rows.map((row, ri) => (
                     <div key={ri} style={sx("display:flex;align-items:baseline;justify-content:space-between;gap:10px")}>
@@ -220,9 +219,9 @@ export default function Landing() {
             );
           })}
         </div>
-        <p style={sx("margin:34px 0 0;font-size:12.5px;color:rgba(246,241,233,.72);text-align:center")}>{t("carta.nota")}</p>
+        <p style={sx("margin:34px 0 0;font-size:12.5px;color:rgba(246,241,233,.72);text-align:center")}>{t("carta.nota")} {notaPatatas(CARTA_POR_DEFECTO, precios, idioma)}</p>
         <div style={sx("margin:22px 0 0;text-align:center")}>
-          <a href="/carta" style={sx("display:inline-flex;align-items:center;gap:8px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:13px 28px;border-radius:100px;border:1px solid rgb(var(--acc) / .5);color:rgb(var(--acc));text-decoration:none")}>
+          <a href={`/carta/${CARTA_POR_DEFECTO}`} style={sx("display:inline-flex;align-items:center;gap:8px;font-family:'Anton',sans-serif;font-size:15px;letter-spacing:.05em;padding:13px 28px;border-radius:100px;border:1px solid rgb(var(--acc) / .5);color:rgb(var(--acc));text-decoration:none")}>
             {t("web.carta.completa")}
           </a>
         </div>

@@ -5,10 +5,11 @@ import MarqueeBackdrop from "./MarqueeStrip";
 import LangSwitcher from "./LangSwitcher";
 import { useI18n } from "./i18n";
 import LtbMark from "./LtbMark";
+import { CARTA_POR_DEFECTO } from "./locales";
 
 const LINKS = [
   { href: "/pedir", key: "nav.pedirOnline" },
-  { href: "/carta", key: "nav.carta" },
+  { href: `/carta/${CARTA_POR_DEFECTO}`, key: "nav.carta" },
   { href: "#del-mes", key: "nav.delMes" },
   { href: "#historia", key: "nav.historia" },
   { href: "#locales", key: "nav.locales" },
