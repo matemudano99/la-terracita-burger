@@ -17,10 +17,30 @@ export const FOTOS_CARTA = {
     "w": 600,
     "h": 400
   },
+  "classic": {
+    "src": "/fotos/carta/classic.webp?v=c6c08509",
+    "w": 600,
+    "h": 400
+  },
+  "derrumbe": {
+    "src": "/fotos/carta/derrumbe.webp?v=f640bf3b",
+    "w": 600,
+    "h": 400
+  },
+  "jack-burger": {
+    "src": "/fotos/carta/jack-burger.webp?v=0865b73e",
+    "w": 600,
+    "h": 400
+  },
   "la-terracita": {
     "src": "/fotos/carta/la-terracita.webp?v=eabd2490",
     "w": 400,
     "h": 600
+  },
+  "manolito": {
+    "src": "/fotos/carta/manolito.webp?v=3a2b8a3b",
+    "w": 600,
+    "h": 400
   },
   "martita": {
     "src": "/fotos/carta/martita.webp?v=39bfa5e3",
