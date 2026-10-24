@@ -39,5 +39,5 @@ export const BURGER_DEL_MES = {
   // para precio único. Déjalo en null y mostrará "Consulta" sin botón de pedir.
   precioCents: { u: 1690 },
   img: "/fotos/mes-la-victoria-1.webp",
-  img2: "/fotos/mes-la-victoria-2.webp",
+  img2: "/fotos/mes-la-victoria-2.webp?v=2", // ?v= porque la foto cambió con el mismo nombre (caché de 1 semana)
 };
