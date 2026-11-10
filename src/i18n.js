@@ -157,6 +157,7 @@ const DICT = {
   "web.footer.cookies": { es: "Cookies", en: "Cookies" },
   "web.footer.condiciones": { es: "Términos y condiciones", en: "Terms & conditions" },
   "web.footer.soloEs": { es: "", en: "(in Spanish)" },
+  "web.footer.cruzRoja": { es: "Socios de Cruz Roja", en: "Proud Red Cross members" },
 
   // Navegación
   "nav.delMes": { es: "Del mes", en: "This month" },

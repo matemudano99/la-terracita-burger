@@ -3,9 +3,9 @@
 // Para añadir una: assets-src/fotos/carta/<id>.jpg y npm run optimize:images.
 export const FOTOS_CARTA = {
   "burger-especial": {
-    "src": "/fotos/carta/burger-especial.webp?v=0280462f",
-    "w": 452,
-    "h": 600
+    "src": "/fotos/carta/burger-especial.webp?v=cde3fa5f",
+    "w": 600,
+    "h": 500
   },
   "cheeseburger": {
     "src": "/fotos/carta/cheeseburger.webp?v=b618eed9",

@@ -364,7 +364,7 @@ export default function Landing() {
           </div>
         </div>
         <div style={sx("max-width:1200px;margin:44px auto 0;padding-top:22px;border-top:1px solid rgba(246,241,233,.08);display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;font-size:12px;color:rgba(246,241,233,.6)")}>
-          <span>© 2026 La Terracita Burguer España SL · Málaga</span>
+          <span>© 2026 La Terracita Burguer España SL · Málaga · {t("web.footer.cruzRoja")}</span>
           <span style={sx("display:flex;flex-wrap:wrap;gap:12px;align-items:center")}>
             <a href="/aviso-legal" style={sx("color:rgba(246,241,233,.6)")}>{t("web.footer.avisoLegal")}</a>
             <a href="/privacidad" style={sx("color:rgba(246,241,233,.6)")}>{t("web.footer.privacidad")}</a>

@@ -34,8 +34,8 @@ for (const f of fs.readdirSync(SRC).filter((x) => /\.jpe?g$/i.test(x))) {
   console.log(`${f} (${kb(src)}) -> ${path.basename(out)} (${kb(out)})`);
 }
 
-// og:image 1200x630 (JPEG por compatibilidad con scrapers)
-await sharp(path.join(SRC, "mes-la-victoria-1.jpg"))
+// og:image 1200x630 (JPEG por compatibilidad con scrapers), con la foto del mes
+await sharp(path.join(SRC, path.basename(BURGER_DEL_MES.img).replace(/\.webp$/, ".jpg")))
   .resize({ width: 1200, height: 630, fit: "cover", position: "centre" })
   .jpeg({ quality: 80, mozjpeg: true })
   .toFile("public/og.jpg");

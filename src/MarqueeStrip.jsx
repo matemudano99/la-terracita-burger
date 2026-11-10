@@ -1,8 +1,9 @@
 // Animated marquee dividers — shared by the intro splash and the menu overlay
 // so both look identical.
+import { BURGER_DEL_MES } from "./mesData";
 
 const A = ["La Terracita Burger", "🔥", "Smash burgers", "Angus Dry Age", "🖤"];
-const B = ["La Victoria", "Cheddar fundido", "100% Mediterráneo", "Pan de papa", "🔥"];
+const B = [BURGER_DEL_MES.name, "Cheddar fundido", "100% Mediterráneo", "Pan de papa", "🔥"];
 const C = ["Para volverte adicto", "Smash · Angus", "La Terracita", "🖤"];
 
 function Strip({ items, rot = 0, top, dir = "ltb-marq", dur = 22, solid = false, fontSize = 26, opacity = 1 }) {
