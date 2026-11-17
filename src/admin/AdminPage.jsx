@@ -350,7 +350,7 @@ function Historial({ orders }) {
 
   const q = busca.trim().toLowerCase();
   const filtrados = q
-    ? orders.filter((o) => o.code.includes(q) || o.nombre.toLowerCase().includes(q) || o.telefono.includes(q))
+    ? orders.filter((o) => o.code.toLowerCase().includes(q) || o.nombre.toLowerCase().includes(q) || o.telefono.includes(q))
     : orders;
 
   const exportCSV = () => {

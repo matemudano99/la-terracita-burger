@@ -43,6 +43,15 @@ function origenDe(req) {
   return `${proto}://${host}`;
 }
 
+// Código corto del pedido: una letra y dos cifras (p. ej. «A27»), fácil de
+// cantar en cocina. Sin I, O ni Q, que en el ticket se confunden con 1 y 0.
+const LETRAS_CODIGO = "ABCDEFGHJKLMNPRSTUVWXYZ";
+function nuevoCodigo() {
+  const letra = LETRAS_CODIGO[Math.floor(Math.random() * LETRAS_CODIGO.length)];
+  const numero = String(Math.floor(Math.random() * 100)).padStart(2, "0"); // 00-99
+  return letra + numero;
+}
+
 export default async function handler(req, res) {
   try {
     if (!storeReady) {
@@ -226,7 +235,7 @@ async function crear(req, res) {
 
   const order = {
     id: randomUUID(),
-    code: String(Math.floor(100 + Math.random() * 900)),
+    code: nuevoCodigo(),
     local: b.local,
     nombre,
     telefono,
