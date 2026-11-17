@@ -105,7 +105,7 @@ export default function Delivery() {
             </span>
             <span style={sx("font-size:13px;color:rgba(10,8,6,.72);font-weight:600")}>
               {reparto
-                ? t("deliv.pedirOnlineSubDom", { km: reparto.radioKm, envio: fmtEUR(reparto.gastosCents) })
+                ? t("deliv.pedirOnlineSubDom", { zona: idioma === "en" ? reparto.zonaTextoEn : reparto.zonaTexto, envio: fmtEUR(reparto.gastosCents) })
                 : t("deliv.pedirOnlineSub")}
             </span>
           </span>

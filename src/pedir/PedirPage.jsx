@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sx } from "../sx";
 import { MENU, upgradesDeLocal, EXTRAS, PANES, fmtEUR, priceLine, itemName, conDescuento, precioDe, fusionarCarta, cartaDeLocal, ID_EXTRA, ID_PAN, ID_UPGRADE, PROMO, promoDescuento, PEDIDO_MINIMO_CENTS } from "../menu";
-import { LOCALES, estadoLocal, estadoReparto, repartoResumen, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
+import { LOCALES, cpValido, estadoLocal, estadoReparto, repartoResumen, horarioTexto, franjasProgramables, programadoTexto } from "../locales";
 import { useI18n } from "../i18n";
 import { menuPedir, tEtiqueta, precioEn, nombreItem } from "../menuI18n";
 import LangSwitcher from "../LangSwitcher";
@@ -248,7 +248,7 @@ export default function PedirPage() {
                   🛵 <strong style={{ color: `rgb(${rgb})` }}>{t("pedir.repartoTitulo")}</strong>
                   <br />
                   {t("pedir.repartoDetalle", {
-                    zona: t("pedir.zonaRadio", { km: reparto.radioKm }),
+                    zona: idioma === "en" ? reparto.zonaTextoEn : reparto.zonaTexto,
                     envio: fmtP(reparto.gastosCents),
                     min: fmtP(reparto.minimoCents),
                   })}
@@ -531,6 +531,8 @@ function CartDrawer({ cart, setQty, loc, carta, precios, menu, rgb, estado, pago
   const [entrega, setEntrega] = useState("recogida"); // "recogida" | "domicilio"
   const [calle, setCalle] = useState(localStorage.getItem("ltb_calle") || "");
   const [piso, setPiso] = useState(localStorage.getItem("ltb_piso") || "");
+  const [cp, setCp] = useState(localStorage.getItem("ltb_cp") || "");
+  const [barrio, setBarrio] = useState(localStorage.getItem("ltb_barrio") || "");
   const [cuando, setCuando] = useState("asap"); // "asap" | "programado"
   const [slotIso, setSlotIso] = useState("");
   const [web, setWeb] = useState(""); // honeypot antibots — un humano nunca lo ve
@@ -584,6 +586,8 @@ function CartDrawer({ cart, setQty, loc, carta, precios, menu, rgb, estado, pago
     if (nombre.trim().length < 2) return setError(t("pedir.err.nombre"));
     if (!/^\+?[\d\s.-]{9,17}$/.test(telefono.trim())) return setError(t("pedir.err.telefono"));
     if (esDomicilio && calle.trim().length < 6) return setError(t("pedir.err.direccion"));
+    if (esDomicilio && !cpValido(cp)) return setError(t("pedir.err.cp"));
+    if (esDomicilio && !barrio) return setError(t("pedir.err.barrio"));
     if (programado && !slotIso) return setError(t("pedir.err.hora"));
     setSending(true);
     try {
@@ -598,6 +602,8 @@ function CartDrawer({ cart, setQty, loc, carta, precios, menu, rgb, estado, pago
           entrega: esDomicilio ? "domicilio" : "recogida",
           direccion: esDomicilio ? calle.trim() : undefined,
           piso: esDomicilio ? piso.trim() : undefined,
+          cp: esDomicilio ? cp.trim() : undefined,
+          barrio: esDomicilio ? barrio : undefined,
           programado_para: programado ? slotIso : undefined,
           web, // honeypot: siempre vacío en humanos
           lineas: cart.map((l) => ({ itemId: l.itemId, variantId: l.variantId, upgradeId: l.upgradeId, extraIds: l.extraIds, panId: l.panId, qty: l.qty, nota: l.nota })),
@@ -607,7 +613,7 @@ function CartDrawer({ cart, setQty, loc, carta, precios, menu, rgb, estado, pago
       if (!res.ok) throw new Error(data.error || t("pedir.err.generico"));
       localStorage.setItem("ltb_nombre", nombre.trim());
       localStorage.setItem("ltb_telefono", telefono.trim());
-      if (esDomicilio) { localStorage.setItem("ltb_calle", calle.trim()); localStorage.setItem("ltb_piso", piso.trim()); }
+      if (esDomicilio) { localStorage.setItem("ltb_calle", calle.trim()); localStorage.setItem("ltb_piso", piso.trim()); localStorage.setItem("ltb_cp", cp.trim()); localStorage.setItem("ltb_barrio", barrio); }
       const seguimiento = { id: data.id, code: data.code, local: loc, total_cents: data.total_cents, ts: Date.now() };
       if (data.pago?.redirectUrl) {
         // Pago online: guardamos el seguimiento y saltamos a la pasarela.
@@ -624,7 +630,7 @@ function CartDrawer({ cart, setQty, loc, carta, precios, menu, rgb, estado, pago
 
   return (
     <div role="dialog" aria-modal="true" aria-label={t("pedir.tuPedido")} onClick={onClose} style={sx("position:fixed;inset:0;z-index:60;display:flex;justify-content:flex-end;background:rgba(5,4,3,.72);backdrop-filter:blur(4px)")}>
-      <div onClick={(e) => e.stopPropagation()} style={sx("width:min(480px,100%);height:100%;overflow:auto;background:#120e0a;border-left:1px solid rgba(246,241,233,.14);padding:26px;display:flex;flex-direction:column;gap:18px")}>
+      <div onClick={(e) => e.stopPropagation()} style={sx("width:min(580px,100%);height:100%;overflow:auto;background:#120e0a;border-left:1px solid rgba(246,241,233,.14);padding:30px;display:flex;flex-direction:column;gap:18px")}>
         <div style={sx("display:flex;align-items:center;justify-content:space-between;gap:12px")}>
           <h3 style={sx("margin:0;font-family:'Anton',sans-serif;font-weight:400;font-size:26px;text-transform:uppercase")}>{t("pedir.tuPedido")}</h3>
           <button onClick={onClose} aria-label={t("pedir.cerrar")} style={sx("width:38px;height:38px;border-radius:50%;border:1px solid rgba(246,241,233,.2);background:transparent;color:#f6f1e9;font-size:17px;cursor:pointer")}>✕</button>
@@ -642,7 +648,7 @@ function CartDrawer({ cart, setQty, loc, carta, precios, menu, rgb, estado, pago
 
         <div style={sx("font-size:13px;color:rgba(246,241,233,.65)")}>
           {esDomicilio ? (
-            <>{t("pedir.entregaZona")} <strong style={{ color: `rgb(${rgb})` }}>{t("pedir.zonaRadio", { km: deliveryConf.radioKm })}</strong><br />{t("pedir.gastosEnvio")} {fmtP(deliveryConf.gastosCents)} · {t("pedir.minimoDom", { min: fmtP(deliveryConf.minimoCents) })}<br />🕒 {repartoResumen(idioma)}</>
+            <>{t("pedir.entregaZona")} <strong style={{ color: `rgb(${rgb})` }}>{idioma === "en" ? deliveryConf.zonaTextoEn : deliveryConf.zonaTexto}</strong><br />{t("pedir.gastosEnvio")} {fmtP(deliveryConf.gastosCents)} · {t("pedir.minimoDom", { min: fmtP(deliveryConf.minimoCents) })}<br />🕒 {repartoResumen(idioma)}</>
           ) : (
             <>{t("pedir.recogidaEn")} <strong style={{ color: `rgb(${rgb})` }}>{L.name}</strong> — {L.address}<br />{t("pedir.pagoSeguroLinea")}</>
           )}
@@ -657,6 +663,21 @@ function CartDrawer({ cart, setQty, loc, carta, precios, menu, rgb, estado, pago
             <div>
               <span style={labelStyle}>{t("pedir.piso")}</span>
               <input value={piso} onChange={(e) => setPiso(e.target.value.slice(0, 60))} placeholder="3ºB, portal 2…" style={inputStyle} />
+            </div>
+            <div>
+              <span style={labelStyle}>{t("pedir.cp")}</span>
+              {/* Solo cifras y como mucho 5 */}
+              <input value={cp} onChange={(e) => setCp(e.target.value.replace(/\D/g, "").slice(0, 5))} placeholder="29730" inputMode="numeric" autoComplete="postal-code" style={inputStyle} />
+            </div>
+            <div>
+              <span style={labelStyle}>{t("pedir.barrio")}</span>
+              <div style={sx("display:flex;flex-wrap:wrap;gap:8px")}>
+                {[...deliveryConf.barrios, "Otro"].map((b) => (
+                  <button key={b} type="button" onClick={() => setBarrio(b)} style={sx(`font-size:14px;padding:10px 14px;border-radius:100px;cursor:pointer;font-family:inherit;border:1px solid ${barrio === b ? `rgb(${rgb})` : "rgba(246,241,233,.18)"};background:${barrio === b ? `rgb(${rgb})` : "transparent"};color:${barrio === b ? "#0a0806" : "#f6f1e9"}`)}>
+                    {b === "Otro" ? t("pedir.barrioOtro") : b}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         )}

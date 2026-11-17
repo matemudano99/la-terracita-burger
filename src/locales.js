@@ -48,16 +48,28 @@ export const LOCALES = {
     cerradoDias: [],
     pedidosWeb: true,
     // Reparto propio. El servidor geocodifica la dirección y exige que esté en
-    // el municipio Y dentro del radio (api/orders.js): el radio en línea recta
-    // no basta —Chilches queda a 3,9 km y es otro pueblo—.
+    // el municipio Y dentro del polígono `zona` (api/orders.js). El municipio
+    // es un seguro extra por si el dibujo roza un pueblo vecino.
+    // zona: puntos [longitud, latitud] dibujados en geojson.io. Cubre La Cala,
+    // el centro, Torre de Benagalbón y Añoreta; deja fuera Benagalbón pueblo.
+    // barrios: opciones que elige el cliente (además de «Otro»).
     // diasCompletos: días (0=domingo) con reparto también al mediodía; el resto,
     // solo el turno de noche. Poner activo: false lo oculta de la web al instante.
     delivery: {
       activo: true,
       gastosCents: 150,
       minimoCents: 1500,
-      radioKm: 4,
       municipio: "Rincón de la Victoria",
+      zonaTexto: "La Cala, Rincón, Torre de Benagalbón y Añoreta",
+      zonaTextoEn: "La Cala, Rincón, Torre de Benagalbón and Añoreta",
+      barrios: ["La Cala del Moral", "Rincón de la Victoria", "Torre de Benagalbón", "Añoreta"],
+      zona: [
+        [-4.3086062, 36.739975], // noroeste (monte sobre La Cala)
+        [-4.3205837, 36.7093784], // suroeste (mar, junto al río Totalán)
+        [-4.2325685, 36.708635], // sureste (mar, antes de Hacienda Condemar)
+        [-4.2336504, 36.7344017], // noreste (sobre Añoreta)
+        [-4.2512688, 36.7284563], // la «V» que deja fuera Benagalbón pueblo
+      ],
       diasCompletos: [5, 6, 0], // viernes, sábado y domingo
     },
     apps: {
@@ -312,13 +324,22 @@ export function programadoTexto(iso, ahora = new Date(), idioma = "es") {
   return T.programado(cuando, fmtHM(minutos));
 }
 
-// ── Distancia (control de zona de reparto) ───────────────────────────────────
-// Distancia en km entre dos coordenadas (haversine).
-export function distanciaKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const rad = (d) => (d * Math.PI) / 180;
-  const dLat = rad(lat2 - lat1);
-  const dLon = rad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
+// ── Zona de reparto (polígono) ───────────────────────────────────────────────
+// ¿El punto (lon, lat) cae dentro del polígono `zona`? Algoritmo «ray casting»:
+// desde el punto se traza una línea horizontal hacia la derecha y se cuentan
+// los lados del polígono que cruza. Impar = dentro, par = fuera.
+export function dentroDeZona(lon, lat, zona) {
+  let dentro = false;
+  for (let i = 0, j = zona.length - 1; i < zona.length; j = i++) {
+    const [xi, yi] = zona[i];
+    const [xj, yj] = zona[j];
+    // ¿Este lado tiene un extremo por encima y otro por debajo del punto, y
+    // el cruce con su horizontal queda a la derecha del punto?
+    const cruza = yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi;
+    if (cruza) dentro = !dentro; // cada cruce invierte el resultado
+  }
+  return dentro;
 }
+
+// Código postal español: 5 cifras.
+export const cpValido = (cp) => /^\d{5}$/.test(String(cp || "").trim());

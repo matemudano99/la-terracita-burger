@@ -193,8 +193,7 @@ const Condiciones = () => (
         <strong>Entrega a domicilio</strong>: disponible únicamente desde el local de <strong>Rincón de la
         Victoria</strong> ({LOCALES.rincon.address}), con reparto realizado por el propio establecimiento —no
         interviene ninguna empresa de transporte— dentro del término municipal de{" "}
-        <strong>{REPARTO.municipio}</strong> y en un radio máximo de <strong>{REPARTO.radioKm} km</strong> desde el
-        local. Al escribir tu dirección comprobamos ambas cosas: si queda fuera de la zona te lo indicamos{" "}
+        <strong>{REPARTO.municipio}</strong>, en concreto en <strong>{REPARTO.zonaTexto}</strong>. Al escribir tu dirección comprobamos ambas cosas: si queda fuera de la zona te lo indicamos{" "}
         <strong>antes de pagar</strong>. El reparto tiene un horario propio, más corto que el del local:{" "}
         <strong>solo en el turno de noche, salvo viernes, sábados y domingos, en los que también repartimos al
         mediodía</strong>; fuera de ese horario puedes recoger en el local, dejar el pedido programado o pedirnos

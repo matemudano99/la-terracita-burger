@@ -10,7 +10,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { randomUUID } from "node:crypto";
 import { priceLine, fmtEUR, itemName, fusionarCarta, promoDescuento, PEDIDO_MINIMO_CENTS } from "../src/menu.js";
-import { LOCALES, admitePedidosWeb, estadoLocal, estadoReparto, validarProgramado, distanciaKm } from "../src/locales.js";
+import { LOCALES, admitePedidosWeb, estadoLocal, estadoReparto, validarProgramado, dentroDeZona, cpValido } from "../src/locales.js";
 import { insertOrder, getOrder, listOrders, listRecientes, listHistorial, getAjustes, getCarta, getPrecios, preciosListos, getProductos, productosListos, pagosListos, tieneColumna, updateOrder, storeReady, usingSupabase } from "./_store.js";
 import { requireUser } from "./_auth.js";
 import { pagosDisponibles, crearPago, reembolsar } from "./_monei.js";
@@ -166,10 +166,19 @@ async function crear(req, res) {
   if (domicilio) {
     const calle = String(b.direccion || "").trim().slice(0, 160);
     const piso = String(b.piso || "").trim().slice(0, 60);
+    const cp = String(b.cp || "").trim();
+    const barrio = String(b.barrio || "").trim();
     if (calle.length < 6) return res.status(400).json({ error: "Escribe la calle y el número de entrega." });
+    if (!cpValido(cp)) return res.status(400).json({ error: "Escribe tu código postal (5 cifras)." });
+    // El barrio tiene que ser una de las opciones del local o «Otro».
+    const barrios = loc.delivery.barrios || [];
+    if (barrio !== "Otro" && !barrios.includes(barrio)) {
+      return res.status(400).json({ error: "Elige tu zona de la lista (o «Otro»)." });
+    }
 
-    // Control de zona: geocodifica la dirección y comprueba la distancia al local.
-    if (loc.delivery.radioKm && loc.lat != null) {
+    // Control de zona: geocodifica la dirección y comprueba que cae dentro del
+    // polígono de reparto dibujado en src/locales.js.
+    if (loc.delivery.zona) {
       let punto;
       try {
         punto = await geocodificar(`${calle}, ${loc.name}, Málaga, España`);
@@ -191,12 +200,14 @@ async function crear(req, res) {
       if (municipio && !mismoMunicipio(punto.municipio, municipio)) {
         return res.status(400).json({ error: `Solo repartimos en ${municipio}${punto.municipio ? ` y esa dirección está en ${punto.municipio}` : ""}. Puedes elegir recogida en el local.` });
       }
-      const km = distanciaKm(loc.lat, loc.lon, punto.lat, punto.lon);
-      if (km > loc.delivery.radioKm) {
-        return res.status(400).json({ error: `Tu dirección está a ${km.toFixed(1)} km del local — fuera de nuestra zona de reparto (máx. ${loc.delivery.radioKm} km). Puedes elegir recogida.` });
+      if (!dentroDeZona(punto.lon, punto.lat, loc.delivery.zona)) {
+        return res.status(400).json({ error: `Esa dirección queda fuera de nuestra zona de reparto (${loc.delivery.zonaTexto}). Puedes elegir recogida en el local.` });
       }
     }
-    direccion = piso ? `${calle} (${piso})` : calle;
+    // CP y zona van dentro del texto de la dirección: así salen en cocina, en
+    // el ticket y en /admin sin tocar la base de datos.
+    // Ej.: "C/ Mar 5 (3ºB) · CP 29730 · Rincón de la Victoria"
+    direccion = `${piso ? `${calle} (${piso})` : calle} · CP ${cp} · ${barrio}`;
     envioCents = loc.delivery.gastosCents || 0;
   }
 

@@ -372,8 +372,13 @@ cámara, que también la abre con teclado.
   SQL abajo); si no está, la opción no aparece.
 - **Reparto a domicilio propio (solo Rincón)**: implementado pero **oculto**
   tras `rincon.delivery.activo` en `src/locales.js`. Incluye **control de zona
-  por distancia**: geocodifica la dirección (Nominatim/OpenStreetMap, gratis) y
-  rechaza fuera de `radioKm` (4 km). Envío 1,50 €, mínimo propio 15 €. Teatinos
+  por polígono**: geocodifica la dirección (Nominatim/OpenStreetMap, gratis) y
+  rechaza si queda fuera del municipio o del polígono `delivery.zona` (dibujado
+  en geojson.io; cubre La Cala, Rincón, Torre de Benagalbón y Añoreta, deja fuera
+  Benagalbón pueblo). Se comprueba con «ray casting» (`dentroDeZona`). El
+  cliente debe escribir su **código postal** (5 cifras) y elegir su **zona**
+  (`delivery.barrios` u «Otro»); ambos se guardan dentro del texto de la
+  dirección. Envío 1,50 €, mínimo propio 15 €. Teatinos
   no tiene reparto propio. Para estrenarlo: (1) ejecutar el SQL de columnas de
   entrega, (2) ajustar gastos/mínimo/radio y poner `activo: true`, (3)
   actualizar la sección de entrega de /condiciones (hoy dice que no hay envíos).
